@@ -1,0 +1,3296 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+    Time Card Tracker
+    Developed by Shashank Singh Kalra, PhD, PE
+    LinkedIn: https://www.linkedin.com/in/shashanksinghkalra/
+    Email: shashank.kalra@arcadis.com
+    Copyright © 2025. All rights reserved.
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#366092">
+    <meta name="description" content="Professional time tracking application for managing project timecards">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Time Card Tracker">
+    <meta name="application-name" content="Time Card Tracker">
+    <meta name="msapplication-TileColor" content="#366092">
+    <meta name="msapplication-starturl" content="./">
+    
+    <!-- Manifest and Icons -->
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/svg+xml" href="./icon-256.svg">
+    <link rel="apple-touch-icon" href="./icon-192.svg">
+    <link rel="shortcut icon" href="./icon-256.svg">
+    
+    <title>Time Card Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #366092;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+
+        .header .hourglass-logo {
+            width: 60px;
+            height: 60px;
+            animation: flip 3s ease-in-out infinite;
+        }
+
+        @keyframes flip {
+            0%, 100% {
+                transform: rotate(0deg);
+            }
+            50% {
+                transform: rotate(180deg);
+            }
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin: 0;
+        }
+
+        .header .week-info {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .timer-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+
+        .timer-section h2 {
+            color: #366092;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .form-group label .history-count {
+            font-weight: normal;
+            font-size: 0.85em;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #366092;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .comment-suggestions {
+            position: relative;
+        }
+
+        .comment-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            border: 2px solid #366092;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: none;
+        }
+
+        .comment-dropdown.show {
+            display: block;
+        }
+
+        .comment-option {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #e9ecef;
+            transition: background-color 0.2s;
+        }
+
+        .comment-option:last-child {
+            border-bottom: none;
+        }
+
+        .comment-option:hover {
+            background-color: #f8f9fa;
+        }
+
+        .comment-option.selected {
+            background-color: #e7f3ff;
+        }
+
+        .timer-display {
+            text-align: center;
+            padding: 30px;
+            background: white;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .timer-display .time {
+            font-size: 3em;
+            font-weight: bold;
+            color: #366092;
+            font-family: 'Courier New', monospace;
+        }
+
+        .timer-display .status {
+            font-size: 1.2em;
+            color: #6c757d;
+            margin-top: 10px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #c82333;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .summary-section {
+            margin-top: 30px;
+        }
+
+        .summary-section h2 {
+            color: #366092;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .timecard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .timecard-table th {
+            background: #366092;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .timecard-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .timecard-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .timecard-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .day-column {
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .hours {
+            font-weight: 600;
+            color: #366092;
+        }
+
+        .comment {
+            font-size: 0.85em;
+            color: #6c757d;
+            font-style: italic;
+            display: none;
+            margin-top: 5px;
+        }
+
+        .comment.show {
+            display: block;
+        }
+
+        .toggle-comments-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            cursor: pointer;
+            margin-left: 5px;
+            transition: background 0.3s;
+        }
+
+        .toggle-comments-btn:hover {
+            background: #5a6268;
+        }
+
+        .toggle-comments-btn.active {
+            background: #366092;
+        }
+
+        .resume-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .resume-btn:hover {
+            background: #218838;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        }
+
+        .resume-btn:active {
+            transform: translateY(0);
+        }
+
+        .edit-btn {
+            background: #ffc107;
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        .edit-btn:hover {
+            background: #e0a800;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        }
+
+        .edit-input {
+            width: 100%;
+            padding: 4px;
+            border: 2px solid #366092;
+            border-radius: 3px;
+            font-size: 1em;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+        }
+
+        .edit-input:focus {
+            outline: none;
+            border-color: #28a745;
+        }
+
+        .total-row {
+            font-weight: bold;
+            background: #f8f9fa !important;
+        }
+
+        .current-day {
+            background: #fff3cd;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* Mini floating window */
+        .mini-window {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            z-index: 10000;
+            min-width: 280px;
+            display: none;
+            cursor: move;
+            user-select: none;
+        }
+
+        .mini-window.show {
+            display: block;
+        }
+
+        .mini-window.always-on-top {
+            z-index: 99999;
+        }
+
+        .mini-window-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .mini-window-title {
+            font-size: 0.9em;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+
+        .mini-window-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .mini-window-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .mini-window-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+
+        .mini-window-time {
+            font-size: 2.5em;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            margin: 10px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .mini-window-project {
+            font-size: 0.9em;
+            text-align: center;
+            opacity: 0.95;
+            margin-top: 10px;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+
+        .mini-window-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .mini-window-actions button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mini-window-actions button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .mini-restore-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .mini-stop-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .timecard-table {
+                font-size: 0.85em;
+            }
+
+            .timer-display .time {
+                font-size: 2em;
+            }
+
+            .mini-window {
+                right: 10px;
+                top: 10px;
+                min-width: 240px;
+            }
+
+            .mini-window-time {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-container">
+                <svg class="hourglass-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Hourglass frame -->
+                    <path d="M20 10 L80 10 L80 15 L70 15 L70 35 L50 50 L70 65 L70 85 L80 85 L80 90 L20 90 L20 85 L30 85 L30 65 L50 50 L30 35 L30 15 L20 15 Z" 
+                          fill="none" stroke="white" stroke-width="3"/>
+                    
+                    <!-- Top sand -->
+                    <path d="M32 17 L68 17 L68 33 L50 45 L32 33 Z" fill="#FFD700" opacity="0.9"/>
+                    
+                    <!-- Bottom sand -->
+                    <path d="M32 83 L68 83 L68 67 L50 55 L32 67 Z" fill="#FFD700" opacity="0.9"/>
+                    
+                    <!-- Center connection -->
+                    <circle cx="50" cy="50" r="3" fill="white"/>
+                    
+                    <!-- Falling sand particles -->
+                    <circle cx="48" cy="48" r="1" fill="#FFD700">
+                        <animate attributeName="cy" values="48;58;68;78;83" dur="2s" repeatCount="indefinite"/>
+                        <animate attributeName="opacity" values="1;1;1;0.5;0" dur="2s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="52" cy="45" r="1" fill="#FFD700">
+                        <animate attributeName="cy" values="45;55;65;75;83" dur="2.2s" repeatCount="indefinite"/>
+                        <animate attributeName="opacity" values="1;1;1;0.5;0" dur="2.2s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="50" cy="46" r="1" fill="#FFD700">
+                        <animate attributeName="cy" values="46;56;66;76;83" dur="2.1s" repeatCount="indefinite"/>
+                        <animate attributeName="opacity" values="1;1;1;0.5;0" dur="2.1s" repeatCount="indefinite"/>
+                    </circle>
+                </svg>
+                <h1>Time Card Tracker</h1>
+            </div>
+            <div class="week-info">
+                Week: <span id="weekDates"></span> | Today: <span id="currentDay"></span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div id="alertContainer"></div>
+
+            <!-- Timer Section -->
+            <div class="timer-section">
+                <h2>📋 Time Entry</h2>
+                
+                <div class="form-group">
+                    <label for="projectNameFilter">
+                        Project Name * 
+                        <span class="history-count" id="projectNameCount"></span>
+                    </label>
+                    <input type="text" id="projectNameFilter" placeholder="Enter or select project name" list="projectNameList" required autocomplete="off">
+                    <datalist id="projectNameList"></datalist>
+                </div>
+
+                <div class="form-group">
+                    <label for="projectName">
+                        Project Number * 
+                        <span class="history-count" id="projectCount"></span>
+                    </label>
+                    <input type="text" id="projectName" placeholder="Enter or select project number" list="projectList" required autocomplete="off">
+                    <datalist id="projectList"></datalist>
+                </div>
+
+                <div class="form-group">
+                    <label for="taskName">
+                        Task Name * 
+                        <span class="history-count" id="taskCount"></span>
+                    </label>
+                    <input type="text" id="taskName" placeholder="Enter or select task name" list="taskList" required autocomplete="off">
+                    <datalist id="taskList"></datalist>
+                </div>
+
+                <div class="form-group comment-suggestions">
+                    <label for="comment">
+                        Comment 
+                        <span class="history-count" id="commentCount"></span>
+                    </label>
+                    <textarea id="comment" placeholder="Enter or select comment (click to see suggestions)"></textarea>
+                    <div id="commentDropdown" class="comment-dropdown"></div>
+                </div>
+
+                <div class="timer-display">
+                    <div class="time" id="timerDisplay" onclick="editTimerDisplay()" style="cursor: pointer;" title="Click to edit time">00:00:00</div>
+                    <div class="status" id="timerStatus">Ready to start (Click time to edit)</div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="startBtn" onclick="startTimer()">
+                        ▶️ Start Timer
+                    </button>
+                    <button class="btn btn-danger" id="stopBtn" onclick="stopTimer()" disabled>
+                        ⏹️ Stop Timer
+                    </button>
+                    <button class="btn btn-secondary" id="resetBtn" onclick="resetTimerDisplay()">
+                        🔄 Reset
+                    </button>
+                    <button class="btn btn-info" id="miniWindowBtn" onclick="toggleMiniWindow()">
+                        📌 Picture-in-Picture
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Section -->
+            <div class="summary-section">
+                <h2>📊 Timecard Summary</h2>
+                <div class="alert alert-info" style="margin-bottom: 15px;">
+                    <strong>💡 Quick Tips:</strong> Click ✎ buttons next to any field to edit it. 
+                    Click + button to add time to empty cells. Use action buttons: ▶️ Resume | 🗑️ Delete
+                </div>
+                <div id="summaryContainer">
+                    <p style="text-align: center; color: #6c757d; padding: 20px;">
+                        No time entries recorded yet. Start tracking your time!
+                    </p>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="btn btn-info" onclick="exportToExcel()">
+                    💾 Export Current Week
+                </button>
+                <button class="btn btn-info" onclick="exportAllWeeksToExcel()">
+                    📊 Export All Weeks
+                </button>
+                <button class="btn btn-primary" onclick="document.getElementById('importFile').click()">
+                    📥 Import from Excel
+                </button>
+                <button class="btn btn-secondary" onclick="downloadHistory()">
+                    📋 Download History (JSON)
+                </button>
+                <button class="btn btn-danger" onclick="clearHistory()">
+                    🧹 Clear History
+                </button>
+            </div>
+
+            <!-- Hidden file input for import -->
+            <input type="file" id="importFile" accept=".xlsx,.xls" style="display: none;" onchange="importFromExcel(event)">
+
+            <!-- Copyright Footer -->
+            <div style="text-align: center; margin-top: 30px; padding: 20px; color: #6c757d; font-size: 0.9em; border-top: 1px solid #dee2e6;">
+                <p style="margin: 0;">Developed by <strong>Shashank Singh Kalra, PhD, PE</strong></p>
+                <p style="margin: 10px 0;">
+                    <a href="https://www.linkedin.com/in/shashanksinghkalra/" target="_blank" title="LinkedIn Profile" style="text-decoration: none; margin: 0 10px; display: inline-block;">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="32" height="32" rx="4" fill="#0A66C2"/>
+                            <path d="M11.5 13.5H8.5V23.5H11.5V13.5Z" fill="white"/>
+                            <path d="M10 12C11.1046 12 12 11.1046 12 10C12 8.89543 11.1046 8 10 8C8.89543 8 8 8.89543 8 10C8 11.1046 8.89543 12 10 12Z" fill="white"/>
+                            <path d="M23.5 23.5H20.5V18C20.5 16.6193 19.3807 15.5 18 15.5C16.6193 15.5 15.5 16.6193 15.5 18V23.5H12.5V13.5H15.5V14.8C16.1 13.9 17.5 13.2 18.5 13.2C21.5 13.2 23.5 15.2 23.5 18V23.5Z" fill="white"/>
+                        </svg>
+                    </a>
+                    <a href="mailto:shashank.kalra@arcadis.com" title="Email" style="text-decoration: none; margin: 0 10px; display: inline-block;">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="32" height="32" rx="4" fill="#0078D4"/>
+                            <path d="M6 10L16 17L26 10V9C26 8.44772 25.5523 8 25 8H7C6.44772 8 6 8.44772 6 9V10Z" fill="white"/>
+                            <path d="M6 12V23C6 23.5523 6.44772 24 7 24H25C25.5523 24 26 23.5523 26 23V12L16 19L6 12Z" fill="white"/>
+                        </svg>
+                    </a>
+                </p>
+                <p style="margin: 5px 0 0 0;">© 2025. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mini Floating Window -->
+    <div id="miniWindow" class="mini-window">
+        <div class="mini-window-header">
+            <div class="mini-window-title">Time Card Tracker</div>
+            <div class="mini-window-controls">
+                <button class="mini-window-btn" onclick="toggleAlwaysOnTop()" title="Toggle Always On Top" id="pinBtn">📌</button>
+                <button class="mini-window-btn" onclick="toggleMiniWindow()" title="Restore">🔽</button>
+            </div>
+        </div>
+        <div class="mini-window-time" id="miniTimerDisplay">00:00:00</div>
+        <div class="mini-window-project" id="miniProjectInfo">No timer running</div>
+        <div class="mini-window-actions">
+            <button class="mini-restore-btn" onclick="toggleMiniWindow()">Restore</button>
+            <button class="mini-stop-btn" onclick="stopTimer()" id="miniStopBtn" disabled>Stop</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        /**
+         * Time Card Tracker - JavaScript
+         * Developed by Shashank Singh Kalra, PhD, PE
+         * LinkedIn: https://www.linkedin.com/in/shashanksinghkalra/
+         * Email: shashank.kalra@arcadis.com
+         * Copyright © 2025. All rights reserved.
+         */
+
+        // Global variables
+        let timerInterval = null;
+        let startTime = null;
+        let manualTimeOffset = 0; // Offset in seconds for manually set time
+        let timeEntries = [];
+        const STORAGE_KEY = 'timecard_data';
+        const ALL_WEEKS_KEY = 'timecard_all_weeks';
+        const HISTORY_KEY = 'timecard_history';
+        const LAST_TASK_KEY = 'timecard_last_task';
+        const INSTANCE_KEY = 'timecard_instance_id';
+        const HEARTBEAT_KEY = 'timecard_instance_heartbeat';
+        let projectNameHistory = new Set();
+        let projectHistory = new Set();
+        let taskHistory = new Set();
+        let commentHistory = new Set();
+        let instanceId = null;
+        let heartbeatInterval = null;
+        let miniWindowActive = false;
+        let alwaysOnTop = false;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        
+        // Structured history to track relationships
+        let structuredHistory = {};
+        
+        // Last active task (for quick restart)
+        let lastActiveTask = null;
+
+        // Initialize on page load
+        window.onload = function() {
+            // Check for existing instance
+            if (!enforceSingleInstance()) {
+                return; // Another instance exists, this one will close
+            }
+            
+            loadWeekDates();
+            loadHistory();
+            loadData();
+            loadLastTask(); // Load last active task from previous session
+            populateHistoryFromEntries(); // Add history from current entries
+            updateSummary();
+            updateDropdowns();
+            setupInputListeners();
+            setupPageProtection();
+            registerServiceWorker(); // Register service worker for PWA
+            setupIdleNotifications(); // Setup idle timer notifications
+            setupMiniWindowDrag(); // Setup mini window dragging
+        };
+
+        // Enforce single instance - prevent multiple tabs/windows
+        function enforceSingleInstance() {
+            // Generate unique instance ID
+            instanceId = 'instance_' + Date.now() + '_' + Math.random();
+            
+            // Check if another instance exists
+            const existingInstanceId = localStorage.getItem(INSTANCE_KEY);
+            const lastHeartbeat = parseInt(localStorage.getItem(HEARTBEAT_KEY)) || 0;
+            const now = Date.now();
+            
+            // If another instance exists and is active (heartbeat within last 3 seconds)
+            if (existingInstanceId && existingInstanceId !== instanceId && (now - lastHeartbeat) < 3000) {
+                // Another instance is running - close this one immediately
+                window.close();
+                
+                // If window.close() doesn't work (e.g., not opened by script), redirect to blank
+                setTimeout(() => {
+                    window.location = 'about:blank';
+                }, 100);
+                
+                return false;
+            }
+            
+            // This is the active instance
+            localStorage.setItem(INSTANCE_KEY, instanceId);
+            localStorage.setItem(HEARTBEAT_KEY, now.toString());
+            
+            // Send heartbeat every second
+            heartbeatInterval = setInterval(() => {
+                localStorage.setItem(HEARTBEAT_KEY, Date.now().toString());
+            }, 1000);
+            
+            // Clean up on window close/unload
+            window.addEventListener('beforeunload', () => {
+                const currentInstanceId = localStorage.getItem(INSTANCE_KEY);
+                if (currentInstanceId === instanceId) {
+                    localStorage.removeItem(INSTANCE_KEY);
+                    localStorage.removeItem(HEARTBEAT_KEY);
+                }
+                if (heartbeatInterval) {
+                    clearInterval(heartbeatInterval);
+                }
+            });
+            
+            // Listen for storage events (another tab trying to become active)
+            window.addEventListener('storage', (e) => {
+                if (e.key === INSTANCE_KEY) {
+                    const currentInstanceId = localStorage.getItem(INSTANCE_KEY);
+                    // If another instance took over, close this one
+                    if (currentInstanceId && currentInstanceId !== instanceId) {
+                        clearInterval(heartbeatInterval);
+                        window.close();
+                        setTimeout(() => {
+                            window.location = 'about:blank';
+                        }, 100);
+                    }
+                }
+            });
+            
+            return true;
+        }
+
+        // Setup idle notifications
+        let idleNotificationInterval = null;
+        let notificationPermissionRequested = false;
+
+        function setupIdleNotifications() {
+            // Request notification permission
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        notificationPermissionRequested = true;
+                        startIdleCheck();
+                    }
+                });
+            } else if (Notification.permission === 'granted') {
+                notificationPermissionRequested = true;
+                startIdleCheck();
+            }
+
+            // Also start checking even if permission denied (will show in-app alerts)
+            if (Notification.permission === 'denied') {
+                startIdleCheck();
+            }
+        }
+
+        function startIdleCheck() {
+            // Check every 5 minutes if timer is not running
+            idleNotificationInterval = setInterval(() => {
+                if (startTime === null) {
+                    // Timer is not running
+                    showIdleNotification();
+                }
+            }, 5 * 60 * 1000); // 5 minutes
+        }
+
+        function showIdleNotification() {
+            // Check if document is hidden (user is not actively viewing)
+            if (document.hidden) {
+                // Try desktop notification
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    const notification = new Notification('Time Card Tracker', {
+                        body: 'Working on something? Start Timer',
+                        icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHJ4PSIxNSIgZmlsbD0iIzM2NjA5MiIvPjxwYXRoIGQ9Ik0yMCAxMCBMODAgMTAgTDgwIDE1IEw3MCAxNSBMNzAgMzUgTDUwIDUwIEw3MCA2NSBMNzAgODUgTDgwIDg1IEw4MCA5MCBMMjAgOTAgTDIwIDg1IEwzMCA4NSBMMzAgNjUgTDUwIDUwIEwzMCAzNSBMMzAgMTUgTDIwIDE1IFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iODYiLz48cGF0aCBkPSJNMzIgMTcgTDY4IDE3IEw2OCAzMyBMNTAgNDUgTDMyIDMzIFoiIGZpbGw9IiM2Q0Y0QzAiIG9wYWNpdHk9IjAuOSIvPjxwYXRoIGQ9Ik0zMiA4MyBMNjggODMgTDY4IDY3IEw1MCA1NSBMMzIgNjcgWiIgZmlsbD0iIzZDRjRDMCIgb3BhY2l0eT0iMC45Ii8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMyIgZmlsbD0id2hpdGUiLz48dGV4dCB4PSIxMDAiIHk9Ijk1IiBmaWxsPSJ3aGl0ZSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj48dHNwYW4+T2N0PC90c3Bhbj48L3RleHQ+PHJlY3QgeD0iOTAiIHk9IjQwIiB3aWR0aD0iMTAwIiBoZWlnaHQ9IjYwIiByeD0iNSIgZmlsbD0iIzY2NmVlYSIgLz48cmVjdCB4PSI5MCIgeT0iNjAiIHdpZHRoPSI1MCIgaGVpZ2h0PSI0MCIgcng9IjUiIGZpbGw9IiM3NjRiYTIiIC8+PC9zdmc+',
+                        badge: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIHZpZXdCb3g9IjAgMCA3MiA3MiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIzNiIgY3k9IjM2IiByPSIzNiIgZmlsbD0iIzM2NjA5MiIvPjwvc3ZnPg==',
+                        requireInteraction: true,
+                        tag: 'timer-reminder'
+                    });
+
+                    notification.onclick = function() {
+                        window.focus();
+                        notification.close();
+                    };
+                }
+            } else {
+                // User is viewing the page, show subtle in-app notification
+                const alertDiv = document.getElementById('alertContainer');
+                if (alertDiv && !alertDiv.querySelector('.reminder-alert')) {
+                    const reminderDiv = document.createElement('div');
+                    reminderDiv.className = 'alert alert-info reminder-alert';
+                    reminderDiv.innerHTML = `
+                        <strong>⏰ Reminder:</strong> No timer is running. Working on something? 
+                        <button onclick="document.getElementById('projectNameFilter').focus()" 
+                                style="margin-left: 10px; padding: 5px 15px; background: #366092; color: white; 
+                                       border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+                            Start Timer
+                        </button>
+                        <button onclick="this.parentElement.remove()" 
+                                style="margin-left: 10px; padding: 5px 15px; background: #6c757d; color: white; 
+                                       border: none; border-radius: 5px; cursor: pointer;">
+                            Dismiss
+                        </button>
+                    `;
+                    alertDiv.innerHTML = '';
+                    alertDiv.appendChild(reminderDiv);
+                    
+                    // Auto-remove after 30 seconds
+                    setTimeout(() => {
+                        if (reminderDiv.parentElement) {
+                            reminderDiv.remove();
+                        }
+                    }, 30000);
+                }
+            }
+        }
+
+        // Register service worker for PWA installation
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                // Create inline service worker
+                const swCode = `
+                    self.addEventListener('install', (event) => {
+                        self.skipWaiting();
+                    });
+                    
+                    self.addEventListener('activate', (event) => {
+                        event.waitUntil(clients.claim());
+                    });
+                    
+                    self.addEventListener('fetch', (event) => {
+                        // Let the browser handle all requests normally
+                        event.respondWith(fetch(event.request));
+                    });
+                `;
+                
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+                
+                navigator.serviceWorker.register(swUrl)
+                    .then(registration => {
+                        console.log('Service Worker registered successfully');
+                    })
+                    .catch(error => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            }
+        }
+
+        // Get week dates (Monday to Friday)
+        function getWeekDates() {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const monday = new Date(today);
+            
+            // Adjust to get Monday (0 = Sunday, 1 = Monday)
+            const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            monday.setDate(today.getDate() + daysToMonday);
+            
+            const friday = new Date(monday);
+            friday.setDate(monday.getDate() + 4);
+            
+            return { monday, friday };
+        }
+
+        // Load and display week dates
+        function loadWeekDates() {
+            const { monday, friday } = getWeekDates();
+            const formatDate = (date) => {
+                return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${date.getFullYear()}`;
+            };
+            
+            document.getElementById('weekDates').textContent = 
+                `${formatDate(monday)} to ${formatDate(friday)}`;
+            
+            const today = new Date();
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayName = days[today.getDay()];
+            const currentDayText = `${dayName}, ${formatDate(today)}`;
+            document.getElementById('currentDay').textContent = currentDayText;
+        }
+
+        // Get current weekday (1=Monday, 5=Friday)
+        function getCurrentWeekday() {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            // Convert Sunday=0 to Monday=1 format
+            if (dayOfWeek === 0) return 5; // Sunday -> Friday
+            if (dayOfWeek === 6) return 5; // Saturday -> Friday
+            return dayOfWeek; // Monday=1, ..., Friday=5
+        }
+
+        // Format seconds to HH:MM:SS
+        function formatSecondsToHHMMSS(totalSeconds) {
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        // Parse HH:MM:SS to seconds
+        function parseHHMMSSToSeconds(timeString) {
+            if (!timeString || timeString === '00:00:00') return 0;
+            const parts = timeString.split(':');
+            if (parts.length !== 3) return 0;
+            const hours = parseInt(parts[0]) || 0;
+            const minutes = parseInt(parts[1]) || 0;
+            const seconds = parseInt(parts[2]) || 0;
+            return hours * 3600 + minutes * 60 + seconds;
+        }
+
+        // Convert HH:MM:SS to decimal hours
+        function convertToDecimalHours(timeString) {
+            const seconds = parseHHMMSSToSeconds(timeString);
+            return (seconds / 3600).toFixed(2);
+        }
+
+        // Start timer
+        function startTimer() {
+            let projectNameFilter = document.getElementById('projectNameFilter').value.trim();
+            let project = document.getElementById('projectName').value.trim();
+            let task = document.getElementById('taskName').value.trim();
+            let comment = document.getElementById('comment').value.trim();
+
+            // If any required field is empty, try to resume from last entry
+            if (!projectNameFilter || !project || !task) {
+                // First try lastActiveTask (most recently stopped timer)
+                if (lastActiveTask && lastActiveTask.projectNameFilter && lastActiveTask.project && lastActiveTask.task) {
+                    projectNameFilter = lastActiveTask.projectNameFilter;
+                    project = lastActiveTask.project;
+                    task = lastActiveTask.task;
+                    
+                    // Update the form fields
+                    document.getElementById('projectNameFilter').value = projectNameFilter;
+                    document.getElementById('projectName').value = project;
+                    document.getElementById('taskName').value = task;
+                    
+                    showAlert(`Resuming previous task: ${projectNameFilter} - ${project} - ${task}`, 'info');
+                } 
+                // If no lastActiveTask, try to get the most recent entry from timeEntries
+                else if (timeEntries.length > 0) {
+                    const lastEntry = timeEntries[timeEntries.length - 1];
+                    projectNameFilter = lastEntry.projectNameFilter || '';
+                    project = lastEntry.project || '';
+                    task = lastEntry.task || '';
+                    
+                    // Update the form fields
+                    document.getElementById('projectNameFilter').value = projectNameFilter;
+                    document.getElementById('projectName').value = project;
+                    document.getElementById('taskName').value = task;
+                    
+                    showAlert(`Starting from last entry: ${projectNameFilter} - ${project} - ${task}`, 'info');
+                }
+                // Still no data after trying to resume
+                else {
+                    if (!projectNameFilter) {
+                        showAlert('Please enter a project name', 'error');
+                        return;
+                    }
+                    if (!project) {
+                        showAlert('Please enter a project number', 'error');
+                        return;
+                    }
+                    if (!task) {
+                        showAlert('Please enter a task name', 'error');
+                        return;
+                    }
+                }
+            }
+
+            // Save to history
+            addToHistory(projectNameFilter, project, task, comment);
+
+            // Save as last active task (for next session restart)
+            lastActiveTask = {
+                projectNameFilter: projectNameFilter,
+                project: project,
+                task: task
+            };
+            saveLastTask(); // Persist to localStorage
+
+            // Calculate start time considering manual offset
+            startTime = Date.now() - (manualTimeOffset * 1000);
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('resetBtn').disabled = true;
+            document.getElementById('projectNameFilter').disabled = true;
+            document.getElementById('projectName').disabled = true;
+            document.getElementById('taskName').disabled = true;
+            document.getElementById('comment').disabled = true;
+            document.getElementById('timerStatus').textContent = `Timer running for ${projectNameFilter} - ${project} - ${task}`;
+
+            timerInterval = setInterval(updateTimerDisplay, 1000);
+            showAlert(`Timer started for ${projectNameFilter} - ${project} - ${task}`, 'success');
+            
+            // Clear any reminder notifications
+            const reminderAlert = document.querySelector('.reminder-alert');
+            if (reminderAlert) {
+                reminderAlert.remove();
+            }
+            
+            // Update mini window if active
+            if (miniWindowActive) {
+                updateMiniWindowInfo();
+            }
+        }
+
+        // Auto-stop timer (called when page closes/refreshes)
+        function autoStopTimer() {
+            if (!startTime) {
+                return; // Timer not running
+            }
+
+            clearInterval(timerInterval);
+            const endTime = Date.now();
+            const elapsedSeconds = Math.floor((endTime - startTime) / 1000);
+            const elapsedTime = formatSecondsToHHMMSS(elapsedSeconds);
+
+            const projectNameFilter = document.getElementById('projectNameFilter').value.trim();
+            const project = document.getElementById('projectName').value.trim();
+            const task = document.getElementById('taskName').value.trim();
+            const comment = document.getElementById('comment').value.trim();
+            const currentDay = getCurrentWeekday();
+
+            // Save as last active task for quick restart on next session
+            lastActiveTask = {
+                projectNameFilter: projectNameFilter,
+                project: project,
+                task: task
+            };
+            saveLastTask(); // Persist to localStorage
+
+            // Find or create entry
+            let entry = timeEntries.find(e => e.projectNameFilter === projectNameFilter && e.project === project && e.task === task);
+            
+            if (entry) {
+                // Update existing entry - add times
+                const existingTime = entry[`day${currentDay}_hr`] || '00:00:00';
+                const existingSeconds = parseHHMMSSToSeconds(existingTime);
+                const totalSeconds = existingSeconds + elapsedSeconds;
+                entry[`day${currentDay}_hr`] = formatSecondsToHHMMSS(totalSeconds);
+                
+                const existingComment = entry[`day${currentDay}_comment`] || '';
+                if (existingComment && comment) {
+                    const existingComments = existingComment.split(';').map(c => c.trim());
+                    const newCommentTrimmed = comment.trim();
+                    if (!existingComments.includes(newCommentTrimmed)) {
+                        entry[`day${currentDay}_comment`] = `${existingComment}; ${comment}`;
+                    }
+                } else if (comment) {
+                    entry[`day${currentDay}_comment`] = comment;
+                }
+            } else {
+                // Create new entry
+                entry = { projectNameFilter, project, task };
+                for (let i = 1; i <= 5; i++) {
+                    entry[`day${i}_hr`] = '00:00:00';
+                    entry[`day${i}_comment`] = '';
+                }
+                entry[`day${currentDay}_hr`] = elapsedTime;
+                entry[`day${currentDay}_comment`] = comment;
+                timeEntries.push(entry);
+            }
+
+            // Save data immediately
+            saveData();
+        }
+
+        // Stop timer
+        function stopTimer() {
+            if (!startTime) {
+                showAlert('Timer was not started!', 'error');
+                return;
+            }
+
+            clearInterval(timerInterval);
+            const endTime = Date.now();
+            const elapsedSeconds = Math.floor((endTime - startTime) / 1000);
+            const elapsedTime = formatSecondsToHHMMSS(elapsedSeconds);
+
+            const projectNameFilter = document.getElementById('projectNameFilter').value.trim();
+            const project = document.getElementById('projectName').value.trim();
+            const task = document.getElementById('taskName').value.trim();
+            const comment = document.getElementById('comment').value.trim();
+            const currentDay = getCurrentWeekday();
+
+            // Save as last active task for quick restart
+            lastActiveTask = {
+                projectNameFilter: projectNameFilter,
+                project: project,
+                task: task
+            };
+            saveLastTask(); // Persist to localStorage
+
+            // Find or create entry - now includes projectNameFilter
+            let entry = timeEntries.find(e => e.projectNameFilter === projectNameFilter && e.project === project && e.task === task);
+            
+            if (entry) {
+                // Update existing entry - add times
+                const existingTime = entry[`day${currentDay}_hr`] || '00:00:00';
+                const existingSeconds = parseHHMMSSToSeconds(existingTime);
+                const totalSeconds = existingSeconds + elapsedSeconds;
+                entry[`day${currentDay}_hr`] = formatSecondsToHHMMSS(totalSeconds);
+                
+                const existingComment = entry[`day${currentDay}_comment`] || '';
+                if (existingComment && comment) {
+                    // Check if the new comment already exists in the existing comments
+                    const existingComments = existingComment.split(';').map(c => c.trim());
+                    const newCommentTrimmed = comment.trim();
+                    
+                    if (!existingComments.includes(newCommentTrimmed)) {
+                        entry[`day${currentDay}_comment`] = `${existingComment}; ${comment}`;
+                    }
+                    // If comment already exists, don't add it again
+                } else if (comment) {
+                    entry[`day${currentDay}_comment`] = comment;
+                }
+            } else {
+                // Create new entry
+                entry = { projectNameFilter, project, task };
+                for (let i = 1; i <= 5; i++) {
+                    entry[`day${i}_hr`] = '00:00:00';
+                    entry[`day${i}_comment`] = '';
+                }
+                entry[`day${currentDay}_hr`] = elapsedTime;
+                entry[`day${currentDay}_comment`] = comment;
+                timeEntries.push(entry);
+            }
+
+            saveData();
+            updateSummary();
+            
+            // Reset timer UI but keep the form values
+            clearInterval(timerInterval);
+            startTime = null;
+            manualTimeOffset = 0;
+            document.getElementById('timerDisplay').textContent = '00:00:00';
+            document.getElementById('timerStatus').textContent = 'Ready to start (Click time to edit)';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('resetBtn').disabled = false;
+            document.getElementById('projectNameFilter').disabled = false;
+            document.getElementById('projectName').disabled = false;
+            document.getElementById('taskName').disabled = false;
+            document.getElementById('comment').disabled = false;
+
+            const elapsedHours = (elapsedSeconds / 3600).toFixed(2);
+            const minutes = (elapsedSeconds / 60).toFixed(1);
+            showAlert(`Time recorded: ${elapsedTime} (${elapsedHours} hours / ${minutes} minutes)`, 'success');
+            
+            // Update mini window if active
+            if (miniWindowActive) {
+                updateMiniWindowInfo();
+            }
+        }
+
+        // Update timer display
+        function updateTimerDisplay() {
+            if (!startTime) return;
+
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            const seconds = elapsed % 60;
+
+            const display = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            document.getElementById('timerDisplay').textContent = display;
+            
+            // Update mini window if active
+            if (miniWindowActive) {
+                document.getElementById('miniTimerDisplay').textContent = display;
+            }
+        }
+
+        // Variables for PiP window
+        let pipWindow = null;
+        let pipUpdateInterval = null;
+
+        // Toggle mini window with OS Picture-in-Picture support
+        async function toggleMiniWindow() {
+            // Check if Document Picture-in-Picture API is available
+            if ('documentPictureInPicture' in window) {
+                // Use OS-level Picture-in-Picture
+                if (pipWindow && !pipWindow.closed) {
+                    // Close existing PiP window
+                    pipWindow.close();
+                } else {
+                    // Open new OS-level PiP window
+                    await openPictureInPicture();
+                }
+            } else {
+                // Fallback to browser-based mini window
+                const miniWindow = document.getElementById('miniWindow');
+                const mainContainer = document.querySelector('.container');
+                
+                miniWindowActive = !miniWindowActive;
+                
+                if (miniWindowActive) {
+                    // Show mini window, hide main
+                    miniWindow.classList.add('show');
+                    mainContainer.style.display = 'none';
+                    updateMiniWindowInfo();
+                    
+                    // Update button text
+                    document.getElementById('miniWindowBtn').innerHTML = '🔽 Restore';
+                } else {
+                    // Hide mini window, show main
+                    miniWindow.classList.remove('show');
+                    mainContainer.style.display = 'block';
+                    
+                    // Update button text
+                    document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
+                }
+            }
+        }
+
+        // Open OS-level Picture-in-Picture window
+        async function openPictureInPicture() {
+            try {
+                // Get current project info
+                const projectName = document.getElementById('projectNameFilter').value.trim() || 'No Project';
+                const projectNumber = document.getElementById('projectName').value.trim() || 'N/A';
+                const task = document.getElementById('taskName').value.trim() || 'No Task';
+                
+                // Calculate total time for this project and task for TODAY ONLY
+                let projectTotalSeconds = 0;
+                const currentDay = getCurrentWeekday();
+                const matchingEntries = timeEntries.filter(e => 
+                    e.projectNameFilter === projectName && 
+                    e.project === projectNumber &&
+                    e.task === task
+                );
+                // Sum only today's time for matching entries
+                matchingEntries.forEach(entry => {
+                    projectTotalSeconds += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
+                });
+                const projectTotalTime = formatSecondsToHHMMSS(projectTotalSeconds);
+
+                // Open PiP window
+                pipWindow = await documentPictureInPicture.requestWindow({
+                    width: 500,
+                    height: 80
+                });
+
+                // Create styles for PiP window
+                const pipStyles = `
+                    <style>
+                        * {
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                            color: white;
+                            height: 100vh;
+                            width: 100vw;
+                            display: flex;
+                            flex-direction: column;
+                            overflow: hidden;
+                        }
+                        .pip-content {
+                            flex: 1;
+                            display: flex;
+                            flex-wrap: wrap;
+                            justify-content: center;
+                            align-items: center;
+                            padding: 8px;
+                            gap: 8px;
+                        }
+                        .pip-timer {
+                            font-size: clamp(1.2em, 6vw, 2.5em);
+                            font-weight: bold;
+                            font-family: 'Courier New', monospace;
+                            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                            line-height: 1;
+                            white-space: nowrap;
+                        }
+                        .pip-display-text {
+                            font-size: clamp(0.8em, 4vw, 1.8em);
+                            font-weight: 600;
+                            line-height: 1.3;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            max-width: 85%;
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        }
+                        .pip-record-btn {
+                            min-width: 32px;
+                            min-height: 32px;
+                            width: calc(clamp(1em, 5vw, 2em) + 8px);
+                            height: calc(clamp(1em, 5vw, 2em) + 8px);
+                            border: 3px solid rgba(255,255,255,0.9);
+                            border-radius: 50%;
+                            background: transparent;
+                            cursor: pointer;
+                            transition: all 0.3s;
+                            position: relative;
+                            padding: 0;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            flex-shrink: 0;
+                        }
+                        .pip-record-btn:hover {
+                            border-color: rgba(255,255,255,1);
+                            transform: scale(1.15);
+                            box-shadow: 0 0 15px rgba(255,255,255,0.6);
+                        }
+                        .pip-record-btn.recording {
+                            background: #dc3545;
+                            border-color: #dc3545;
+                            animation: pulse 2s ease-in-out infinite;
+                        }
+                        .pip-record-btn.recording:hover {
+                            background: #c82333;
+                            border-color: #c82333;
+                            box-shadow: 0 0 20px rgba(220, 53, 69, 0.8);
+                        }
+                        @keyframes pulse {
+                            0%, 100% {
+                                opacity: 1;
+                                box-shadow: 0 0 10px rgba(220, 53, 69, 0.6);
+                            }
+                            50% {
+                                opacity: 0.85;
+                                box-shadow: 0 0 20px rgba(220, 53, 69, 0.9);
+                            }
+                        }
+                    </style>
+                `;
+
+                // Create HTML content for PiP window
+                const pipHTML = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>⏱️ Timer</title>
+                        ${pipStyles}
+                    </head>
+                    <body>
+                        <div class="pip-content">
+                            <div class="pip-display-text" id="pipDisplayText">${projectName}: ${task} - ${projectTotalTime}</div>
+                            <button class="pip-record-btn ${startTime !== null ? 'recording' : ''}" id="pipRecordBtn" onclick="window.opener.toggleTimerFromPip()" title="${startTime !== null ? 'Stop Recording' : 'Start Recording'}"></button>
+                        </div>
+                    </body>
+                    </html>
+                `;
+
+                // Write content to PiP window
+                pipWindow.document.write(pipHTML);
+                pipWindow.document.close();
+
+                // Update button text
+                document.getElementById('miniWindowBtn').innerHTML = '🔽 Close PiP';
+
+                // Update PiP window
+                pipUpdateInterval = setInterval(() => {
+                    if (pipWindow && !pipWindow.closed) {
+                        const pipRecordBtn = pipWindow.document.getElementById('pipRecordBtn');
+                        
+                        if (startTime !== null) {
+                            // Show recording state
+                            pipRecordBtn.classList.add('recording');
+                            pipRecordBtn.title = 'Stop Recording';
+                        } else {
+                            // Show stopped state
+                            pipRecordBtn.classList.remove('recording');
+                            pipRecordBtn.title = 'Start Recording';
+                        }
+
+                        // Update project total time for TODAY ONLY (including current session if running)
+                        let projectTotalSeconds = 0;
+                        const currentProjectName = document.getElementById('projectNameFilter').value.trim();
+                        const currentProjectNumber = document.getElementById('projectName').value.trim();
+                        const currentTask = document.getElementById('taskName').value.trim();
+                        const currentDay = getCurrentWeekday();
+                        
+                        // Find matching entries for this project, project number, AND task
+                        const matchingEntries = timeEntries.filter(e => 
+                            e.projectNameFilter === currentProjectName && 
+                            e.project === currentProjectNumber &&
+                            e.task === currentTask
+                        );
+                        
+                        // Sum only today's time for matching entries
+                        matchingEntries.forEach(entry => {
+                            projectTotalSeconds += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
+                        });
+                        
+                        // Add current running time if timer is active
+                        if (startTime !== null) {
+                            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                            projectTotalSeconds += elapsed;
+                        }
+                        
+                        const totalTime = formatSecondsToHHMMSS(projectTotalSeconds);
+                        
+                        // Update combined display text
+                        const pipDisplayText = pipWindow.document.getElementById('pipDisplayText');
+                        const displayTaskName = currentTask || 'No Task';
+                        const displayProjectName = currentProjectName || 'No Project';
+                        pipDisplayText.textContent = `${displayProjectName}: ${displayTaskName} - ${totalTime}`;
+                    } else {
+                        // PiP window was closed
+                        clearInterval(pipUpdateInterval);
+                        document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
+                    }
+                }, 1000);
+
+                // Handle PiP window close
+                pipWindow.addEventListener('pagehide', () => {
+                    clearInterval(pipUpdateInterval);
+                    pipWindow = null;
+                    document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
+                });
+
+                showAlert('Picture-in-Picture window opened! It will stay on top of other windows.', 'success');
+
+            } catch (error) {
+                console.error('Error opening Picture-in-Picture:', error);
+                showAlert('Picture-in-Picture not supported in this browser. Using fallback mini window.', 'info');
+                
+                // Fallback to browser-based mini window
+                const miniWindow = document.getElementById('miniWindow');
+                const mainContainer = document.querySelector('.container');
+                
+                miniWindowActive = true;
+                miniWindow.classList.add('show');
+                mainContainer.style.display = 'none';
+                updateMiniWindowInfo();
+                document.getElementById('miniWindowBtn').innerHTML = '🔽 Restore';
+            }
+        }
+
+        // Update mini window information
+        function updateMiniWindowInfo() {
+            const miniTimerDisplay = document.getElementById('miniTimerDisplay');
+            const miniProjectInfo = document.getElementById('miniProjectInfo');
+            const miniStopBtn = document.getElementById('miniStopBtn');
+            
+            if (startTime) {
+                // Timer is running
+                const projectNameFilter = document.getElementById('projectNameFilter').value.trim();
+                const project = document.getElementById('projectName').value.trim();
+                const task = document.getElementById('taskName').value.trim();
+                
+                miniProjectInfo.innerHTML = `<strong>${projectNameFilter}</strong><br>${project} - ${task}`;
+                miniStopBtn.disabled = false;
+                
+                // Update time
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const hours = Math.floor(elapsed / 3600);
+                const minutes = Math.floor((elapsed % 3600) / 60);
+                const seconds = elapsed % 60;
+                const display = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                miniTimerDisplay.textContent = display;
+            } else {
+                miniTimerDisplay.textContent = '00:00:00';
+                miniProjectInfo.textContent = 'No timer running';
+                miniStopBtn.disabled = true;
+            }
+        }
+
+        // Toggle always on top
+        function toggleAlwaysOnTop() {
+            const miniWindow = document.getElementById('miniWindow');
+            const pinBtn = document.getElementById('pinBtn');
+            
+            alwaysOnTop = !alwaysOnTop;
+            
+            if (alwaysOnTop) {
+                miniWindow.classList.add('always-on-top');
+                pinBtn.style.background = 'rgba(255,255,255,0.4)';
+                pinBtn.title = 'Always On Top (Active)';
+            } else {
+                miniWindow.classList.remove('always-on-top');
+                pinBtn.style.background = 'rgba(255,255,255,0.2)';
+                pinBtn.title = 'Toggle Always On Top';
+            }
+        }
+
+        // Setup draggable mini window
+        function setupMiniWindowDrag() {
+            const miniWindow = document.getElementById('miniWindow');
+            const header = miniWindow.querySelector('.mini-window-header');
+            
+            header.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.mini-window-btn')) return; // Don't drag when clicking buttons
+                
+                isDragging = true;
+                const rect = miniWindow.getBoundingClientRect();
+                dragOffset.x = e.clientX - rect.left;
+                dragOffset.y = e.clientY - rect.top;
+                
+                miniWindow.style.cursor = 'grabbing';
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                
+                e.preventDefault();
+                
+                let newX = e.clientX - dragOffset.x;
+                let newY = e.clientY - dragOffset.y;
+                
+                // Keep within viewport
+                const rect = miniWindow.getBoundingClientRect();
+                newX = Math.max(0, Math.min(newX, window.innerWidth - rect.width));
+                newY = Math.max(0, Math.min(newY, window.innerHeight - rect.height));
+                
+                miniWindow.style.left = newX + 'px';
+                miniWindow.style.top = newY + 'px';
+                miniWindow.style.right = 'auto';
+            });
+            
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    miniWindow.style.cursor = 'move';
+                }
+            });
+        }
+
+        // Reset timer display to 00:00:00
+        function resetTimerDisplay() {
+            const isRunning = startTime !== null;
+            
+            if (isRunning) {
+                // Reset running timer to start from 00:00:00 now
+                startTime = Date.now();
+                document.getElementById('timerStatus').textContent = 'Timer reset and running';
+                showAlert('Timer reset to 00:00:00 and continuing', 'info');
+            } else {
+                // Reset stopped timer
+                manualTimeOffset = 0;
+                document.getElementById('timerDisplay').textContent = '00:00:00';
+                document.getElementById('timerStatus').textContent = 'Ready to start (Click time to edit)';
+                showAlert('Timer reset to 00:00:00', 'info');
+            }
+        }
+
+        // Reset timer (clear form and timer)
+        function resetTimer() {
+            clearInterval(timerInterval);
+            startTime = null;
+            manualTimeOffset = 0;
+            document.getElementById('timerDisplay').textContent = '00:00:00';
+            document.getElementById('timerStatus').textContent = 'Ready to start (Click time to edit)';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('resetBtn').disabled = false;
+            document.getElementById('projectNameFilter').disabled = false;
+            document.getElementById('projectName').disabled = false;
+            document.getElementById('taskName').disabled = false;
+            document.getElementById('comment').disabled = false;
+            document.getElementById('projectNameFilter').value = '';
+            document.getElementById('projectName').value = '';
+            document.getElementById('taskName').value = '';
+            document.getElementById('comment').value = '';
+        }
+
+        // Edit timer display manually
+        function editTimerDisplay() {
+            const currentTime = document.getElementById('timerDisplay').textContent;
+            const isRunning = startTime !== null;
+            
+            const promptMessage = isRunning 
+                ? 'Edit current timer value (format: HH:MM:SS):\n\nTimer is running - you can adjust the time.\n\nExample: 01:30:00 for 1 hour 30 minutes'
+                : 'Set timer start value (format: HH:MM:SS):\n\nExample: 01:30:00 for 1 hour 30 minutes';
+            
+            const newTime = prompt(promptMessage, currentTime);
+
+            if (newTime === null) return; // User cancelled
+
+            // Validate time format
+            const timeRegex = /^([0-9]{1,2}):([0-9]{2}):([0-9]{2})$/;
+            const match = newTime.trim().match(timeRegex);
+            
+            if (!match) {
+                showAlert('Invalid time format! Use HH:MM:SS (e.g., 01:30:00)', 'error');
+                return;
+            }
+
+            const hours = parseInt(match[1]);
+            const minutes = parseInt(match[2]);
+            const seconds = parseInt(match[3]);
+
+            if (minutes >= 60 || seconds >= 60) {
+                showAlert('Invalid time! Minutes and seconds must be less than 60', 'error');
+                return;
+            }
+
+            // Format with leading zeros
+            const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            
+            // Calculate offset in seconds
+            const newOffset = hours * 3600 + minutes * 60 + seconds;
+            
+            if (isRunning) {
+                // Timer is running - adjust the start time
+                const now = Date.now();
+                startTime = now - (newOffset * 1000);
+                document.getElementById('timerStatus').textContent = `Timer adjusted to ${formattedTime}`;
+                showAlert(`Timer adjusted to ${formattedTime}`, 'success');
+            } else {
+                // Timer is not running - set initial offset
+                manualTimeOffset = newOffset;
+                document.getElementById('timerDisplay').textContent = formattedTime;
+                document.getElementById('timerStatus').textContent = `Time set to ${formattedTime} - Ready to start`;
+                showAlert(`Timer set to start from ${formattedTime}`, 'success');
+            }
+        }
+
+        // Update summary table
+        function updateSummary() {
+            const container = document.getElementById('summaryContainer');
+            
+            if (timeEntries.length === 0) {
+                container.innerHTML = `
+                    <p style="text-align: center; color: #6c757d; padding: 20px;">
+                        No time entries recorded yet. Start tracking your time!
+                    </p>
+                `;
+                return;
+            }
+
+            const currentDay = getCurrentWeekday();
+            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+            // Calculate daily totals
+            let dayTotals = [0, 0, 0, 0, 0];
+
+            // Group entries by project name
+            const groupedEntries = {};
+            timeEntries.forEach(entry => {
+                const projName = entry.projectNameFilter || 'Uncategorized';
+                if (!groupedEntries[projName]) {
+                    groupedEntries[projName] = [];
+                }
+                groupedEntries[projName].push(entry);
+            });
+
+            let html = `
+                <div style="text-align: right; margin-bottom: 10px;">
+                    <button class="toggle-comments-btn" onclick="toggleAllComments(this)">
+                        👁️ Show Comments
+                    </button>
+                </div>
+                <table class="timecard-table">
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Project Number</th>
+                            <th>Task</th>
+                            ${days.map((day, i) => `<th class="day-column ${i + 1 === currentDay ? 'current-day' : ''}">${day}</th>`).join('')}
+                            <th class="day-column">Total</th>
+                            <th style="text-align: center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            // Process each project name group
+            let rowId = 0;
+            Object.keys(groupedEntries).sort().forEach(projName => {
+                const entries = groupedEntries[projName];
+                let projectDayTotals = [0, 0, 0, 0, 0];
+
+                // Add entries for this project
+                entries.forEach((entry, index) => {
+                    let totalSeconds = 0;
+                    // Get entry index before building HTML
+                    const entryIndex = timeEntries.indexOf(entry);
+                    
+                    html += `<tr>`;
+                    
+                    // Show project name only on first row of each group
+                    if (index === 0) {
+                        html += `<td rowspan="${entries.length}">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span>${entry.projectNameFilter || 'Uncategorized'}</span>
+                                <button class="edit-btn" style="padding: 4px 8px; font-size: 0.75em; margin: 0;" 
+                                        onclick="editField(${entryIndex}, 'projectNameFilter')" title="Edit Project Name">✎</button>
+                            </div>
+                        </td>`;
+                    }
+                    
+                    html += `<td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span>${entry.project}</span>
+                            <button class="edit-btn" style="padding: 4px 8px; font-size: 0.75em; margin: 0;" 
+                                    onclick="editField(${entryIndex}, 'project')" title="Edit Project Number">✎</button>
+                        </div>
+                    </td>`;
+                    html += `<td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span>${entry.task}</span>
+                            <button class="edit-btn" style="padding: 4px 8px; font-size: 0.75em; margin: 0;" 
+                                    onclick="editField(${entryIndex}, 'task')" title="Edit Task">✎</button>
+                        </div>
+                    </td>`;
+                    
+                    for (let i = 1; i <= 5; i++) {
+                        const timeStr = entry[`day${i}_hr`] || '00:00:00';
+                        const seconds = parseHHMMSSToSeconds(timeStr);
+                        const comment = entry[`day${i}_comment`] || '';
+                        totalSeconds += seconds;
+                        dayTotals[i - 1] += seconds;
+                        projectDayTotals[i - 1] += seconds;
+                        
+                        html += `<td class="day-column ${i === currentDay ? 'current-day' : ''}">`;
+                        if (seconds > 0) {
+                            html += `<div style="display: flex; align-items: center; justify-content: center; gap: 5px;">`;
+                            html += `<span class="hours">${timeStr}</span>`;
+                            html += `<button class="edit-btn" style="padding: 2px 6px; font-size: 0.7em; margin: 0;" 
+                                            onclick="editCell(${entryIndex}, ${i}, 'time')" title="Edit time">✎</button>`;
+                            html += `</div>`;
+                            if (comment) {
+                                html += `<div style="display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 5px;">`;
+                                html += `<span class="comment" data-comment-row="${rowId}">${comment}</span>`;
+                                html += `<button class="edit-btn" style="padding: 2px 6px; font-size: 0.7em; margin: 0;" 
+                                                onclick="editCell(${entryIndex}, ${i}, 'comment')" title="Edit comment">✎</button>`;
+                                html += `</div>`;
+                            }
+                        } else {
+                            html += `<button class="edit-btn" style="padding: 4px 8px; font-size: 0.75em; margin: 0;" 
+                                            onclick="editCell(${entryIndex}, ${i}, 'time')" title="Add time">+</button>`;
+                        }
+                        html += `</td>`;
+                    }
+                    
+                    const totalTime = formatSecondsToHHMMSS(totalSeconds);
+                    const totalHours = convertToDecimalHours(totalTime);
+                    html += `<td class="day-column total-row"><span class="hours">${totalTime}<br><small>(${totalHours} hrs)</small></span></td>`;
+                    
+                    // Add action buttons
+                    html += `<td style="text-align: center;">`;
+                    html += `<button class="resume-btn" onclick="resumeEntry(${entryIndex})" title="Resume timing this task">`;
+                    html += `▶️`;
+                    html += `</button>`;
+                    html += `<button class="delete-btn" onclick="deleteEntry(${entryIndex})" title="Delete this entry">`;
+                    html += `🗑️`;
+                    html += `</button>`;
+                    html += `</td>`;
+                    
+                    html += `</tr>`;
+                    rowId++;
+                });
+
+                // Add project subtotal row
+                html += `<tr style="background: #e7f3ff; font-weight: bold;">`;
+                html += `<td colspan="3" style="text-align: right; padding-right: 15px; font-style: italic;">${projName} Subtotal:</td>`;
+                
+                let projectTotalSeconds = 0;
+                for (let i = 0; i < 5; i++) {
+                    projectTotalSeconds += projectDayTotals[i];
+                    const dayTotal = formatSecondsToHHMMSS(projectDayTotals[i]);
+                    const dayHours = convertToDecimalHours(dayTotal);
+                    html += `<td class="day-column ${i + 1 === currentDay ? 'current-day' : ''}" style="text-align: center;">`;
+                    if (projectDayTotals[i] > 0) {
+                        html += `<div class="hours">${dayTotal}</div><small>(${dayHours} hrs)</small>`;
+                    } else {
+                        html += '-';
+                    }
+                    html += `</td>`;
+                }
+                
+                const projectTotal = formatSecondsToHHMMSS(projectTotalSeconds);
+                const projectTotalHours = convertToDecimalHours(projectTotal);
+                html += `<td class="day-column" style="text-align: center; background: #17a2b8; color: white;">`;
+                html += `<div class="hours">${projectTotal}</div><small>(${projectTotalHours} hrs)</small>`;
+                html += `</td>`;
+                html += `<td></td>`; // Empty action cell for subtotal row
+                html += `</tr>`;
+            });
+
+            // Add grand totals row
+            html += `<tr style="background: #f8f9fa; font-weight: bold; border-top: 3px solid #366092;">`;
+            html += `<td colspan="3" style="text-align: right; padding-right: 15px;">Grand Total:</td>`;
+            
+            let grandTotalSeconds = 0;
+            for (let i = 0; i < 5; i++) {
+                grandTotalSeconds += dayTotals[i];
+                const dayTotal = formatSecondsToHHMMSS(dayTotals[i]);
+                const dayHours = convertToDecimalHours(dayTotal);
+                html += `<td class="day-column ${i + 1 === currentDay ? 'current-day' : ''}" style="text-align: center;">`;
+                if (dayTotals[i] > 0) {
+                    html += `<div class="hours">${dayTotal}</div><small>(${dayHours} hrs)</small>`;
+                } else {
+                    html += '-';
+                }
+                html += `</td>`;
+            }
+            
+            const grandTotal = formatSecondsToHHMMSS(grandTotalSeconds);
+            const grandTotalHours = convertToDecimalHours(grandTotal);
+            html += `<td class="day-column" style="text-align: center; background: #366092; color: white;">`;
+            html += `<div class="hours">${grandTotal}</div><small>(${grandTotalHours} hrs)</small>`;
+            html += `</td>`;
+            html += `<td></td>`; // Empty action cell for grand total row
+            html += `</tr>`;
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        // Resume entry from summary table
+        function resumeEntry(entryIndex) {
+            // Check if timer is currently running
+            if (startTime !== null) {
+                if (!confirm('A timer is already running. Do you want to stop it and start a new one?')) {
+                    return;
+                }
+                stopTimer();
+            }
+
+            const entry = timeEntries[entryIndex];
+            if (!entry) {
+                showAlert('Entry not found!', 'error');
+                return;
+            }
+
+            // Populate the form with the entry data
+            document.getElementById('projectNameFilter').value = entry.projectNameFilter || '';
+            document.getElementById('projectName').value = entry.project || '';
+            document.getElementById('taskName').value = entry.task || '';
+            document.getElementById('comment').value = '';
+
+            // Update dropdowns to reflect the selection
+            updateDropdowns();
+
+            // Scroll to timer section
+            document.querySelector('.timer-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Start the timer automatically
+            setTimeout(() => {
+                startTimer();
+            }, 500);
+        }
+
+        // Resume last job (used by PiP window)
+        function resumeLastJob() {
+            // Check if timer is currently running
+            if (startTime !== null) {
+                showAlert('Timer is already running!', 'info');
+                return;
+            }
+
+            // Try to get last task info
+            let projectNameFilter = '';
+            let project = '';
+            let task = '';
+
+            // First try lastActiveTask (most recently stopped timer)
+            if (lastActiveTask && lastActiveTask.projectNameFilter && lastActiveTask.project && lastActiveTask.task) {
+                projectNameFilter = lastActiveTask.projectNameFilter;
+                project = lastActiveTask.project;
+                task = lastActiveTask.task;
+            }
+            // If no lastActiveTask, try to get the most recent entry from timeEntries
+            else if (timeEntries.length > 0) {
+                const lastEntry = timeEntries[timeEntries.length - 1];
+                projectNameFilter = lastEntry.projectNameFilter || '';
+                project = lastEntry.project || '';
+                task = lastEntry.task || '';
+            }
+
+            // Populate the form with the entry data
+            document.getElementById('projectNameFilter').value = projectNameFilter;
+            document.getElementById('projectName').value = project;
+            document.getElementById('taskName').value = task;
+            document.getElementById('comment').value = '';
+
+            // Update dropdowns to reflect the selection
+            updateDropdowns();
+
+            // Start the timer (it will use the populated values or show an error if empty)
+            startTimer();
+        }
+
+        // Toggle timer from PiP window
+        function toggleTimerFromPip() {
+            if (startTime !== null) {
+                // Timer is running - stop it
+                stopTimer();
+            } else {
+                // Timer is not running - start it
+                resumeLastJob();
+            }
+        }
+
+        // Edit individual field (projectNameFilter, project, or task)
+        function editField(entryIndex, fieldName) {
+            const entry = timeEntries[entryIndex];
+            if (!entry) {
+                showAlert('Entry not found!', 'error');
+                return;
+            }
+
+            const fieldLabels = {
+                'projectNameFilter': 'Project Name',
+                'project': 'Project Number',
+                'task': 'Task Name'
+            };
+
+            const label = fieldLabels[fieldName] || fieldName;
+            const currentValue = entry[fieldName] || '';
+            
+            const newValue = prompt(`Edit ${label}:`, currentValue);
+            
+            if (newValue === null) return; // User cancelled
+
+            // Validate input
+            if (!newValue.trim()) {
+                showAlert(`${label} cannot be empty!`, 'error');
+                return;
+            }
+
+            // Update entry
+            entry[fieldName] = newValue.trim();
+
+            // Add to history
+            if (fieldName === 'projectNameFilter') {
+                projectNameHistory.add(newValue.trim());
+            } else if (fieldName === 'project') {
+                projectHistory.add(newValue.trim());
+            } else if (fieldName === 'task') {
+                taskHistory.add(newValue.trim());
+            }
+
+            // Update structured history
+            const projName = entry.projectNameFilter || 'Uncategorized';
+            if (!structuredHistory[projName]) {
+                structuredHistory[projName] = {
+                    projects: new Set(),
+                    tasks: new Set(),
+                    comments: new Set()
+                };
+            }
+            if (fieldName === 'project') {
+                structuredHistory[projName].projects.add(newValue.trim());
+            } else if (fieldName === 'task') {
+                structuredHistory[projName].tasks.add(newValue.trim());
+            }
+
+            saveHistory();
+            saveData();
+            updateSummary();
+            updateDropdowns();
+            showAlert(`${label} updated successfully!`, 'success');
+        }
+
+        // Edit entry from summary table (all fields at once)
+        function editEntry(entryIndex) {
+            const entry = timeEntries[entryIndex];
+            if (!entry) {
+                showAlert('Entry not found!', 'error');
+                return;
+            }
+
+            const newProjectName = prompt('Edit Project Name:', entry.projectNameFilter || '');
+            if (newProjectName === null) return; // User cancelled
+
+            const newProject = prompt('Edit Project Number:', entry.project || '');
+            if (newProject === null) return;
+
+            const newTask = prompt('Edit Task Name:', entry.task || '');
+            if (newTask === null) return;
+
+            // Validate inputs
+            if (!newProjectName.trim() || !newProject.trim() || !newTask.trim()) {
+                showAlert('Project Name, Project Number, and Task Name are required!', 'error');
+                return;
+            }
+
+            // Update entry
+            entry.projectNameFilter = newProjectName.trim();
+            entry.project = newProject.trim();
+            entry.task = newTask.trim();
+
+            // Add to history
+            addToHistory(entry.projectNameFilter, entry.project, entry.task, '');
+
+            saveData();
+            updateSummary();
+            showAlert('Entry updated successfully!', 'success');
+        }
+
+        // Delete entry from summary table
+        function deleteEntry(entryIndex) {
+            const entry = timeEntries[entryIndex];
+            if (!entry) {
+                showAlert('Entry not found!', 'error');
+                return;
+            }
+
+            const confirmMsg = `Are you sure you want to delete this entry?\n\nProject: ${entry.projectNameFilter || 'N/A'}\nProject Number: ${entry.project}\nTask: ${entry.task}`;
+            
+            if (confirm(confirmMsg)) {
+                timeEntries.splice(entryIndex, 1);
+                saveData();
+                updateSummary();
+                showAlert('Entry deleted successfully!', 'success');
+            }
+        }
+
+        // Edit cell (time or comment) in summary table
+        function editCell(entryIndex, day, type) {
+            const entry = timeEntries[entryIndex];
+            if (!entry) {
+                showAlert('Entry not found!', 'error');
+                return;
+            }
+
+            if (type === 'time') {
+                const currentTime = entry[`day${day}_hr`] || '00:00:00';
+                const newTime = prompt(
+                    `Edit time for day ${day} (format: HH:MM:SS):\n\nCurrent: ${currentTime}`,
+                    currentTime
+                );
+
+                if (newTime === null) return; // User cancelled
+
+                // Validate time format
+                const timeRegex = /^([0-9]{1,2}):([0-9]{2}):([0-9]{2})$/;
+                const match = newTime.trim().match(timeRegex);
+                
+                if (!match) {
+                    showAlert('Invalid time format! Use HH:MM:SS (e.g., 08:30:00)', 'error');
+                    return;
+                }
+
+                const hours = parseInt(match[1]);
+                const minutes = parseInt(match[2]);
+                const seconds = parseInt(match[3]);
+
+                if (minutes >= 60 || seconds >= 60) {
+                    showAlert('Invalid time! Minutes and seconds must be less than 60', 'error');
+                    return;
+                }
+
+                // Format with leading zeros
+                const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                
+                entry[`day${day}_hr`] = formattedTime;
+                saveData();
+                updateSummary();
+                showAlert('Time updated successfully!', 'success');
+
+            } else if (type === 'comment') {
+                const currentComment = entry[`day${day}_comment`] || '';
+                const newComment = prompt(
+                    `Edit comment for day ${day}:`,
+                    currentComment
+                );
+
+                if (newComment === null) return; // User cancelled
+
+                entry[`day${day}_comment`] = newComment.trim();
+                
+                // Add to history if not empty
+                if (newComment.trim()) {
+                    commentHistory.add(newComment.trim());
+                    const projName = entry.projectNameFilter || 'Uncategorized';
+                    if (structuredHistory[projName]) {
+                        structuredHistory[projName].comments.add(newComment.trim());
+                    }
+                    saveHistory();
+                    updateDropdowns();
+                }
+
+                saveData();
+                updateSummary();
+                showAlert('Comment updated successfully!', 'success');
+            }
+        }
+
+        // Show alert
+        function showAlert(message, type = 'info') {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            const { monday, friday } = getWeekDates();
+            const weekKey = `${monday.toISOString().split('T')[0]}`;
+            
+            const data = {
+                weekStart: monday.toISOString(),
+                weekEnd: friday.toISOString(),
+                entries: timeEntries
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            
+            // Also save to all weeks history
+            saveToAllWeeks(weekKey, data);
+        }
+
+        // Save current week to all weeks history
+        function saveToAllWeeks(weekKey, data) {
+            let allWeeks = {};
+            const saved = localStorage.getItem(ALL_WEEKS_KEY);
+            if (saved) {
+                try {
+                    allWeeks = JSON.parse(saved);
+                } catch (e) {
+                    console.error('Error loading all weeks data:', e);
+                }
+            }
+            
+            // Update or add current week
+            allWeeks[weekKey] = data;
+            
+            localStorage.setItem(ALL_WEEKS_KEY, JSON.stringify(allWeeks));
+        }
+
+        // Get all saved weeks
+        function getAllWeeks() {
+            const saved = localStorage.getItem(ALL_WEEKS_KEY);
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch (e) {
+                    console.error('Error loading all weeks data:', e);
+                    return {};
+                }
+            }
+            return {};
+        }
+
+        // Load data from localStorage
+        function loadData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    const { monday } = getWeekDates();
+                    const savedMonday = new Date(data.weekStart);
+                    
+                    // Only load if same week
+                    if (savedMonday.toDateString() === monday.toDateString()) {
+                        timeEntries = data.entries || [];
+                    } else {
+                        timeEntries = [];
+                    }
+                } catch (e) {
+                    console.error('Error loading data:', e);
+                    timeEntries = [];
+                }
+            }
+        }
+
+        // Load history from localStorage
+        function loadHistory() {
+            const saved = localStorage.getItem(HISTORY_KEY);
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    projectNameHistory = new Set(data.projectNames || []);
+                    projectHistory = new Set(data.projects || []);
+                    taskHistory = new Set(data.tasks || []);
+                    commentHistory = new Set(data.comments || []);
+                    
+                    // Convert structured history arrays back to Sets
+                    structuredHistory = {};
+                    if (data.structured) {
+                        Object.keys(data.structured).forEach(projName => {
+                            structuredHistory[projName] = {
+                                projects: new Set(data.structured[projName].projects || []),
+                                tasks: new Set(data.structured[projName].tasks || []),
+                                comments: new Set(data.structured[projName].comments || [])
+                            };
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error loading history:', e);
+                    projectNameHistory = new Set();
+                    projectHistory = new Set();
+                    taskHistory = new Set();
+                    commentHistory = new Set();
+                    structuredHistory = {};
+                }
+            }
+        }
+
+        // Load last active task from localStorage and populate form
+        function loadLastTask() {
+            const saved = localStorage.getItem(LAST_TASK_KEY);
+            if (saved) {
+                try {
+                    lastActiveTask = JSON.parse(saved);
+                    console.log('Loaded last active task:', lastActiveTask);
+                    
+                    // Auto-populate form fields with last task (but don't start timer)
+                    if (lastActiveTask.projectNameFilter) {
+                        document.getElementById('projectNameFilter').value = lastActiveTask.projectNameFilter;
+                    }
+                    if (lastActiveTask.project) {
+                        document.getElementById('projectName').value = lastActiveTask.project;
+                    }
+                    if (lastActiveTask.task) {
+                        document.getElementById('taskName').value = lastActiveTask.task;
+                    }
+                    
+                    // Show info message if task was loaded
+                    if (lastActiveTask.projectNameFilter || lastActiveTask.project || lastActiveTask.task) {
+                        setTimeout(() => {
+                            showAlert('Last task loaded. Click "Start Timer" to continue.', 'info');
+                        }, 500);
+                    }
+                } catch (e) {
+                    console.error('Error loading last task:', e);
+                    lastActiveTask = null;
+                }
+            }
+        }
+
+        // Save last active task to localStorage
+        function saveLastTask() {
+            if (lastActiveTask) {
+                try {
+                    localStorage.setItem(LAST_TASK_KEY, JSON.stringify(lastActiveTask));
+                } catch (e) {
+                    console.error('Error saving last task:', e);
+                }
+            }
+        }
+
+        // Populate history from current timecard entries
+        function populateHistoryFromEntries() {
+            timeEntries.forEach(entry => {
+                if (entry.projectNameFilter) projectNameHistory.add(entry.projectNameFilter);
+                if (entry.project) projectHistory.add(entry.project);
+                if (entry.task) taskHistory.add(entry.task);
+                
+                // Build structured history
+                const projName = entry.projectNameFilter || 'Uncategorized';
+                if (!structuredHistory[projName]) {
+                    structuredHistory[projName] = {
+                        projects: new Set(),
+                        tasks: new Set(),
+                        comments: new Set()
+                    };
+                }
+                if (entry.project) structuredHistory[projName].projects.add(entry.project);
+                if (entry.task) structuredHistory[projName].tasks.add(entry.task);
+                
+                // Add all non-empty comments from all days
+                for (let i = 1; i <= 5; i++) {
+                    const comment = entry[`day${i}_comment`];
+                    if (comment && comment.trim()) {
+                        // Split by semicolon in case multiple comments were concatenated
+                        comment.split(';').forEach(c => {
+                            const trimmed = c.trim();
+                            if (trimmed) {
+                                commentHistory.add(trimmed);
+                                structuredHistory[projName].comments.add(trimmed);
+                            }
+                        });
+                    }
+                }
+            });
+            saveHistory();
+        }
+
+        // Save history to localStorage
+        function saveHistory() {
+            // Convert Sets to Arrays for structured history
+            const structuredForStorage = {};
+            Object.keys(structuredHistory).forEach(projName => {
+                structuredForStorage[projName] = {
+                    projects: Array.from(structuredHistory[projName].projects),
+                    tasks: Array.from(structuredHistory[projName].tasks),
+                    comments: Array.from(structuredHistory[projName].comments)
+                };
+            });
+
+            const data = {
+                projectNames: Array.from(projectNameHistory),
+                projects: Array.from(projectHistory),
+                tasks: Array.from(taskHistory),
+                comments: Array.from(commentHistory),
+                structured: structuredForStorage
+            };
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(data));
+        }
+
+        // Add to history
+        function addToHistory(projectNameFilter, project, task, comment) {
+            if (projectNameFilter) {
+                projectNameHistory.add(projectNameFilter);
+            }
+            if (project) {
+                projectHistory.add(project);
+            }
+            if (task) {
+                taskHistory.add(task);
+            }
+            if (comment) {
+                commentHistory.add(comment);
+            }
+
+            // Add to structured history
+            if (projectNameFilter) {
+                if (!structuredHistory[projectNameFilter]) {
+                    structuredHistory[projectNameFilter] = {
+                        projects: new Set(),
+                        tasks: new Set(),
+                        comments: new Set()
+                    };
+                }
+                if (project) structuredHistory[projectNameFilter].projects.add(project);
+                if (task) structuredHistory[projectNameFilter].tasks.add(task);
+                if (comment) structuredHistory[projectNameFilter].comments.add(comment);
+            }
+
+            saveHistory();
+            updateDropdowns();
+        }
+
+        // Update dropdown lists
+        function updateDropdowns() {
+            // Update project name list
+            const projectNameList = document.getElementById('projectNameList');
+            projectNameList.innerHTML = '';
+            const projectNames = Array.from(projectNameHistory).sort();
+            projectNames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                projectNameList.appendChild(option);
+            });
+            document.getElementById('projectNameCount').textContent = 
+                projectNames.length > 0 ? `(${projectNames.length} saved)` : '';
+
+            // Get selected project name filter
+            const selectedProjectName = document.getElementById('projectNameFilter').value.trim();
+
+            // Update project list (filtered if project name is selected)
+            const projectList = document.getElementById('projectList');
+            projectList.innerHTML = '';
+            let projects;
+            
+            if (selectedProjectName && structuredHistory[selectedProjectName]) {
+                // Convert Set back to Array for filtering
+                const projSet = structuredHistory[selectedProjectName].projects;
+                projects = Array.from(projSet instanceof Set ? projSet : new Set(projSet)).sort();
+            } else {
+                projects = Array.from(projectHistory).sort();
+            }
+            
+            projects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project;
+                projectList.appendChild(option);
+            });
+            document.getElementById('projectCount').textContent = 
+                projects.length > 0 ? `(${projects.length} saved)` : '';
+
+            // Update task list (filtered if project name is selected)
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = '';
+            let tasks;
+            
+            if (selectedProjectName && structuredHistory[selectedProjectName]) {
+                const taskSet = structuredHistory[selectedProjectName].tasks;
+                tasks = Array.from(taskSet instanceof Set ? taskSet : new Set(taskSet)).sort();
+            } else {
+                tasks = Array.from(taskHistory).sort();
+            }
+            
+            tasks.forEach(task => {
+                const option = document.createElement('option');
+                option.value = task;
+                taskList.appendChild(option);
+            });
+            document.getElementById('taskCount').textContent = 
+                tasks.length > 0 ? `(${tasks.length} saved)` : '';
+
+            // Update comment count (filtered if project name is selected)
+            let comments;
+            
+            if (selectedProjectName && structuredHistory[selectedProjectName]) {
+                const commentSet = structuredHistory[selectedProjectName].comments;
+                comments = Array.from(commentSet instanceof Set ? commentSet : new Set(commentSet)).sort();
+            } else {
+                comments = Array.from(commentHistory).sort();
+            }
+            
+            document.getElementById('commentCount').textContent = 
+                comments.length > 0 ? `(${comments.length} saved)` : '';
+        }
+
+        // Setup input listeners for dynamic filtering
+        function setupInputListeners() {
+            // When project name filter changes, update other dropdowns and clear dependent fields
+            document.getElementById('projectNameFilter').addEventListener('input', function(e) {
+                // Clear dependent fields when project name changes
+                document.getElementById('projectName').value = '';
+                document.getElementById('taskName').value = '';
+                document.getElementById('comment').value = '';
+                
+                // Update dropdowns with filtered data
+                updateDropdowns();
+            });
+
+            // Auto-populate from existing entries when project is selected
+            document.getElementById('projectName').addEventListener('input', function(e) {
+                const selectedProjectName = document.getElementById('projectNameFilter').value.trim();
+                const selectedProject = e.target.value;
+                
+                if (selectedProjectName && selectedProject) {
+                    // Find matching entries for this project name + project combination
+                    const matchingEntries = timeEntries.filter(entry => 
+                        entry.projectNameFilter === selectedProjectName && 
+                        entry.project === selectedProject
+                    );
+                    
+                    if (matchingEntries.length > 0) {
+                        // Get unique tasks for this combination
+                        const projectTasks = new Set(matchingEntries.map(entry => entry.task));
+                        
+                        // Update task datalist with filtered options
+                        const taskList = document.getElementById('taskList');
+                        taskList.innerHTML = '';
+                        Array.from(projectTasks).sort().forEach(task => {
+                            const option = document.createElement('option');
+                            option.value = task;
+                            taskList.appendChild(option);
+                        });
+                    }
+                }
+            });
+
+            // Setup comment dropdown
+            setupCommentDropdown();
+        }
+
+        // Setup custom comment dropdown with filtering
+        function setupCommentDropdown() {
+            const commentInput = document.getElementById('comment');
+            const commentDropdown = document.getElementById('commentDropdown');
+            let selectedIndex = -1;
+
+            // Show dropdown on focus or input
+            commentInput.addEventListener('focus', function() {
+                showCommentDropdown();
+            });
+
+            commentInput.addEventListener('input', function() {
+                showCommentDropdown();
+            });
+
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!commentInput.contains(e.target) && !commentDropdown.contains(e.target)) {
+                    commentDropdown.classList.remove('show');
+                }
+            });
+
+            // Keyboard navigation
+            commentInput.addEventListener('keydown', function(e) {
+                const options = commentDropdown.querySelectorAll('.comment-option');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, options.length - 1);
+                    updateSelectedOption(options);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, -1);
+                    updateSelectedOption(options);
+                } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                    e.preventDefault();
+                    options[selectedIndex].click();
+                } else if (e.key === 'Escape') {
+                    commentDropdown.classList.remove('show');
+                }
+            });
+
+            function updateSelectedOption(options) {
+                options.forEach((opt, idx) => {
+                    opt.classList.toggle('selected', idx === selectedIndex);
+                });
+                if (selectedIndex >= 0 && options[selectedIndex]) {
+                    options[selectedIndex].scrollIntoView({ block: 'nearest' });
+                }
+            }
+
+            function showCommentDropdown() {
+                const selectedProjectName = document.getElementById('projectNameFilter').value.trim();
+                const currentValue = commentInput.value.toLowerCase();
+                
+                // Get filtered comments based on project name
+                let comments;
+                if (selectedProjectName && structuredHistory[selectedProjectName]) {
+                    const commentSet = structuredHistory[selectedProjectName].comments;
+                    comments = Array.from(commentSet instanceof Set ? commentSet : new Set(commentSet));
+                } else {
+                    comments = Array.from(commentHistory);
+                }
+
+                // Filter by current input value
+                const filteredComments = comments
+                    .filter(c => c.toLowerCase().includes(currentValue))
+                    .sort();
+
+                // Build dropdown HTML
+                commentDropdown.innerHTML = '';
+                selectedIndex = -1;
+
+                if (filteredComments.length === 0) {
+                    commentDropdown.classList.remove('show');
+                    return;
+                }
+
+                filteredComments.forEach(comment => {
+                    const option = document.createElement('div');
+                    option.className = 'comment-option';
+                    option.textContent = comment;
+                    option.addEventListener('click', function() {
+                        commentInput.value = comment;
+                        commentDropdown.classList.remove('show');
+                        commentInput.focus();
+                    });
+                    commentDropdown.appendChild(option);
+                });
+
+                commentDropdown.classList.add('show');
+            }
+        }
+
+        // Import from Excel
+        function importFromExcel(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Get first sheet
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if (jsonData.length === 0) {
+                        showAlert('No data found in the Excel file!', 'error');
+                        return;
+                    }
+
+                    // Ask user if they want to merge or replace
+                    const mergeChoice = confirm(
+                        'Import Options:\n\n' +
+                        'Click OK to MERGE imported data with existing data.\n' +
+                        'Click Cancel to REPLACE all existing data with imported data.\n\n' +
+                        'Note: Merging will add times together for matching entries.'
+                    );
+
+                    if (!mergeChoice) {
+                        // Clear existing data
+                        timeEntries = [];
+                    }
+
+                    let importedCount = 0;
+                    let skippedCount = 0;
+
+                    // Process each row
+                    jsonData.forEach(row => {
+                        // Skip subtotal and total rows
+                        const task = row['Task'] || '';
+                        if (task.includes('Subtotal') || task.includes('Total')) {
+                            skippedCount++;
+                            return;
+                        }
+
+                        // Skip rows without required data
+                        const projectName = row['Project Name'] || '';
+                        const projectNumber = row['Project Number'] || '';
+                        
+                        if (!projectName || !projectNumber || !task) {
+                            skippedCount++;
+                            return;
+                        }
+
+                        // Check if entry already exists (for merging)
+                        let entry = timeEntries.find(e => 
+                            e.projectNameFilter === projectName && 
+                            e.project === projectNumber && 
+                            e.task === task
+                        );
+
+                        if (!entry) {
+                            // Create new entry
+                            entry = {
+                                projectNameFilter: projectName,
+                                project: projectNumber,
+                                task: task
+                            };
+                            for (let i = 1; i <= 5; i++) {
+                                entry[`day${i}_hr`] = '00:00:00';
+                                entry[`day${i}_comment`] = '';
+                            }
+                            timeEntries.push(entry);
+                        }
+
+                        // Import time data for each day
+                        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+                        days.forEach((dayLabel, index) => {
+                            const dayNum = index + 1;
+                            const importedTime = row[dayLabel] || '00:00:00';
+                            const importedComment = row[`${dayLabel} Comment`] || '';
+
+                            if (importedTime && importedTime !== '00:00:00') {
+                                if (mergeChoice) {
+                                    // Merge: add times together
+                                    const existingSeconds = parseHHMMSSToSeconds(entry[`day${dayNum}_hr`] || '00:00:00');
+                                    const importedSeconds = parseHHMMSSToSeconds(importedTime);
+                                    const totalSeconds = existingSeconds + importedSeconds;
+                                    entry[`day${dayNum}_hr`] = formatSecondsToHHMMSS(totalSeconds);
+                                } else {
+                                    // Replace: use imported time
+                                    entry[`day${dayNum}_hr`] = importedTime;
+                                }
+                            }
+
+                            // Handle comments
+                            if (importedComment) {
+                                const existingComment = entry[`day${dayNum}_comment`] || '';
+                                if (mergeChoice && existingComment) {
+                                    // Merge comments
+                                    const existingComments = existingComment.split(';').map(c => c.trim());
+                                    const importedCommentTrimmed = importedComment.trim();
+                                    if (!existingComments.includes(importedCommentTrimmed)) {
+                                        entry[`day${dayNum}_comment`] = `${existingComment}; ${importedComment}`;
+                                    }
+                                } else {
+                                    entry[`day${dayNum}_comment`] = importedComment;
+                                }
+                            }
+                        });
+
+                        // Add to history
+                        addToHistory(projectName, projectNumber, task, '');
+                        importedCount++;
+                    });
+
+                    // Save and update UI
+                    saveData();
+                    updateSummary();
+                    
+                    const mode = mergeChoice ? 'merged with' : 'replaced';
+                    showAlert(
+                        `Import successful! ${importedCount} entries ${mode} existing data. ${skippedCount} rows skipped (subtotals/empty rows).`,
+                        'success'
+                    );
+
+                } catch (error) {
+                    console.error('Import error:', error);
+                    showAlert('Error importing file. Please ensure it is a valid Excel file exported from this application.', 'error');
+                }
+            };
+
+            reader.onerror = function() {
+                showAlert('Error reading file. Please try again.', 'error');
+            };
+
+            reader.readAsArrayBuffer(file);
+            
+            // Reset file input so the same file can be imported again
+            event.target.value = '';
+        }
+
+        // Export all weeks to Excel with separate tabs
+        function exportAllWeeksToExcel() {
+            const allWeeks = getAllWeeks();
+            const weekKeys = Object.keys(allWeeks).sort();
+            
+            if (weekKeys.length === 0) {
+                showAlert('No historical data to export!', 'error');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            const formatDate = (date) => {
+                const d = new Date(date);
+                return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}-${d.getFullYear()}`;
+            };
+
+            // Process each week
+            weekKeys.forEach(weekKey => {
+                const weekData = allWeeks[weekKey];
+                const entries = weekData.entries || [];
+                
+                if (entries.length === 0) return; // Skip empty weeks
+
+                const monday = new Date(weekData.weekStart);
+                const friday = new Date(weekData.weekEnd);
+                
+                // Group entries by project name
+                const groupedEntries = {};
+                entries.forEach(entry => {
+                    const projName = entry.projectNameFilter || 'Uncategorized';
+                    if (!groupedEntries[projName]) {
+                        groupedEntries[projName] = [];
+                    }
+                    groupedEntries[projName].push(entry);
+                });
+
+                // Calculate daily totals
+                let dayTotals = [0, 0, 0, 0, 0];
+
+                // Prepare data for Excel
+                const excelData = [];
+                
+                Object.keys(groupedEntries).sort().forEach(projName => {
+                    const projectEntries = groupedEntries[projName];
+                    let projectDayTotals = [0, 0, 0, 0, 0];
+
+                    // Add entries for this project
+                    projectEntries.forEach(entry => {
+                        const row = {
+                            'Project Name': entry.projectNameFilter || 'Uncategorized',
+                            'Project Number': entry.project,
+                            'Task': entry.task
+                        };
+                        
+                        for (let i = 1; i <= 5; i++) {
+                            const timeStr = entry[`day${i}_hr`] || '00:00:00';
+                            const seconds = parseHHMMSSToSeconds(timeStr);
+                            projectDayTotals[i - 1] += seconds;
+                            dayTotals[i - 1] += seconds;
+                            
+                            const dayLabel = i === 1 ? 'Mon' : i === 2 ? 'Tue' : i === 3 ? 'Wed' : i === 4 ? 'Thu' : 'Fri';
+                            row[dayLabel] = timeStr;
+                            row[`${dayLabel} Comment`] = entry[`day${i}_comment`] || '';
+                        }
+                        
+                        // Add total column
+                        let totalSeconds = 0;
+                        for (let i = 1; i <= 5; i++) {
+                            totalSeconds += parseHHMMSSToSeconds(entry[`day${i}_hr`] || '00:00:00');
+                        }
+                        row['Total'] = formatSecondsToHHMMSS(totalSeconds);
+                        
+                        excelData.push(row);
+                    });
+
+                    // Add project subtotal row
+                    const subtotalRow = {
+                        'Project Name': '',
+                        'Project Number': '',
+                        'Task': `${projName} Subtotal`
+                    };
+                    
+                    let projectTotalSeconds = 0;
+                    for (let i = 1; i <= 5; i++) {
+                        const dayLabel = i === 1 ? 'Mon' : i === 2 ? 'Tue' : i === 3 ? 'Wed' : i === 4 ? 'Thu' : 'Fri';
+                        subtotalRow[dayLabel] = formatSecondsToHHMMSS(projectDayTotals[i - 1]);
+                        subtotalRow[`${dayLabel} Comment`] = '';
+                        projectTotalSeconds += projectDayTotals[i - 1];
+                    }
+                    subtotalRow['Total'] = formatSecondsToHHMMSS(projectTotalSeconds);
+                    
+                    excelData.push(subtotalRow);
+                });
+
+                // Add grand total row
+                const grandTotalRow = {
+                    'Project Name': '',
+                    'Project Number': '',
+                    'Task': 'Grand Total'
+                };
+                
+                let grandTotalSeconds = 0;
+                for (let i = 1; i <= 5; i++) {
+                    const dayLabel = i === 1 ? 'Mon' : i === 2 ? 'Tue' : i === 3 ? 'Wed' : i === 4 ? 'Thu' : 'Fri';
+                    grandTotalRow[dayLabel] = formatSecondsToHHMMSS(dayTotals[i - 1]);
+                    grandTotalRow[`${dayLabel} Comment`] = '';
+                    grandTotalSeconds += dayTotals[i - 1];
+                }
+                grandTotalRow['Total'] = formatSecondsToHHMMSS(grandTotalSeconds);
+                
+                excelData.push(grandTotalRow);
+
+                // Create worksheet
+                const ws = XLSX.utils.json_to_sheet(excelData);
+
+                // Set column widths
+                ws['!cols'] = [
+                    { wch: 20 },  // Project Name
+                    { wch: 20 },  // Project Number
+                    { wch: 25 },  // Task
+                    { wch: 12 },  // Mon time
+                    { wch: 35 },  // Mon comment
+                    { wch: 12 },  // Tue time
+                    { wch: 35 },  // Tue comment
+                    { wch: 12 },  // Wed time
+                    { wch: 35 },  // Wed comment
+                    { wch: 12 },  // Thu time
+                    { wch: 35 },  // Thu comment
+                    { wch: 12 },  // Fri time
+                    { wch: 35 },  // Fri comment
+                    { wch: 12 }   // Total
+                ];
+
+                // Create sheet name from week dates
+                const sheetName = `Week ${formatDate(monday)}`;
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            });
+
+            // Save workbook
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const filename = `timecard_all_weeks_${timestamp}.xlsx`;
+            XLSX.writeFile(wb, filename);
+            
+            showAlert(`Exported ${weekKeys.length} week(s) to ${filename}`, 'success');
+        }
+
+        // Export to Excel
+        function exportToExcel() {
+            if (timeEntries.length === 0) {
+                showAlert('No data to export!', 'error');
+                return;
+            }
+
+            const { monday, friday } = getWeekDates();
+            const formatDate = (date) => {
+                return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${date.getFullYear()}`;
+            };
+
+            // Group entries by project name
+            const groupedEntries = {};
+            timeEntries.forEach(entry => {
+                const projName = entry.projectNameFilter || 'Uncategorized';
+                if (!groupedEntries[projName]) {
+                    groupedEntries[projName] = [];
+                }
+                groupedEntries[projName].push(entry);
+            });
+
+            // Calculate daily totals
+            let dayTotals = [0, 0, 0, 0, 0];
+
+            // Prepare data for Excel with grouping and subtotals
+            const excelData = [];
+            
+            Object.keys(groupedEntries).sort().forEach(projName => {
+                const entries = groupedEntries[projName];
+                let projectDayTotals = [0, 0, 0, 0, 0];
+
+                // Add entries for this project
+                entries.forEach(entry => {
+                    const row = {
+                        'Project Name': entry.projectNameFilter || 'Uncategorized',
+                        'Project Number': entry.project,
+                        'Task': entry.task
+                    };
+                    
+                    for (let i = 1; i <= 5; i++) {
+                        const timeStr = entry[`day${i}_hr`] || '00:00:00';
+                        const seconds = parseHHMMSSToSeconds(timeStr);
+                        projectDayTotals[i - 1] += seconds;
+                        dayTotals[i - 1] += seconds;
+                        
+                        const dayLabel = i === 1 ? 'Mon' : i === 2 ? 'Tue' : i === 3 ? 'Wed' : i === 4 ? 'Thu' : 'Fri';
+                        row[dayLabel] = timeStr;
+                        row[`${dayLabel} Comment`] = entry[`day${i}_comment`] || '';
+                    }
+                    
+                    // Add total column
+                    let totalSeconds = 0;
+                    for (let i = 1; i <= 5; i++) {
+                        totalSeconds += parseHHMMSSToSeconds(entry[`day${i}_hr`] || '00:00:00');
+                    }
+                    row['Total'] = formatSecondsToHHMMSS(totalSeconds);
+                    
+                    excelData.push(row);
+                });
+
+                // Add project subtotal row
+                const subtotalRow = {
+                    'Project Name': '',
+                    'Project Number': '',
+                    'Task': `${projName} Subtotal`
+                };
+                
+                let projectTotalSeconds = 0;
+                for (let i = 1; i <= 5; i++) {
+                    const dayLabel = i === 1 ? 'Mon' : i === 2 ? 'Tue' : i === 3 ? 'Wed' : i === 4 ? 'Thu' : 'Fri';
+                    subtotalRow[dayLabel] = formatSecondsToHHMMSS(projectDayTotals[i - 1]);
+                    subtotalRow[`${dayLabel} Comment`] = '';
+                    projectTotalSeconds += projectDayTotals[i - 1];
+                }
+                subtotalRow['Total'] = formatSecondsToHHMMSS(projectTotalSeconds);
+                
+                excelData.push(subtotalRow);
+            });
+
+            // Add grand total row
+            const grandTotalRow = {
+                'Project Name': '',
+                'Project Number': '',
+                'Task': 'Grand Total'
+            };
+            
+            let grandTotalSeconds = 0;
+            for (let i = 1; i <= 5; i++) {
+                const dayLabel = i === 1 ? 'Mon' : i === 2 ? 'Tue' : i === 3 ? 'Wed' : i === 4 ? 'Thu' : 'Fri';
+                grandTotalRow[dayLabel] = formatSecondsToHHMMSS(dayTotals[i - 1]);
+                grandTotalRow[`${dayLabel} Comment`] = '';
+                grandTotalSeconds += dayTotals[i - 1];
+            }
+            grandTotalRow['Total'] = formatSecondsToHHMMSS(grandTotalSeconds);
+            
+            excelData.push(grandTotalRow);
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(excelData);
+
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 20 },  // Project Name
+                { wch: 20 },  // Project Number
+                { wch: 25 },  // Task
+                { wch: 12 },  // Mon time
+                { wch: 35 },  // Mon comment
+                { wch: 12 },  // Tue time
+                { wch: 35 },  // Tue comment
+                { wch: 12 },  // Wed time
+                { wch: 35 },  // Wed comment
+                { wch: 12 },  // Thu time
+                { wch: 35 },  // Thu comment
+                { wch: 12 },  // Fri time
+                { wch: 35 },  // Fri comment
+                { wch: 12 }   // Total
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws, 'Timecard');
+            
+            const filename = `timecard_${formatDate(monday)}_${formatDate(friday)}.xlsx`;
+            XLSX.writeFile(wb, filename);
+            
+            showAlert(`Exported to ${filename}`, 'success');
+        }
+
+        // Download complete history
+        function downloadHistory() {
+            // Prepare history data
+            const historyData = {
+                exportDate: new Date().toISOString(),
+                exportDateFormatted: new Date().toLocaleString(),
+                currentWeekData: {
+                    weekStart: getWeekDates().monday.toISOString(),
+                    weekEnd: getWeekDates().friday.toISOString(),
+                    entries: timeEntries
+                },
+                projectNamesHistory: Array.from(projectNameHistory).sort(),
+                projectNumbersHistory: Array.from(projectHistory).sort(),
+                tasksHistory: Array.from(taskHistory).sort(),
+                commentsHistory: Array.from(commentHistory).sort(),
+                structuredHistory: {}
+            };
+
+            // Convert structured history Sets to Arrays
+            Object.keys(structuredHistory).forEach(projName => {
+                historyData.structuredHistory[projName] = {
+                    projects: Array.from(structuredHistory[projName].projects || []).sort(),
+                    tasks: Array.from(structuredHistory[projName].tasks || []).sort(),
+                    comments: Array.from(structuredHistory[projName].comments || []).sort()
+                };
+            });
+
+            // Create JSON file
+            const jsonString = JSON.stringify(historyData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            // Create download link
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            a.download = `timecard_history_${timestamp}.json`;
+            
+            // Trigger download
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showAlert('History downloaded successfully! This file can be used for backup or analysis.', 'success');
+        }
+
+        // Clear history with stern warning
+        function clearHistory() {
+            const warningMessage = `⚠️ CRITICAL WARNING ⚠️
+
+This action will PERMANENTLY DELETE ALL information stored in this program, including:
+
+• ALL timecard entries and recorded hours
+• ALL project names, numbers, and tasks
+• ALL comments and work history
+• ALL autocomplete suggestions
+
+THIS CANNOT BE UNDONE OR RECOVERED!
+
+Are you absolutely sure you want to proceed?
+
+Type "DELETE ALL" (in capital letters) to confirm:`;
+
+            const confirmation = prompt(warningMessage);
+            
+            if (confirmation === null) {
+                // User cancelled
+                return;
+            }
+            
+            if (confirmation === 'DELETE ALL') {
+                // Clear everything
+                timeEntries = [];
+                projectNameHistory.clear();
+                projectHistory.clear();
+                taskHistory.clear();
+                commentHistory.clear();
+                structuredHistory = {};
+                localStorage.removeItem(STORAGE_KEY);
+                localStorage.removeItem(HISTORY_KEY);
+                updateDropdowns();
+                updateSummary();
+                resetTimer();
+                showAlert('⚠️ All data has been permanently deleted!', 'error');
+            } else {
+                showAlert('Deletion cancelled - incorrect confirmation text entered', 'info');
+            }
+        }
+
+        // Toggle all comments visibility
+        function toggleAllComments(btn) {
+            const comments = document.querySelectorAll('.comment');
+            const isShowing = btn.classList.contains('active');
+            
+            if (isShowing) {
+                comments.forEach(comment => comment.classList.remove('show'));
+                btn.classList.remove('active');
+                btn.innerHTML = '👁️ Show Comments';
+            } else {
+                comments.forEach(comment => comment.classList.add('show'));
+                btn.classList.add('active');
+                btn.innerHTML = '👁️ Hide Comments';
+            }
+        }
+
+        // Setup page protection to prevent accidental data loss
+        function setupPageProtection() {
+            // Auto-save timer on page close/refresh
+            window.addEventListener('beforeunload', function (e) {
+                // Save current form values as last task (even if timer not running)
+                const projectNameFilter = document.getElementById('projectNameFilter').value.trim();
+                const project = document.getElementById('projectName').value.trim();
+                const task = document.getElementById('taskName').value.trim();
+                
+                if (projectNameFilter || project || task) {
+                    lastActiveTask = {
+                        projectNameFilter: projectNameFilter,
+                        project: project,
+                        task: task
+                    };
+                    saveLastTask();
+                }
+                
+                // If timer is running, stop it and save
+                if (startTime !== null) {
+                    // Stop timer and save data
+                    autoStopTimer();
+                }
+                // Don't show warning - just save and close
+            });
+        }
+    </script>
+</body>
+</html>
+

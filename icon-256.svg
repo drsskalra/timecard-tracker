@@ -1,0 +1,31 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="128" fill="#366092"/>
+  
+  <!-- Hourglass frame -->
+  <path d="M51 27 L205 27 L205 40 L179 40 L179 93 L128 128 L179 163 L179 216 L205 216 L205 229 L51 229 L51 216 L77 216 L77 163 L128 128 L77 93 L77 40 L51 40 Z" 
+        fill="none" stroke="white" stroke-width="8"/>
+  
+  <!-- Top sand -->
+  <path d="M83 45 L173 45 L173 85 L128 115 L83 85 Z" fill="#FFD700" opacity="0.9"/>
+  
+  <!-- Bottom sand -->
+  <path d="M83 211 L173 211 L173 171 L128 141 L83 171 Z" fill="#FFD700" opacity="0.9"/>
+  
+  <!-- Center connection -->
+  <circle cx="128" cy="128" r="8" fill="white"/>
+  
+  <!-- Falling sand particles -->
+  <circle cx="122" cy="122" r="3" fill="#FFD700">
+    <animate attributeName="cy" values="122;146;170;194;211" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="1;1;1;0.5;0" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="134" cy="115" r="3" fill="#FFD700">
+    <animate attributeName="cy" values="115;139;163;187;211" dur="2.2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="1;1;1;0.5;0" dur="2.2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="128" cy="117" r="3" fill="#FFD700">
+    <animate attributeName="cy" values="117;141;165;189;211" dur="2.1s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="1;1;1;0.5;0" dur="2.1s" repeatCount="indefinite"/>
+  </circle>
+</svg>
