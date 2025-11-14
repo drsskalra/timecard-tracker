@@ -1929,28 +1929,16 @@
                     
                     // Show project name only on first row of each group
                     if (index === 0) {
-                        html += `<td rowspan="${entries.length}">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span>${entry.projectNameFilter || 'Uncategorized'}</span>
-                                <button class="edit-btn" style="padding: 4px 8px; font-size: 0.75em; margin: 0;" 
-                                        onclick="editField(${entryIndex}, 'projectNameFilter')" title="Edit Project Name">✎</button>
-                            </div>
+                        html += `<td rowspan="${entries.length}" style="cursor: pointer;" onclick="editField(${entryIndex}, 'projectNameFilter')" title="Click to edit project name">
+                            <span>${entry.projectNameFilter || 'Uncategorized'}</span>
                         </td>`;
                     }
                     
-                    html += `<td>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span>${entry.project}</span>
-                            <button class="edit-btn" style="padding: 4px 8px; font-size: 0.75em; margin: 0;" 
-                                    onclick="editField(${entryIndex}, 'project')" title="Edit Project Number">✎</button>
-                        </div>
+                    html += `<td style="cursor: pointer;" onclick="editField(${entryIndex}, 'project')" title="Click to edit project number">
+                        <span>${entry.project}</span>
                     </td>`;
-                    html += `<td>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span>${entry.task}</span>
-                            <button class="edit-btn" style="padding: 4px 8px; font-size: 0.75em; margin: 0;" 
-                                    onclick="editField(${entryIndex}, 'task')" title="Edit Task">✎</button>
-                        </div>
+                    html += `<td style="cursor: pointer;" onclick="editField(${entryIndex}, 'task')" title="Click to edit task">
+                        <span>${entry.task}</span>
                     </td>`;
                     
                     for (let i = 1; i <= 5; i++) {
@@ -1964,24 +1952,19 @@
                         
                         html += `<td class="day-column ${i === currentDay ? 'current-day' : ''}">`;
                         if (seconds > 0) {
-                            html += `<div style="display: flex; align-items: center; justify-content: center; gap: 5px;">`;
+                            html += `<div style="cursor: pointer;" onclick="editCell(${entryIndex}, ${i}, 'time')" title="Click to edit time">`;
                             html += `<span class="hours">${timeStr}</span>`;
-                            html += `<button class="edit-btn" style="padding: 2px 6px; font-size: 0.7em; margin: 0;" 
-                                            onclick="editCell(${entryIndex}, ${i}, 'time')" title="Edit time">✎</button>`;
                             html += `</div>`;
                             if (clockTime) {
                                 html += `<div style="font-size: 0.7em; color: #28a745; margin-top: 3px; text-align: center;">${clockTime}</div>`;
                             }
                             if (comment) {
-                                html += `<div style="display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 5px;">`;
+                                html += `<div style="cursor: pointer; margin-top: 5px;" onclick="editCell(${entryIndex}, ${i}, 'comment')" title="Click to edit comment">`;
                                 html += `<span class="comment" data-comment-row="${rowId}">${comment}</span>`;
-                                html += `<button class="edit-btn" style="padding: 2px 6px; font-size: 0.7em; margin: 0;" 
-                                                onclick="editCell(${entryIndex}, ${i}, 'comment')" title="Edit comment">✎</button>`;
                                 html += `</div>`;
                             }
                         } else {
-                            html += `<button class="edit-btn" style="padding: 4px 8px; font-size: 0.75em; margin: 0;" 
-                                            onclick="editCell(${entryIndex}, ${i}, 'time')" title="Add time">+</button>`;
+                            html += `<div style="cursor: pointer; color: #6c757d; padding: 8px;" onclick="editCell(${entryIndex}, ${i}, 'time')" title="Click to add time">-</div>`;
                         }
                         html += `</td>`;
                     }
