@@ -960,7 +960,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div style="display: flex; align-items: center; gap: 15px;">
                         <h2 style="margin: 0;">📊 Timecard Summary</h2>
-                        <button onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.textContent = this.nextElementSibling.style.display === 'none' ? '💡' : '💡';" 
+                        <button onclick="toggleQuickTips()" id="quickTipsBtn"
                                 style="padding: 6px 12px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 18px;" title="Toggle Quick Tips">
                             💡
                         </button>
@@ -981,7 +981,7 @@
                 </div>
                 
                 <!-- Quick Tips (collapsible) -->
-                <div class="alert alert-info" style="margin-bottom: 15px; display: none;">
+                <div id="quickTipsContainer" class="alert alert-info" style="margin-bottom: 15px; display: none;">
                     <strong>Table View:</strong> Click any field to edit • ▶️ Resume • 🗑️ Delete | <strong>Week View:</strong> Click timeline to add • Drag to move • Resize handles • Click blocks to edit/delete • Zoom: All Day/1<sup>st</sup> Half/2<sup>nd</sup> Half
                 </div>
 
@@ -4137,6 +4137,16 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             } else {
                 comments.forEach(comment => comment.classList.add('show'));
                 btn.classList.add('active');
+            }
+        }
+
+        // Toggle Quick Tips display
+        function toggleQuickTips() {
+            const tipsContainer = document.getElementById('quickTipsContainer');
+            if (tipsContainer.style.display === 'none') {
+                tipsContainer.style.display = 'block';
+            } else {
+                tipsContainer.style.display = 'none';
             }
         }
 
