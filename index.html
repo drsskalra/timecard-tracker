@@ -952,8 +952,8 @@
                                 <option value="4">4 AM</option>
                                 <option value="5">5 AM</option>
                                 <option value="6">6 AM</option>
-                                <option value="7" selected>7 AM</option>
-                                <option value="8">8 AM</option>
+                                <option value="7">7 AM</option>
+                                <option value="8" selected>8 AM</option>
                                 <option value="9">9 AM</option>
                                 <option value="10">10 AM</option>
                                 <option value="11">11 AM</option>
@@ -978,8 +978,8 @@
                                 <option value="14">2 PM</option>
                                 <option value="15">3 PM</option>
                                 <option value="16">4 PM</option>
-                                <option value="17">5 PM</option>
-                                <option value="18" selected>6 PM</option>
+                                <option value="17" selected>5 PM</option>
+                                <option value="18">6 PM</option>
                                 <option value="19">7 PM</option>
                                 <option value="20">8 PM</option>
                                 <option value="21">9 PM</option>
@@ -988,8 +988,8 @@
                             </select>
                         </div>
                         <div class="control-group">
-                            <button class="btn btn-secondary" onclick="setWorkHours()">Standard (7 AM - 6 PM)</button>
-                            <button class="btn btn-secondary" onclick="setFullDay()">Full Day (12 AM - 11 PM)</button>
+                            <button class="btn btn-secondary" onclick="setWorkHours()">Standard</button>
+                            <button class="btn btn-secondary" onclick="setFullDay()">Full Day</button>
                         </div>
                     </div>
                     <div class="calendar-grid" id="calendarGrid">
@@ -3730,10 +3730,10 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             return html;
         }
 
-        // Set standard work hours (7 AM - 6 PM)
+        // Set standard work hours (8 AM - 5 PM)
         function setWorkHours() {
-            document.getElementById('startHourSelect').value = '7';
-            document.getElementById('endHourSelect').value = '18';
+            document.getElementById('startHourSelect').value = '8';
+            document.getElementById('endHourSelect').value = '17';
             updateWeekView();
         }
 
