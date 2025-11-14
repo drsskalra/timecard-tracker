@@ -707,16 +707,22 @@
             padding: 5px;
             color: white;
             font-size: 0.75em;
-            cursor: pointer;
-            transition: all 0.2s;
+            cursor: move;
+            transition: box-shadow 0.2s;
             overflow: hidden;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            user-select: none;
         }
 
         .time-block:hover {
-            transform: scale(1.02);
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
             z-index: 10;
+        }
+
+        .time-block.dragging {
+            opacity: 0.7;
+            z-index: 100;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
         }
 
         .time-block-project {
@@ -3718,8 +3724,15 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
 
                 html += `
                     <div class="time-block" 
+                         draggable="true"
+                         data-project="${entry.projectName}"
+                         data-task="${entry.task}"
+                         data-start="${entry.startTime}"
+                         data-end="${entry.endTime}"
                          style="top: ${topPercent}%; height: ${heightPercent}%; background: ${colors[colorIndex]};"
-                         title="${entry.projectName} - ${entry.task}\n${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}">
+                         title="${entry.projectName} - ${entry.task}\n${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}"
+                         onmousedown="startDragTimeBlock(event, this)"
+                         ondragstart="return false;">
                         <div class="time-block-project">${entry.projectName}</div>
                         <div class="time-block-task">${entry.task}</div>
                         <div class="time-block-duration">${entry.startTime} - ${entry.endTime}</div>
@@ -3749,6 +3762,141 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             document.getElementById('startHourSelect').value = '12';
             document.getElementById('endHourSelect').value = '17';
             updateWeekView();
+        }
+
+        // Drag and drop functionality for time blocks
+        let draggedBlock = null;
+        let dragStartY = 0;
+        let dragStartTop = 0;
+        let isBlockDragging = false;
+
+        function startDragTimeBlock(e, block) {
+            e.preventDefault();
+            draggedBlock = block;
+            dragStartY = e.clientY;
+            dragStartTop = parseFloat(block.style.top);
+            isBlockDragging = false;
+
+            block.classList.add('dragging');
+
+            document.addEventListener('mousemove', dragTimeBlock);
+            document.addEventListener('mouseup', stopDragTimeBlock);
+        }
+
+        function dragTimeBlock(e) {
+            if (!draggedBlock) return;
+            
+            isBlockDragging = true;
+            const timeline = draggedBlock.parentElement;
+            const timelineRect = timeline.getBoundingClientRect();
+            const deltaY = e.clientY - dragStartY;
+            const deltaPercent = (deltaY / timelineRect.height) * 100;
+            let newTop = dragStartTop + deltaPercent;
+
+            // Constrain within timeline
+            const blockHeight = parseFloat(draggedBlock.style.height);
+            newTop = Math.max(0, Math.min(100 - blockHeight, newTop));
+
+            draggedBlock.style.top = newTop + '%';
+        }
+
+        function stopDragTimeBlock(e) {
+            if (!draggedBlock) return;
+
+            document.removeEventListener('mousemove', dragTimeBlock);
+            document.removeEventListener('mouseup', stopDragTimeBlock);
+
+            if (isBlockDragging) {
+                // Calculate new time based on position
+                const startHour = parseInt(document.getElementById('startHourSelect')?.value || 8);
+                const endHour = parseInt(document.getElementById('endHourSelect')?.value || 17);
+                const totalMinutes = (endHour - startHour) * 60;
+
+                const topPercent = parseFloat(draggedBlock.style.top);
+                const heightPercent = parseFloat(draggedBlock.style.height);
+
+                const startMinutes = (topPercent / 100) * totalMinutes + (startHour * 60);
+                const endMinutes = ((topPercent + heightPercent) / 100) * totalMinutes + (startHour * 60);
+
+                const newStartTime = formatMinutesToTime(startMinutes);
+                const newEndTime = formatMinutesToTime(endMinutes);
+
+                // Get entry details
+                const projectName = draggedBlock.dataset.project;
+                const task = draggedBlock.dataset.task;
+                const oldStartTime = draggedBlock.dataset.start;
+                const oldEndTime = draggedBlock.dataset.end;
+
+                // Update the entry in timeEntries
+                updateTimeEntry(projectName, task, oldStartTime, oldEndTime, newStartTime, newEndTime);
+
+                showAlert(`Time updated: ${oldStartTime} - ${oldEndTime} → ${newStartTime} - ${newEndTime}`, 'success');
+            }
+
+            draggedBlock.classList.remove('dragging');
+            draggedBlock = null;
+            isBlockDragging = false;
+        }
+
+        // Format minutes to time string (e.g., 540 -> "9:00 AM")
+        function formatMinutesToTime(totalMinutes) {
+            let hours = Math.floor(totalMinutes / 60);
+            let minutes = Math.round(totalMinutes % 60);
+
+            // Round to nearest 15 minutes for cleaner times
+            minutes = Math.round(minutes / 15) * 15;
+            if (minutes === 60) {
+                hours += 1;
+                minutes = 0;
+            }
+
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+            const displayMinutes = String(minutes).padStart(2, '0');
+
+            return `${displayHours}:${displayMinutes} ${period}`;
+        }
+
+        // Update time entry with new times
+        function updateTimeEntry(projectName, task, oldStart, oldEnd, newStart, newEnd) {
+            const currentDay = getCurrentWeekday();
+
+            // Find the entry
+            const entry = timeEntries.find(e => 
+                e.projectNameFilter === projectName && e.task === task
+            );
+
+            if (!entry) return;
+
+            const clockTimeKey = `day${currentDay}_clocktime`;
+            const oldClockTime = entry[clockTimeKey] || '';
+
+            // Replace the old time range with new one
+            const oldRange = `${oldStart} - ${oldEnd}`;
+            const newRange = `${newStart} - ${newEnd}`;
+
+            if (oldClockTime.includes(oldRange)) {
+                entry[clockTimeKey] = oldClockTime.replace(oldRange, newRange);
+
+                // Recalculate total hours for the day
+                const clockRanges = entry[clockTimeKey].split(',').map(r => r.trim());
+                let totalSeconds = 0;
+
+                clockRanges.forEach(range => {
+                    const [start, end] = range.split('-').map(s => s.trim());
+                    if (start && end) {
+                        const startMin = parseTimeToMinutes(start);
+                        const endMin = parseTimeToMinutes(end);
+                        totalSeconds += (endMin - startMin) * 60;
+                    }
+                });
+
+                entry[`day${currentDay}_hr`] = formatSecondsToHHMMSS(totalSeconds);
+
+                saveData();
+                updateSummary();
+                updateWeekView();
+            }
         }
 
         // Setup page protection to prevent accidental data loss
