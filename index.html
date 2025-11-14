@@ -1284,7 +1284,10 @@
                         icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIHJ4PSIxNSIgZmlsbD0iIzM2NjA5MiIvPjxwYXRoIGQ9Ik0yMCAxMCBMODAgMTAgTDgwIDE1IEw3MCAxNSBMNzAgMzUgTDUwIDUwIEw3MCA2NSBMNzAgODUgTDgwIDg1IEw4MCA5MCBMMjAgOTAgTDIwIDg1IEwzMCA4NSBMMzAgNjUgTDUwIDUwIEwzMCAzNSBMMzAgMTUgTDIwIDE1IFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iODYiLz48cGF0aCBkPSJNMzIgMTcgTDY4IDE3IEw2OCAzMyBMNTAgNDUgTDMyIDMzIFoiIGZpbGw9IiM2Q0Y0QzAiIG9wYWNpdHk9IjAuOSIvPjxwYXRoIGQ9Ik0zMiA4MyBMNjggODMgTDY4IDY3IEw1MCA1NSBMMzIgNjcgWiIgZmlsbD0iIzZDRjRDMCIgb3BhY2l0eT0iMC45Ii8+PGNpcmNsZSBjeD0iNTAiIGN5PSI1MCIgcj0iMyIgZmlsbD0id2hpdGUiLz48dGV4dCB4PSIxMDAiIHk9Ijk1IiBmaWxsPSJ3aGl0ZSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj48dHNwYW4+T2N0PC90c3Bhbj48L3RleHQ+PHJlY3QgeD0iOTAiIHk9IjQwIiB3aWR0aD0iMTAwIiBoZWlnaHQ9IjYwIiByeD0iNSIgZmlsbD0iIzY2NmVlYSIgLz48cmVjdCB4PSI5MCIgeT0iNjAiIHdpZHRoPSI1MCIgaGVpZ2h0PSI0MCIgcng9IjUiIGZpbGw9IiM3NjRiYTIiIC8+PC9zdmc+',
                         badge: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIiIGhlaWdodD0iNzIiIHZpZXdCb3g9IjAgMCA3MiA3MiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIzNiIgY3k9IjM2IiByPSIzNiIgZmlsbD0iIzM2NjA5MiIvPjwvc3ZnPg==',
                         requireInteraction: true,
-                        tag: 'timer-reminder'
+                        tag: 'timer-reminder',
+                        priority: 'high',
+                        silent: false,
+                        vibrate: [200, 100, 200]
                     });
 
                     notification.onclick = function() {
