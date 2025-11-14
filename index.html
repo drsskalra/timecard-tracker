@@ -989,7 +989,8 @@
                         </div>
                         <div class="control-group">
                             <button class="btn btn-secondary" onclick="setWorkHours()">Standard</button>
-                            <button class="btn btn-secondary" onclick="setFullDay()">Full Day</button>
+                            <button class="btn btn-secondary" onclick="setFirstHalf()">First Half</button>
+                            <button class="btn btn-secondary" onclick="setSecondHalf()">Second Half</button>
                         </div>
                     </div>
                     <div class="calendar-grid" id="calendarGrid">
@@ -3737,10 +3738,17 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             updateWeekView();
         }
 
-        // Set full day view (12 AM - 11 PM)
-        function setFullDay() {
-            document.getElementById('startHourSelect').value = '0';
-            document.getElementById('endHourSelect').value = '23';
+        // Set first half (8 AM - 12:30 PM)
+        function setFirstHalf() {
+            document.getElementById('startHourSelect').value = '8';
+            document.getElementById('endHourSelect').value = '12';
+            updateWeekView();
+        }
+
+        // Set second half (12:30 PM - 5 PM)
+        function setSecondHalf() {
+            document.getElementById('startHourSelect').value = '12';
+            document.getElementById('endHourSelect').value = '17';
             updateWeekView();
         }
 
