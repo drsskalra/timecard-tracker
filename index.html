@@ -2524,13 +2524,17 @@
                 return;
             }
 
-            const confirmMsg = `Are you sure you want to delete this entry?\n\nProject: ${entry.projectNameFilter || 'N/A'}\nProject Number: ${entry.project}\nTask: ${entry.task}`;
+            const confirmMsg = `WARNING: This will permanently delete this entry!\n\nProject: ${entry.projectNameFilter || 'N/A'}\nProject Number: ${entry.project}\nTask: ${entry.task}\n\nType "Delete" to confirm:`;
             
-            if (confirm(confirmMsg)) {
+            const userInput = prompt(confirmMsg, '');
+            
+            if (userInput === 'Delete') {
                 timeEntries.splice(entryIndex, 1);
                 saveData();
                 updateSummary();
                 showAlert('Entry deleted successfully!', 'success');
+            } else if (userInput !== null) {
+                showAlert('Delete cancelled - you must type "Delete" exactly to confirm', 'error');
             }
         }
 
@@ -4199,7 +4203,13 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             const endTime = block.dataset.end;
             const dayIndex = parseInt(block.dataset.day);
             
-            if (!confirm(`Delete time entry?\n\n${projectName} - ${task}\n${startTime} - ${endTime}`)) {
+            const confirmMsg = `WARNING: This will permanently delete this time entry!\n\n${projectName} - ${task}\n${startTime} - ${endTime}\n\nType "Delete" to confirm:`;
+            const userInput = prompt(confirmMsg, '');
+            
+            if (userInput !== 'Delete') {
+                if (userInput !== null) {
+                    showAlert('Delete cancelled - you must type "Delete" exactly to confirm', 'error');
+                }
                 return;
             }
             
