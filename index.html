@@ -340,91 +340,28 @@
             display: block;
         }
 
-        .toggle-comments-btn {
-            background: #6c757d;
-            color: white;
+        .action-btn {
+            background: transparent;
             border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
-            font-size: 0.85em;
+            padding: 4px 6px;
+            font-size: 1.1em;
             cursor: pointer;
-            margin-left: 5px;
-            transition: all 0.3s;
-            white-space: nowrap;
-            font-weight: 600;
+            transition: all 0.2s;
+            opacity: 0.6;
+            margin: 0 2px;
         }
 
-        .toggle-comments-btn:hover {
-            background: #5a6268;
-            transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        .action-btn:hover {
+            opacity: 1;
+            transform: scale(1.2);
         }
 
-        .toggle-comments-btn.active {
-            background: #366092;
+        .action-btn:active {
+            transform: scale(1.1);
         }
 
-        .resume-btn {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
-            font-size: 0.85em;
-            cursor: pointer;
-            transition: all 0.3s;
-            white-space: nowrap;
-            font-weight: 600;
-        }
-
-        .resume-btn:hover {
-            background: #218838;
-            transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-        }
-
-        .resume-btn:active {
-            transform: translateY(0);
-        }
-
-        .edit-btn {
-            background: #ffc107;
-            color: #000;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
-            font-size: 0.85em;
-            cursor: pointer;
-            transition: all 0.3s;
-            white-space: nowrap;
-            font-weight: 600;
-            margin-left: 5px;
-        }
-
-        .edit-btn:hover {
-            background: #e0a800;
-            transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
-        }
-
-        .delete-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
-            font-size: 0.85em;
-            cursor: pointer;
-            transition: all 0.3s;
-            white-space: nowrap;
-            font-weight: 600;
-            margin-left: 5px;
-        }
-
-        .delete-btn:hover {
-            background: #c82333;
-            transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+        .action-btn.active {
+            opacity: 1;
         }
 
         .edit-input {
@@ -2320,15 +2257,17 @@
                         projectDayTotals[i - 1] += seconds;
                         
                         html += `<td class="day-column ${i === currentDay ? 'current-day' : ''}">`;
-                        if (seconds > 0 || comment) {
-                            html += `<div style="text-align: center; color: #28a745; font-weight: bold; font-size: 1.2em;">✓</div>`;
+                        if (seconds > 0) {
+                            html += `<div style="cursor: pointer;" onclick="editCell(${entryIndex}, ${i}, 'time')" title="Click to edit time">`;
+                            html += `<span class="hours">${timeStr}</span>`;
+                            html += `</div>`;
                             if (comment) {
-                                html += `<div style="margin-top: 5px;">`;
+                                html += `<div style="cursor: pointer; margin-top: 5px;" onclick="editCell(${entryIndex}, ${i}, 'comment')" title="Click to edit comment">`;
                                 html += `<span class="comment" data-comment-row="${rowId}">${comment}</span>`;
                                 html += `</div>`;
                             }
                         } else {
-                            html += `<div style="color: #6c757d; padding: 8px;">-</div>`;
+                            html += `<div style="cursor: pointer; color: #6c757d; padding: 8px;" onclick="editCell(${entryIndex}, ${i}, 'time')" title="Click to add time">-</div>`;
                         }
                         html += `</td>`;
                     }
@@ -2338,14 +2277,14 @@
                     html += `<td class="day-column total-row"><span class="hours">${totalTime}<br><small>(${totalHours} hrs)</small></span></td>`;
                     
                     // Add action buttons
-                    html += `<td style="text-align: center;">`;
-                    html += `<button class="resume-btn" onclick="resumeEntry(${entryIndex})" title="Resume timing this task">`;
+                    html += `<td style="text-align: center; white-space: nowrap;">`;
+                    html += `<button class="action-btn" onclick="resumeEntry(${entryIndex})" title="Resume timing this task">`;
                     html += `▶️`;
                     html += `</button>`;
-                    html += `<button class="delete-btn" onclick="deleteEntry(${entryIndex})" title="Delete this entry">`;
+                    html += `<button class="action-btn" onclick="deleteEntry(${entryIndex})" title="Delete this entry">`;
                     html += `🗑️`;
                     html += `</button>`;
-                    html += `<button class="toggle-comments-btn" onclick="toggleRowComments(${rowId}, this)" title="Show/hide comments">`;
+                    html += `<button class="action-btn" onclick="toggleRowComments(${rowId}, this)" title="Show/hide comments">`;
                     html += `💬`;
                     html += `</button>`;
                     html += `</td>`;
