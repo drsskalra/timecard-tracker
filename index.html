@@ -2319,7 +2319,7 @@
                             <th>Project Name</th>
                             <th>Project Number</th>
                             <th>Task</th>
-                            ${days.map((day, i) => `<th class="day-column ${i + 1 === currentDay ? 'current-day' : ''}">${day}</th>`).join('')}
+                            ${days.map((day, i) => `<th class="day-column${i + 1 === currentDay ? ' current-day' : ''}"${i + 1 === currentDay ? ' style=\"background:#28a745;color:white;font-weight:bold;\"' : ''}>${day}</th>`).join('')}
                             <th class="day-column">Total</th>
                             <th style="text-align: center;">Action</th>
                         </tr>
@@ -2363,8 +2363,8 @@
                         totalSeconds += seconds;
                         dayTotals[i - 1] += seconds;
                         projectDayTotals[i - 1] += seconds;
-                        
-                        html += `<td class="day-column ${i === currentDay ? 'current-day' : ''}">`;
+                        // Only apply green to header, not cells
+                        html += `<td class="day-column">`;
                         if (seconds > 0) {
                             html += `<div style="cursor: pointer;" onclick="editCell(${entryIndex}, ${i}, 'time')" title="Click to edit time">`;
                             html += `<span class="hours">${timeStr}</span>`;
