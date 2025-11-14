@@ -3570,71 +3570,59 @@
 
         // Clear history with stern warning
         function openHistoryEditor() {
-            // Build history lists HTML
-            let projectNamesHTML = '';
-            let projectNumbersHTML = '';
-            let tasksHTML = '';
-            let commentsHTML = '';
-            
-            Array.from(projectNameHistory).sort().forEach((item, index) => {
-                projectNamesHTML += `<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
-                    <input type="text" value="${item}" id="projName_${index}" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                    <button onclick="deleteHistoryItem('projectName', ${index})" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
-                </div>`;
-            });
-            
-            Array.from(projectHistory).sort().forEach((item, index) => {
-                projectNumbersHTML += `<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
-                    <input type="text" value="${item}" id="projNum_${index}" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                    <button onclick="deleteHistoryItem('projectNumber', ${index})" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
-                </div>`;
-            });
-            
-            Array.from(taskHistory).sort().forEach((item, index) => {
-                tasksHTML += `<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
-                    <input type="text" value="${item}" id="task_${index}" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                    <button onclick="deleteHistoryItem('task', ${index})" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
-                </div>`;
-            });
-            
-            Array.from(commentHistory).sort().forEach((item, index) => {
-                commentsHTML += `<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
-                    <input type="text" value="${item}" id="comment_${index}" style="flex: 1; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
-                    <button onclick="deleteHistoryItem('comment', ${index})" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
-                </div>`;
+            // Build project names dropdown
+            let projectOptionsHTML = '<option value="">-- Select a Project Name --</option>';
+            Array.from(projectNameHistory).sort().forEach(projName => {
+                projectOptionsHTML += `<option value="${projName}">${projName}</option>`;
             });
             
             const dialogHTML = `
                 <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: 20px;" id="historyEditorDialog" onclick="if(event.target.id === 'historyEditorDialog') closeHistoryEditor();">
-                    <div style="background: white; border-radius: 8px; padding: 25px; max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" onclick="event.stopPropagation();">
+                    <div style="background: white; border-radius: 8px; padding: 25px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" onclick="event.stopPropagation();">
                         <h2 style="margin-top: 0; color: #366092;">✏️ Edit History</h2>
-                        <p style="color: #666; margin-bottom: 20px;">Edit or delete saved suggestions. Changes will update your autocomplete dropdowns.</p>
+                        <p style="color: #666; margin-bottom: 20px;">Select a project name to edit its associated information (project numbers, tasks, and comments).</p>
                         
-                        <div style="margin-bottom: 25px;">
-                            <h3 style="color: #366092; border-bottom: 2px solid #366092; padding-bottom: 8px;">Project Names (${projectNameHistory.size})</h3>
-                            <div style="max-height: 200px; overflow-y: auto; padding: 10px 0;">
-                                ${projectNamesHTML || '<p style="color: #999; font-style: italic;">No project names saved yet</p>'}
-                            </div>
+                        <div style="margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 6px; border: 2px solid #366092;">
+                            <label style="display: block; font-weight: bold; color: #366092; margin-bottom: 10px;">Select Project Name:</label>
+                            <select id="historyProjectSelector" onchange="loadProjectHistory()" style="width: 100%; padding: 10px; border: 2px solid #366092; border-radius: 4px; font-size: 16px; background: white;">
+                                ${projectOptionsHTML}
+                            </select>
                         </div>
                         
-                        <div style="margin-bottom: 25px;">
-                            <h3 style="color: #366092; border-bottom: 2px solid #366092; padding-bottom: 8px;">Project Numbers (${projectHistory.size})</h3>
-                            <div style="max-height: 200px; overflow-y: auto; padding: 10px 0;">
-                                ${projectNumbersHTML || '<p style="color: #999; font-style: italic;">No project numbers saved yet</p>'}
+                        <div id="projectHistoryContent" style="display: none;">
+                            <div style="margin-bottom: 20px; padding: 15px; background: #e7f3ff; border-left: 4px solid #366092; border-radius: 4px;">
+                                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                                    <strong style="color: #366092;">Project Name:</strong>
+                                    <input type="text" id="editProjectName" style="flex: 1; padding: 8px; border: 2px solid #366092; border-radius: 4px; font-size: 14px;">
+                                    <button onclick="deleteEntireProject()" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🗑️ Delete Entire Project</button>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div style="margin-bottom: 25px;">
-                            <h3 style="color: #366092; border-bottom: 2px solid #366092; padding-bottom: 8px;">Tasks (${taskHistory.size})</h3>
-                            <div style="max-height: 200px; overflow-y: auto; padding: 10px 0;">
-                                ${tasksHTML || '<p style="color: #999; font-style: italic;">No tasks saved yet</p>'}
+                            
+                            <div style="margin-bottom: 25px;">
+                                <h3 style="color: #366092; border-bottom: 2px solid #366092; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Project Numbers (<span id="projNumCount">0</span>)</span>
+                                    <button onclick="addNewProjectNumber()" style="padding: 5px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">➕ Add New</button>
+                                </h3>
+                                <div id="projectNumbersList" style="max-height: 200px; overflow-y: auto; padding: 10px 0;">
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div style="margin-bottom: 25px;">
-                            <h3 style="color: #366092; border-bottom: 2px solid #366092; padding-bottom: 8px;">Comments (${commentHistory.size})</h3>
-                            <div style="max-height: 200px; overflow-y: auto; padding: 10px 0;">
-                                ${commentsHTML || '<p style="color: #999; font-style: italic;">No comments saved yet</p>'}
+                            
+                            <div style="margin-bottom: 25px;">
+                                <h3 style="color: #366092; border-bottom: 2px solid #366092; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Tasks (<span id="tasksCount">0</span>)</span>
+                                    <button onclick="addNewTask()" style="padding: 5px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">➕ Add New</button>
+                                </h3>
+                                <div id="tasksList" style="max-height: 200px; overflow-y: auto; padding: 10px 0;">
+                                </div>
+                            </div>
+                            
+                            <div style="margin-bottom: 25px;">
+                                <h3 style="color: #366092; border-bottom: 2px solid #366092; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Comments (<span id="commentsCount">0</span>)</span>
+                                    <button onclick="addNewComment()" style="padding: 5px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">➕ Add New</button>
+                                </h3>
+                                <div id="commentsList" style="max-height: 200px; overflow-y: auto; padding: 10px 0;">
+                                </div>
                             </div>
                         </div>
                         
@@ -3649,66 +3637,195 @@
             document.body.insertAdjacentHTML('beforeend', dialogHTML);
         }
 
-        function deleteHistoryItem(type, index) {
-            const items = Array.from(
-                type === 'projectName' ? projectNameHistory :
-                type === 'projectNumber' ? projectHistory :
-                type === 'task' ? taskHistory : commentHistory
-            ).sort();
+        function loadProjectHistory() {
+            const selectedProject = document.getElementById('historyProjectSelector').value;
+            const contentDiv = document.getElementById('projectHistoryContent');
             
-            const itemToDelete = items[index];
-            
-            if (type === 'projectName') {
-                projectNameHistory.delete(itemToDelete);
-            } else if (type === 'projectNumber') {
-                projectHistory.delete(itemToDelete);
-            } else if (type === 'task') {
-                taskHistory.delete(itemToDelete);
-            } else {
-                commentHistory.delete(itemToDelete);
+            if (!selectedProject) {
+                contentDiv.style.display = 'none';
+                return;
             }
             
-            // Refresh the dialog
-            document.getElementById('historyEditorDialog').remove();
+            contentDiv.style.display = 'block';
+            document.getElementById('editProjectName').value = selectedProject;
+            
+            // Load project numbers
+            const projectNumbers = structuredHistory[selectedProject]?.projects || new Set();
+            const projNumList = document.getElementById('projectNumbersList');
+            projNumList.innerHTML = '';
+            document.getElementById('projNumCount').textContent = projectNumbers.size;
+            
+            if (projectNumbers.size === 0) {
+                projNumList.innerHTML = '<p style="color: #999; font-style: italic; padding: 10px;">No project numbers saved yet</p>';
+            } else {
+                Array.from(projectNumbers).sort().forEach((item, index) => {
+                    projNumList.innerHTML += `<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
+                        <input type="text" value="${item}" class="projNum-input" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <button onclick="this.parentElement.remove(); updateCounts();" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
+                    </div>`;
+                });
+            }
+            
+            // Load tasks
+            const tasks = structuredHistory[selectedProject]?.tasks || new Set();
+            const tasksList = document.getElementById('tasksList');
+            tasksList.innerHTML = '';
+            document.getElementById('tasksCount').textContent = tasks.size;
+            
+            if (tasks.size === 0) {
+                tasksList.innerHTML = '<p style="color: #999; font-style: italic; padding: 10px;">No tasks saved yet</p>';
+            } else {
+                Array.from(tasks).sort().forEach((item, index) => {
+                    tasksList.innerHTML += `<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
+                        <input type="text" value="${item}" class="task-input" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <button onclick="this.parentElement.remove(); updateCounts();" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
+                    </div>`;
+                });
+            }
+            
+            // Load comments
+            const comments = structuredHistory[selectedProject]?.comments || new Set();
+            const commentsList = document.getElementById('commentsList');
+            commentsList.innerHTML = '';
+            document.getElementById('commentsCount').textContent = comments.size;
+            
+            if (comments.size === 0) {
+                commentsList.innerHTML = '<p style="color: #999; font-style: italic; padding: 10px;">No comments saved yet</p>';
+            } else {
+                Array.from(comments).sort().forEach((item, index) => {
+                    commentsList.innerHTML += `<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
+                        <input type="text" value="${item}" class="comment-input" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <button onclick="this.parentElement.remove(); updateCounts();" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
+                    </div>`;
+                });
+            }
+        }
+
+        function addNewProjectNumber() {
+            const list = document.getElementById('projectNumbersList');
+            const emptyMsg = list.querySelector('p');
+            if (emptyMsg) emptyMsg.remove();
+            
+            list.insertAdjacentHTML('beforeend', `<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
+                <input type="text" value="" class="projNum-input" placeholder="Enter project number" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <button onclick="this.parentElement.remove(); updateCounts();" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
+            </div>`);
+            updateCounts();
+        }
+
+        function addNewTask() {
+            const list = document.getElementById('tasksList');
+            const emptyMsg = list.querySelector('p');
+            if (emptyMsg) emptyMsg.remove();
+            
+            list.insertAdjacentHTML('beforeend', `<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
+                <input type="text" value="" class="task-input" placeholder="Enter task" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <button onclick="this.parentElement.remove(); updateCounts();" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
+            </div>`);
+            updateCounts();
+        }
+
+        function addNewComment() {
+            const list = document.getElementById('commentsList');
+            const emptyMsg = list.querySelector('p');
+            if (emptyMsg) emptyMsg.remove();
+            
+            list.insertAdjacentHTML('beforeend', `<div style="display: flex; gap: 10px; margin-bottom: 8px; align-items: center;">
+                <input type="text" value="" class="comment-input" placeholder="Enter comment" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <button onclick="this.parentElement.remove(); updateCounts();" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
+            </div>`);
+            updateCounts();
+        }
+
+        function updateCounts() {
+            document.getElementById('projNumCount').textContent = document.querySelectorAll('.projNum-input').length;
+            document.getElementById('tasksCount').textContent = document.querySelectorAll('.task-input').length;
+            document.getElementById('commentsCount').textContent = document.querySelectorAll('.comment-input').length;
+        }
+
+        function deleteEntireProject() {
+            const projectName = document.getElementById('historyProjectSelector').value;
+            if (!projectName) return;
+            
+            const confirmation = prompt(`Are you sure you want to delete "${projectName}" and ALL its associated data?\n\nType "DELETE" to confirm:`);
+            if (confirmation !== 'DELETE') {
+                return;
+            }
+            
+            // Remove from structured history
+            delete structuredHistory[projectName];
+            
+            // Remove from project name history
+            projectNameHistory.delete(projectName);
+            
+            // Close dialog and reopen to refresh
+            closeHistoryEditor();
+            saveHistory();
+            updateDropdowns();
+            showAlert(`Project "${projectName}" and all its data have been deleted.`, 'success');
             openHistoryEditor();
         }
 
         function saveHistoryEdits() {
-            // Collect all edited values
-            const newProjectNames = new Set();
+            const selectedProject = document.getElementById('historyProjectSelector').value;
+            if (!selectedProject) {
+                showAlert('Please select a project to save changes.', 'error');
+                return;
+            }
+            
+            const newProjectName = document.getElementById('editProjectName').value.trim();
+            if (!newProjectName) {
+                showAlert('Project name cannot be empty!', 'error');
+                return;
+            }
+            
+            // Collect edited values for this project
             const newProjectNumbers = new Set();
             const newTasks = new Set();
             const newComments = new Set();
             
-            // Get all project name inputs
-            document.querySelectorAll('[id^="projName_"]').forEach(input => {
-                const value = input.value.trim();
-                if (value) newProjectNames.add(value);
-            });
-            
-            // Get all project number inputs
-            document.querySelectorAll('[id^="projNum_"]').forEach(input => {
+            document.querySelectorAll('.projNum-input').forEach(input => {
                 const value = input.value.trim();
                 if (value) newProjectNumbers.add(value);
             });
             
-            // Get all task inputs
-            document.querySelectorAll('[id^="task_"]').forEach(input => {
+            document.querySelectorAll('.task-input').forEach(input => {
                 const value = input.value.trim();
                 if (value) newTasks.add(value);
             });
             
-            // Get all comment inputs
-            document.querySelectorAll('[id^="comment_"]').forEach(input => {
+            document.querySelectorAll('.comment-input').forEach(input => {
                 const value = input.value.trim();
                 if (value) newComments.add(value);
             });
             
-            // Update history
-            projectNameHistory = newProjectNames;
-            projectHistory = newProjectNumbers;
-            taskHistory = newTasks;
-            commentHistory = newComments;
+            // If project name changed, handle the rename
+            if (newProjectName !== selectedProject) {
+                // Remove old project name
+                projectNameHistory.delete(selectedProject);
+                delete structuredHistory[selectedProject];
+                
+                // Add new project name
+                projectNameHistory.add(newProjectName);
+            }
+            
+            // Update structured history for this project
+            structuredHistory[newProjectName] = {
+                projects: newProjectNumbers,
+                tasks: newTasks,
+                comments: newComments
+            };
+            
+            // Rebuild global history sets from all structured histories
+            projectHistory = new Set();
+            taskHistory = new Set();
+            commentHistory = new Set();
+            
+            Object.keys(structuredHistory).forEach(projName => {
+                structuredHistory[projName].projects.forEach(p => projectHistory.add(p));
+                structuredHistory[projName].tasks.forEach(t => taskHistory.add(t));
+                structuredHistory[projName].comments.forEach(c => commentHistory.add(c));
+            });
             
             // Save to localStorage
             saveHistory();
