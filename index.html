@@ -1986,32 +1986,6 @@
                     html += `</tr>`;
                     rowId++;
                 });
-
-                // Add project subtotal row
-                html += `<tr style="background: #e7f3ff; font-weight: bold;">`;
-                html += `<td colspan="3" style="text-align: right; padding-right: 15px; font-style: italic;">${projName} Subtotal:</td>`;
-                
-                let projectTotalSeconds = 0;
-                for (let i = 0; i < 5; i++) {
-                    projectTotalSeconds += projectDayTotals[i];
-                    const dayTotal = formatSecondsToHHMMSS(projectDayTotals[i]);
-                    const dayHours = convertToDecimalHours(dayTotal);
-                    html += `<td class="day-column ${i + 1 === currentDay ? 'current-day' : ''}" style="text-align: center;">`;
-                    if (projectDayTotals[i] > 0) {
-                        html += `<div class="hours">${dayTotal}</div><small>(${dayHours} hrs)</small>`;
-                    } else {
-                        html += '-';
-                    }
-                    html += `</td>`;
-                }
-                
-                const projectTotal = formatSecondsToHHMMSS(projectTotalSeconds);
-                const projectTotalHours = convertToDecimalHours(projectTotal);
-                html += `<td class="day-column" style="text-align: center; background: #17a2b8; color: white;">`;
-                html += `<div class="hours">${projectTotal}</div><small>(${projectTotalHours} hrs)</small>`;
-                html += `</td>`;
-                html += `<td></td>`; // Empty action cell for subtotal row
-                html += `</tr>`;
             });
 
             // Add grand totals row
