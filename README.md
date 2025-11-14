@@ -26,7 +26,7 @@ A professional time tracking Progressive Web App (PWA) for managing project time
   - Visual representation of work hours throughout the day
 
 ### Data Management
-- 📥 Import from Excel with merge/replace options
+- 📥 Import Data from Previous Export with merge/replace options
 - 📤 Export current week to Excel (with clock times)
 - 📊 Export all historical weeks to multi-sheet Excel workbook
 - 💾 Download/restore history as JSON backup
