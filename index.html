@@ -99,31 +99,40 @@
         .timer-section {
             background: #f8f9fa;
             border-radius: 10px;
-            padding: 25px;
+            padding: 15px;
             margin-bottom: 30px;
             border: 2px solid #e9ecef;
         }
 
         .timer-section h2 {
             color: #366092;
-            margin-bottom: 20px;
-            font-size: 1.5em;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+            text-align: center;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 15px;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 0;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
             font-weight: 600;
             color: #495057;
+            font-size: 0.85em;
         }
 
         .form-group label .history-count {
             font-weight: normal;
-            font-size: 0.85em;
+            font-size: 0.8em;
             color: #6c757d;
             font-style: italic;
         }
@@ -131,10 +140,10 @@
         .form-group input,
         .form-group textarea {
             width: 100%;
-            padding: 12px;
+            padding: 8px;
             border: 2px solid #dee2e6;
             border-radius: 5px;
-            font-size: 1em;
+            font-size: 0.9em;
             transition: border-color 0.3s;
         }
 
@@ -146,7 +155,8 @@
 
         .form-group textarea {
             resize: vertical;
-            min-height: 60px;
+            min-height: 36px;
+            height: 36px;
         }
 
         .comment-suggestions {
@@ -193,37 +203,37 @@
 
         .timer-display {
             text-align: center;
-            padding: 30px;
+            padding: 15px;
             background: white;
-            border-radius: 10px;
-            margin: 20px 0;
+            border-radius: 8px;
+            margin: 10px 0;
         }
 
         .timer-display .time {
-            font-size: 3em;
+            font-size: 2.5em;
             font-weight: bold;
             color: #366092;
             font-family: 'Courier New', monospace;
         }
 
         .timer-display .status {
-            font-size: 1.2em;
+            font-size: 0.95em;
             color: #6c757d;
-            margin-top: 10px;
+            margin-top: 5px;
         }
 
         .btn-group {
             display: flex;
-            gap: 15px;
-            margin-top: 20px;
+            gap: 10px;
+            margin-top: 10px;
         }
 
         .btn {
             flex: 1;
-            padding: 15px 30px;
+            padding: 10px 20px;
             border: none;
-            border-radius: 8px;
-            font-size: 1.1em;
+            border-radius: 6px;
+            font-size: 0.95em;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
@@ -887,42 +897,6 @@
             <div class="timer-section">
                 <h2>📋 Time Entry</h2>
                 
-                <div class="form-group">
-                    <label for="projectNameFilter">
-                        Project Name * 
-                        <span class="history-count" id="projectNameCount"></span>
-                    </label>
-                    <input type="text" id="projectNameFilter" placeholder="Enter or select project name" list="projectNameList" required autocomplete="off">
-                    <datalist id="projectNameList"></datalist>
-                </div>
-
-                <div class="form-group">
-                    <label for="projectName">
-                        Project Number * 
-                        <span class="history-count" id="projectCount"></span>
-                    </label>
-                    <input type="text" id="projectName" placeholder="Enter or select project number" list="projectList" required autocomplete="off">
-                    <datalist id="projectList"></datalist>
-                </div>
-
-                <div class="form-group">
-                    <label for="taskName">
-                        Task Name * 
-                        <span class="history-count" id="taskCount"></span>
-                    </label>
-                    <input type="text" id="taskName" placeholder="Enter or select task name" list="taskList" required autocomplete="off">
-                    <datalist id="taskList"></datalist>
-                </div>
-
-                <div class="form-group comment-suggestions">
-                    <label for="comment">
-                        Comment 
-                        <span class="history-count" id="commentCount"></span>
-                    </label>
-                    <textarea id="comment" placeholder="Enter or select comment (click to see suggestions)"></textarea>
-                    <div id="commentDropdown" class="comment-dropdown"></div>
-                </div>
-
                 <div class="timer-display">
                     <div class="time" id="timerDisplay" onclick="editTimerDisplay()" style="cursor: pointer;" title="Click to edit time">00:00:00</div>
                     <div class="status" id="timerStatus">Ready to start (Click time to edit)</div>
@@ -941,6 +915,44 @@
                     <button class="btn btn-info" id="miniWindowBtn" onclick="toggleMiniWindow()">
                         📌 Picture-in-Picture
                     </button>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="projectNameFilter">
+                            Project Name * 
+                            <span class="history-count" id="projectNameCount"></span>
+                        </label>
+                        <input type="text" id="projectNameFilter" placeholder="Enter or select project name" list="projectNameList" required autocomplete="off">
+                        <datalist id="projectNameList"></datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="projectName">
+                            Project Number * 
+                            <span class="history-count" id="projectCount"></span>
+                        </label>
+                        <input type="text" id="projectName" placeholder="Enter or select project number" list="projectList" required autocomplete="off">
+                        <datalist id="projectList"></datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="taskName">
+                            Task Name * 
+                            <span class="history-count" id="taskCount"></span>
+                        </label>
+                        <input type="text" id="taskName" placeholder="Enter or select task name" list="taskList" required autocomplete="off">
+                        <datalist id="taskList"></datalist>
+                    </div>
+
+                    <div class="form-group comment-suggestions">
+                        <label for="comment">
+                            Comment 
+                            <span class="history-count" id="commentCount"></span>
+                        </label>
+                        <textarea id="comment" placeholder="Enter or select comment (click to see suggestions)"></textarea>
+                        <div id="commentDropdown" class="comment-dropdown"></div>
+                    </div>
                 </div>
             </div>
 
