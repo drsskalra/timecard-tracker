@@ -554,8 +554,6 @@
         .view-toggle {
             display: flex;
             gap: 10px;
-            margin-bottom: 15px;
-            justify-content: center;
         }
 
         .view-toggle button {
@@ -956,12 +954,14 @@
 
             <!-- Summary Section -->
             <div class="summary-section">
-                <h2>📊 Timecard Summary</h2>
-                
-                <!-- View Toggle -->
-                <div class="view-toggle">
-                    <button id="tableViewBtn" class="active" onclick="switchView('table')">📋 Table View</button>
-                    <button id="weekViewBtn" onclick="switchView('week')">📅 Week View</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="margin: 0;">📊 Timecard Summary</h2>
+                    
+                    <!-- View Toggle -->
+                    <div class="view-toggle" style="margin: 0;">
+                        <button id="tableViewBtn" class="active" onclick="switchView('table')">📋 Table View</button>
+                        <button id="weekViewBtn" onclick="switchView('week')">📅 Week View</button>
+                    </div>
                 </div>
 
                 <!-- Table View -->
