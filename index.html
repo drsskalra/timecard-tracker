@@ -599,6 +599,157 @@
             color: white;
         }
 
+        /* Week View Styles */
+        .view-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: center;
+        }
+
+        .view-toggle button {
+            padding: 8px 16px;
+            border: 2px solid #366092;
+            background: white;
+            color: #366092;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .view-toggle button.active {
+            background: #366092;
+            color: white;
+        }
+
+        .week-view-container {
+            display: none;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .week-view-container.active {
+            display: block;
+        }
+
+        .calendar-grid {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .day-column {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .day-header {
+            background: #366092;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .day-header.current {
+            background: #28a745;
+        }
+
+        .timeline {
+            position: relative;
+            height: 600px;
+            background: linear-gradient(to bottom, 
+                #f8f9fa 0%, #f8f9fa 25%,
+                #fff 25%, #fff 50%,
+                #f8f9fa 50%, #f8f9fa 75%,
+                #fff 75%, #fff 100%);
+        }
+
+        .time-labels {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 60px;
+            height: 100%;
+            border-right: 2px solid #ddd;
+            background: white;
+        }
+
+        .time-label {
+            position: absolute;
+            width: 100%;
+            text-align: right;
+            padding-right: 5px;
+            font-size: 0.7em;
+            color: #666;
+            transform: translateY(-50%);
+        }
+
+        .time-blocks {
+            position: absolute;
+            left: 65px;
+            right: 5px;
+            top: 0;
+            height: 100%;
+        }
+
+        .time-block {
+            position: absolute;
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            padding: 5px;
+            color: white;
+            font-size: 0.75em;
+            cursor: pointer;
+            transition: all 0.2s;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .time-block:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+
+        .time-block-project {
+            font-weight: bold;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .time-block-task {
+            font-size: 0.9em;
+            opacity: 0.9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .time-block-duration {
+            font-size: 0.85em;
+            margin-top: 2px;
+            font-weight: 600;
+        }
+
+        .day-total {
+            background: #f8f9fa;
+            border-top: 2px solid #366092;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            color: #366092;
+        }
+
         @media (max-width: 768px) {
             .btn-group {
                 flex-direction: column;
@@ -620,6 +771,14 @@
 
             .mini-window-time {
                 font-size: 2em;
+            }
+
+            .calendar-grid {
+                flex-direction: column;
+            }
+
+            .timeline {
+                height: 400px;
             }
         }
     </style>
@@ -731,13 +890,29 @@
             <div class="summary-section">
                 <h2>📊 Timecard Summary</h2>
                 <div class="alert alert-info" style="margin-bottom: 15px;">
-                    <strong>💡 Quick Tips:</strong> Click ✎ buttons next to any field to edit it. 
-                    Click + button to add time to empty cells. Use action buttons: ▶️ Resume | 🗑️ Delete
+                    <strong>💡 Quick Tips:</strong> Click on any field to edit it. Use action buttons: ▶️ Resume | 🗑️ Delete
                 </div>
-                <div id="summaryContainer">
-                    <p style="text-align: center; color: #6c757d; padding: 20px;">
-                        No time entries recorded yet. Start tracking your time!
-                    </p>
+                
+                <!-- View Toggle -->
+                <div class="view-toggle">
+                    <button id="tableViewBtn" class="active" onclick="switchView('table')">📋 Table View</button>
+                    <button id="weekViewBtn" onclick="switchView('week')">📅 Week View</button>
+                </div>
+
+                <!-- Table View -->
+                <div id="tableViewContainer" class="active">
+                    <div id="summaryContainer">
+                        <p style="text-align: center; color: #6c757d; padding: 20px;">
+                            No time entries recorded yet. Start tracking your time!
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Week View -->
+                <div id="weekViewContainer" class="week-view-container">
+                    <div class="calendar-grid" id="calendarGrid">
+                        <!-- Days will be populated by JavaScript -->
+                    </div>
                 </div>
             </div>
 
@@ -3304,6 +3479,173 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 btn.classList.add('active');
                 btn.innerHTML = '👁️ Hide Comments';
             }
+        }
+
+        // Switch between table and week view
+        function switchView(view) {
+            const tableViewBtn = document.getElementById('tableViewBtn');
+            const weekViewBtn = document.getElementById('weekViewBtn');
+            const tableViewContainer = document.getElementById('tableViewContainer');
+            const weekViewContainer = document.getElementById('weekViewContainer');
+
+            if (view === 'table') {
+                tableViewBtn.classList.add('active');
+                weekViewBtn.classList.remove('active');
+                tableViewContainer.classList.add('active');
+                weekViewContainer.classList.remove('active');
+            } else {
+                tableViewBtn.classList.remove('active');
+                weekViewBtn.classList.add('active');
+                tableViewContainer.classList.remove('active');
+                weekViewContainer.classList.add('active');
+                updateWeekView();
+            }
+        }
+
+        // Update week view calendar
+        function updateWeekView() {
+            const calendarGrid = document.getElementById('calendarGrid');
+            const currentDay = getCurrentWeekday();
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+            const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+            let html = '';
+
+            // Create columns for each day
+            for (let dayIndex = 1; dayIndex <= 5; dayIndex++) {
+                const isCurrentDay = dayIndex === currentDay;
+                const dayEntries = [];
+
+                // Collect all entries for this day
+                timeEntries.forEach(entry => {
+                    const timeStr = entry[`day${dayIndex}_hr`] || '00:00:00';
+                    const clockTime = entry[`day${dayIndex}_clocktime`] || '';
+                    const comment = entry[`day${dayIndex}_comment`] || '';
+
+                    if (timeStr !== '00:00:00' && clockTime) {
+                        // Parse clock times
+                        const clockRanges = clockTime.split(',').map(range => range.trim());
+                        clockRanges.forEach(range => {
+                            const [startStr, endStr] = range.split('-').map(s => s.trim());
+                            if (startStr && endStr) {
+                                dayEntries.push({
+                                    projectName: entry.projectNameFilter || 'Uncategorized',
+                                    project: entry.project,
+                                    task: entry.task,
+                                    startTime: startStr,
+                                    endTime: endStr,
+                                    comment: comment
+                                });
+                            }
+                        });
+                    }
+                });
+
+                // Calculate day total
+                let dayTotalSeconds = 0;
+                timeEntries.forEach(entry => {
+                    dayTotalSeconds += parseHHMMSSToSeconds(entry[`day${dayIndex}_hr`] || '00:00:00');
+                });
+                const dayTotal = formatSecondsToHHMMSS(dayTotalSeconds);
+
+                // Build day column
+                html += `
+                    <div class="day-column">
+                        <div class="day-header ${isCurrentDay ? 'current' : ''}">
+                            ${days[dayIndex - 1]}<br>
+                            <small>${dayLabels[dayIndex - 1]}</small>
+                        </div>
+                        <div class="timeline">
+                            <div class="time-labels">
+                                ${generateTimeLabels()}
+                            </div>
+                            <div class="time-blocks">
+                                ${generateTimeBlocks(dayEntries)}
+                            </div>
+                        </div>
+                        <div class="day-total">${dayTotal}</div>
+                    </div>
+                `;
+            }
+
+            calendarGrid.innerHTML = html;
+        }
+
+        // Generate time labels (7 AM - 6 PM)
+        function generateTimeLabels() {
+            let html = '';
+            const startHour = 7;
+            const endHour = 18;
+            
+            for (let hour = startHour; hour <= endHour; hour++) {
+                const position = ((hour - startHour) / (endHour - startHour)) * 100;
+                const time12h = hour > 12 ? `${hour - 12} PM` : (hour === 12 ? '12 PM' : `${hour} AM`);
+                html += `<div class="time-label" style="top: ${position}%">${time12h}</div>`;
+            }
+            
+            return html;
+        }
+
+        // Parse time string to minutes from start of day
+        function parseTimeToMinutes(timeStr) {
+            // Parse formats like "9:30 AM" or "1:45 PM"
+            const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            if (!match) return 0;
+            
+            let hours = parseInt(match[1]);
+            const minutes = parseInt(match[2]);
+            const period = match[3].toUpperCase();
+            
+            if (period === 'PM' && hours !== 12) hours += 12;
+            if (period === 'AM' && hours === 12) hours = 0;
+            
+            return hours * 60 + minutes;
+        }
+
+        // Generate time blocks for entries
+        function generateTimeBlocks(entries) {
+            if (entries.length === 0) {
+                return '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999; font-size: 0.9em;">No entries</div>';
+            }
+
+            let html = '';
+            const startHour = 7;
+            const endHour = 18;
+            const totalMinutes = (endHour - startHour) * 60;
+
+            entries.forEach(entry => {
+                const startMinutes = parseTimeToMinutes(entry.startTime) - (startHour * 60);
+                const endMinutes = parseTimeToMinutes(entry.endTime) - (startHour * 60);
+                
+                // Skip if outside our display range
+                if (startMinutes < 0 || endMinutes > totalMinutes || startMinutes >= endMinutes) return;
+
+                const topPercent = (startMinutes / totalMinutes) * 100;
+                const heightPercent = ((endMinutes - startMinutes) / totalMinutes) * 100;
+                const duration = Math.round((endMinutes - startMinutes) / 60 * 10) / 10;
+
+                const colors = [
+                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                    'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
+                ];
+                const colorIndex = entry.projectName.charCodeAt(0) % colors.length;
+
+                html += `
+                    <div class="time-block" 
+                         style="top: ${topPercent}%; height: ${heightPercent}%; background: ${colors[colorIndex]};"
+                         title="${entry.projectName} - ${entry.task}\n${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}">
+                        <div class="time-block-project">${entry.projectName}</div>
+                        <div class="time-block-task">${entry.task}</div>
+                        <div class="time-block-duration">${entry.startTime} - ${entry.endTime}</div>
+                    </div>
+                `;
+            });
+
+            return html;
         }
 
         // Setup page protection to prevent accidental data loss
