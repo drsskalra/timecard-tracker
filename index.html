@@ -963,6 +963,7 @@
                     <div style="display: flex; align-items: center; gap: 15px;">
                         <!-- Week Navigation Arrows -->
                         <button onclick="navigateWeek(-1)" class="btn" style="padding: 5px 12px; font-size: 18px; background: #6c757d; color: white; border: none; cursor: pointer; border-radius: 4px;" title="Previous Week (Left Arrow)">◀</button>
+                        <button onclick="weekOffset = 0; loadData(); loadWeekDates(); updateSummary(); updateWeekView();" class="btn" style="padding: 5px 12px; font-size: 18px; background: #366092; color: white; border: none; cursor: pointer; border-radius: 4px;" title="Current Week (Home Key)">🏠</button>
                         <button onclick="navigateWeek(1)" class="btn" style="padding: 5px 12px; font-size: 18px; background: #6c757d; color: white; border: none; cursor: pointer; border-radius: 4px;" title="Next Week (Right Arrow)">▶</button>
                         
                         <!-- View Toggle -->
