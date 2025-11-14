@@ -902,6 +902,9 @@
                     <button class="btn btn-danger" id="stopBtn" onclick="stopTimer()" disabled>
                         ⏹️ Stop Timer
                     </button>
+                    <button class="btn btn-secondary" id="resetBtn" onclick="resetTimerDisplay()">
+                        🔄 Reset
+                    </button>
                     <button class="btn btn-info" id="miniWindowBtn" onclick="toggleMiniWindow()">
                         📌 Picture-in-Picture
                     </button>
@@ -1713,21 +1716,15 @@
 
         // Toggle mini window with OS Picture-in-Picture support
         async function toggleMiniWindow() {
-            const mainContainer = document.querySelector('.container');
-            
             // Check if Document Picture-in-Picture API is available
             if ('documentPictureInPicture' in window) {
                 // Use OS-level Picture-in-Picture
                 if (pipWindow && !pipWindow.closed) {
-                    // Close existing PiP window and restore main window
+                    // Close existing PiP window
                     pipWindow.close();
-                    mainContainer.style.display = 'block';
-                    window.focus();
                 } else {
                     // Open new OS-level PiP window
                     await openPictureInPicture();
-                    // Hide main window content
-                    mainContainer.style.display = 'none';
                 }
             } else {
                 // Fallback to browser-based mini window
@@ -1992,8 +1989,6 @@
                     clearInterval(pipUpdateInterval);
                     pipWindow = null;
                     document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
-                    // Restore main window
-                    document.querySelector('.container').style.display = 'block';
                 });
 
                 showAlert('Picture-in-Picture window opened! It will stay on top of other windows.', 'success');
