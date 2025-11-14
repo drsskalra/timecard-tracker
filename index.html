@@ -889,14 +889,8 @@
                 </svg>
                 <h1>Time Card Tracker</h1>
             </div>
-            <div class="week-info" style="display: flex; align-items: center; gap: 15px; justify-content: center;">
-                <button onclick="navigateWeek(-1)" class="btn" style="padding: 5px 12px; font-size: 18px; background: #6c757d; color: white; border: none; cursor: pointer;" title="Previous Week">◀</button>
-                <span style="display: flex; gap: 15px;">
-                    <span>Week: <span id="weekDates"></span></span>
-                    <span>|</span>
-                    <span>Today: <span id="currentDay"></span></span>
-                </span>
-                <button onclick="navigateWeek(1)" class="btn" style="padding: 5px 12px; font-size: 18px; background: #6c757d; color: white; border: none; cursor: pointer;" title="Next Week">▶</button>
+            <div class="week-info">
+                Week: <span id="weekDates"></span> | Today: <span id="currentDay"></span>
             </div>
         </div>
 
@@ -966,10 +960,16 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <h2 style="margin: 0;">📊 Timecard Summary</h2>
                     
-                    <!-- View Toggle -->
-                    <div class="view-toggle" style="margin: 0;">
-                        <button id="tableViewBtn" class="active" onclick="switchView('table')">📋 Table View</button>
-                        <button id="weekViewBtn" onclick="switchView('week')">📅 Week View</button>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <!-- Week Navigation Arrows -->
+                        <button onclick="navigateWeek(-1)" class="btn" style="padding: 5px 12px; font-size: 18px; background: #6c757d; color: white; border: none; cursor: pointer; border-radius: 4px;" title="Previous Week (Left Arrow)">◀</button>
+                        <button onclick="navigateWeek(1)" class="btn" style="padding: 5px 12px; font-size: 18px; background: #6c757d; color: white; border: none; cursor: pointer; border-radius: 4px;" title="Next Week (Right Arrow)">▶</button>
+                        
+                        <!-- View Toggle -->
+                        <div class="view-toggle" style="margin: 0;">
+                            <button id="tableViewBtn" class="active" onclick="switchView('table')">📋 Table View</button>
+                            <button id="weekViewBtn" onclick="switchView('week')">📅 Week View</button>
+                        </div>
                     </div>
                 </div>
 
