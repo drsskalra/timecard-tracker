@@ -26,9 +26,13 @@ A professional time tracking Progressive Web App (PWA) for managing project time
   - Visual representation of work hours throughout the day
 
 ### Data Management
-- 📥 Import Data from Previous Export with merge/replace options
+- 📥 **Import Data from Previous Export** with merge/replace options
+  - Automatically detects single-week or multi-week Excel files
+  - **Multi-week import**: Restores complete historical data from "Export All Weeks"
+  - **Single-week import**: Imports current week data with merge/replace option
+  - Preserves all hours, comments, and clock times for week view timeline
 - 📤 Export current week to Excel (with clock times)
-- 📊 Export all historical weeks to multi-sheet Excel workbook
+- 📊 Export all historical weeks to multi-sheet Excel workbook (one sheet per week)
 - 💾 Download/restore history as JSON backup
 - ✏️ Advanced history editor with project-based organization
 - 🗑️ Delete confirmation for safety (requires typing "Delete")
@@ -76,10 +80,16 @@ A professional time tracking Progressive Web App (PWA) for managing project time
 - Download history as JSON backup
 - Clear all history if needed (requires confirmation)
 
-### Exporting Data
-- **Export This Week**: Export current week to Excel (includes clock times)
-- **Export All Weeks**: Export entire timecard history to multi-sheet Excel
-- **Import from Excel**: Import previously exported timecard data
+### Exporting & Importing Data
+- **Export This Week**: Export current week to single-sheet Excel file (includes clock times)
+- **Export All Weeks**: Export entire timecard history to multi-sheet Excel workbook
+  - Each week gets its own sheet named "Week MM-DD-YYYY"
+  - Preserves all hours, comments, and clock times
+- **Import Data from Previous Export**: Intelligently imports timecard data
+  - **Single-week files**: Imports to current week with merge/replace option
+  - **Multi-week files**: Automatically detects and restores all historical weeks
+  - Fully restores week view timeline with clock times
+  - Updates autocomplete history with all imported projects, tasks, and comments
 
 ## Installation as PWA
 
