@@ -3171,6 +3171,7 @@
                             const dayNum = index + 1;
                             const importedTime = row[dayLabel] || '00:00:00';
                             const importedComment = row[`${dayLabel} Comment`] || '';
+                            const importedClockTime = row[`${dayLabel} Clock Time`] || '';
 
                             if (importedTime && importedTime !== '00:00:00') {
                                 if (mergeChoice) {
@@ -3198,6 +3199,11 @@
                                 } else {
                                     entry[`day${dayNum}_comment`] = importedComment;
                                 }
+                            }
+
+                            // Handle clock time
+                            if (importedClockTime) {
+                                entry[`day${dayNum}_clocktime`] = importedClockTime;
                             }
                         });
 
@@ -3295,6 +3301,7 @@
                             const dayLabel = i === 1 ? 'Mon' : i === 2 ? 'Tue' : i === 3 ? 'Wed' : i === 4 ? 'Thu' : 'Fri';
                             row[dayLabel] = timeStr;
                             row[`${dayLabel} Comment`] = entry[`day${i}_comment`] || '';
+                            row[`${dayLabel} Clock Time`] = entry[`day${i}_clocktime`] || '';
                         }
                         
                         // Add total column
@@ -3319,6 +3326,7 @@
                         const dayLabel = i === 1 ? 'Mon' : i === 2 ? 'Tue' : i === 3 ? 'Wed' : i === 4 ? 'Thu' : 'Fri';
                         subtotalRow[dayLabel] = formatSecondsToHHMMSS(projectDayTotals[i - 1]);
                         subtotalRow[`${dayLabel} Comment`] = '';
+                        subtotalRow[`${dayLabel} Clock Time`] = '';
                         projectTotalSeconds += projectDayTotals[i - 1];
                     }
                     subtotalRow['Total'] = formatSecondsToHHMMSS(projectTotalSeconds);
@@ -3338,6 +3346,7 @@
                     const dayLabel = i === 1 ? 'Mon' : i === 2 ? 'Tue' : i === 3 ? 'Wed' : i === 4 ? 'Thu' : 'Fri';
                     grandTotalRow[dayLabel] = formatSecondsToHHMMSS(dayTotals[i - 1]);
                     grandTotalRow[`${dayLabel} Comment`] = '';
+                    grandTotalRow[`${dayLabel} Clock Time`] = '';
                     grandTotalSeconds += dayTotals[i - 1];
                 }
                 grandTotalRow['Total'] = formatSecondsToHHMMSS(grandTotalSeconds);
@@ -3354,14 +3363,19 @@
                     { wch: 25 },  // Task
                     { wch: 12 },  // Mon time
                     { wch: 35 },  // Mon comment
+                    { wch: 20 },  // Mon clock time
                     { wch: 12 },  // Tue time
                     { wch: 35 },  // Tue comment
+                    { wch: 20 },  // Tue clock time
                     { wch: 12 },  // Wed time
                     { wch: 35 },  // Wed comment
+                    { wch: 20 },  // Wed clock time
                     { wch: 12 },  // Thu time
                     { wch: 35 },  // Thu comment
+                    { wch: 20 },  // Thu clock time
                     { wch: 12 },  // Fri time
                     { wch: 35 },  // Fri comment
+                    { wch: 20 },  // Fri clock time
                     { wch: 12 }   // Total
                 ];
 
@@ -3427,6 +3441,7 @@
                         const dayLabel = i === 1 ? 'Mon' : i === 2 ? 'Tue' : i === 3 ? 'Wed' : i === 4 ? 'Thu' : 'Fri';
                         row[dayLabel] = timeStr;
                         row[`${dayLabel} Comment`] = entry[`day${i}_comment`] || '';
+                        row[`${dayLabel} Clock Time`] = entry[`day${i}_clocktime`] || '';
                     }
                     
                     // Add total column
