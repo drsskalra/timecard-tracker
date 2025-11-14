@@ -3092,7 +3092,16 @@
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
                     
-                    // Get first sheet
+                    // Check if this is a multi-week export
+                    const isMultiWeek = workbook.SheetNames.length > 1 || workbook.SheetNames[0].startsWith('Week ');
+                    
+                    if (isMultiWeek) {
+                        // Handle multi-week import
+                        importAllWeeksFromExcel(workbook);
+                        return;
+                    }
+                    
+                    // Single week import (existing logic)
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     
@@ -3230,6 +3239,116 @@
             
             // Reset file input so the same file can be imported again
             event.target.value = '';
+        }
+
+        // Import all weeks from multi-sheet Excel file
+        function importAllWeeksFromExcel(workbook) {
+            try {
+                const mergeChoice = confirm(
+                    'Multi-Week Import Detected!\n\n' +
+                    `This file contains ${workbook.SheetNames.length} week(s) of data.\n\n` +
+                    'Click OK to MERGE with existing historical data.\n' +
+                    'Click Cancel to REPLACE all historical data.\n\n' +
+                    'Note: Current week data will be preserved unless it matches an imported week.'
+                );
+
+                let allWeeks = mergeChoice ? getAllWeeks() : {};
+                let totalImported = 0;
+                let totalSkipped = 0;
+
+                // Process each sheet
+                workbook.SheetNames.forEach(sheetName => {
+                    // Extract week date from sheet name (format: "Week MM-DD-YYYY")
+                    const dateMatch = sheetName.match(/Week (\d{2})-(\d{2})-(\d{4})/);
+                    if (!dateMatch) {
+                        totalSkipped++;
+                        return;
+                    }
+
+                    const [_, month, day, year] = dateMatch;
+                    const weekStart = new Date(`${year}-${month}-${day}`);
+                    
+                    // Calculate week end (Friday)
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekEnd.getDate() + 4);
+
+                    // Read sheet data
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (jsonData.length === 0) {
+                        totalSkipped++;
+                        return;
+                    }
+
+                    // Process entries for this week
+                    const weekEntries = [];
+                    jsonData.forEach(row => {
+                        const task = row['Task'] || '';
+                        if (task.includes('Subtotal') || task.includes('Total')) {
+                            return;
+                        }
+
+                        const projectName = row['Project Name'] || '';
+                        const projectNumber = row['Project Number'] || '';
+                        
+                        if (!projectName || !projectNumber || !task) {
+                            return;
+                        }
+
+                        const entry = {
+                            projectNameFilter: projectName,
+                            project: projectNumber,
+                            task: task
+                        };
+
+                        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+                        days.forEach((dayLabel, index) => {
+                            const dayNum = index + 1;
+                            entry[`day${dayNum}_hr`] = row[dayLabel] || '00:00:00';
+                            entry[`day${dayNum}_comment`] = row[`${dayLabel} Comment`] || '';
+                            entry[`day${dayNum}_clocktime`] = row[`${dayLabel} Clock Time`] || '';
+                        });
+
+                        weekEntries.push(entry);
+                        
+                        // Add to history
+                        addToHistory(projectName, projectNumber, task, '');
+                    });
+
+                    if (weekEntries.length > 0) {
+                        const weekKey = weekStart.toISOString().split('T')[0];
+                        allWeeks[weekKey] = {
+                            weekStart: weekStart.toISOString(),
+                            weekEnd: weekEnd.toISOString(),
+                            entries: weekEntries
+                        };
+                        totalImported++;
+                    }
+                });
+
+                // Save all weeks to localStorage
+                localStorage.setItem(ALL_WEEKS_KEY, JSON.stringify(allWeeks));
+
+                // Check if current week was imported and update timeEntries
+                const { monday } = getWeekDates();
+                const currentWeekKey = monday.toISOString().split('T')[0];
+                if (allWeeks[currentWeekKey]) {
+                    timeEntries = allWeeks[currentWeekKey].entries || [];
+                    saveData();
+                    updateSummary();
+                }
+
+                const mode = mergeChoice ? 'merged with' : 'replaced';
+                showAlert(
+                    `Import successful! ${totalImported} week(s) ${mode} historical data. ${totalSkipped} sheet(s) skipped.`,
+                    'success'
+                );
+
+            } catch (error) {
+                console.error('Multi-week import error:', error);
+                showAlert('Error importing multi-week file. Please ensure it is a valid file exported from this application.', 'error');
+            }
         }
 
         // Export all weeks to Excel with separate tabs
