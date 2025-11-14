@@ -2283,7 +2283,7 @@
                     
                     const totalTime = formatSecondsToHHMMSS(totalSeconds);
                     const totalHours = convertToDecimalHours(totalTime);
-                    html += `<td class="day-column total-row"><span class="hours">${totalTime}<br><small>(${totalHours} hrs)</small></span></td>`;
+                    html += `<td class="day-column total-row"><span class="hours">${totalHours} hrs</span></td>`;
                     
                     // Add action buttons
                     html += `<td style="text-align: center; white-space: nowrap;">`;
@@ -2314,7 +2314,7 @@
                 const dayHours = convertToDecimalHours(dayTotal);
                 html += `<td class="day-column ${i + 1 === currentDay ? 'current-day' : ''}" style="text-align: center;">`;
                 if (dayTotals[i] > 0) {
-                    html += `<div class="hours">${dayTotal}</div><small>(${dayHours} hrs)</small>`;
+                    html += `<div class="hours">${dayHours} hrs</div>`;
                 } else {
                     html += '-';
                 }
@@ -2324,7 +2324,7 @@
             const grandTotal = formatSecondsToHHMMSS(grandTotalSeconds);
             const grandTotalHours = convertToDecimalHours(grandTotal);
             html += `<td class="day-column" style="text-align: center; background: #366092; color: white;">`;
-            html += `<div class="hours">${grandTotal}</div><small>(${grandTotalHours} hrs)</small>`;
+            html += `<div class="hours">${grandTotalHours} hrs</div>`;
             html += `</td>`;
             html += `<td></td>`; // Empty action cell for grand total row
             html += `</tr>`;
