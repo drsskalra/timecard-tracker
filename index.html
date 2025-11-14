@@ -1052,9 +1052,6 @@
                 <button class="btn btn-primary" onclick="document.getElementById('importFile').click()">
                     📥 Import from Excel
                 </button>
-                <button class="btn btn-secondary" onclick="downloadHistory()">
-                    📋 Download History (JSON)
-                </button>
                 <button class="btn btn-warning" onclick="openHistoryEditor()">
                     ✏️ Edit History
                 </button>
@@ -3624,7 +3621,10 @@
                         </div>
                         
                         <div style="display: flex; gap: 10px; justify-content: space-between; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 20px;">
-                            <button onclick="clearHistory()" style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🧹 Clear All History</button>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="downloadHistory()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">📋 Download History</button>
+                                <button onclick="clearHistory()" style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🧹 Clear All History</button>
+                            </div>
                             <div style="display: flex; gap: 10px;">
                                 <button onclick="closeHistoryEditor()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Cancel</button>
                                 <button onclick="saveHistoryEdits()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">💾 Save Changes</button>
