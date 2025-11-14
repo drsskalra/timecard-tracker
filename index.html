@@ -686,9 +686,10 @@
             width: 100%;
             text-align: right;
             padding-right: 5px;
+            padding-top: 2px;
             font-size: 0.7em;
             color: #666;
-            transform: translateY(-50%);
+            transform: translateY(0);
         }
 
         .time-blocks {
@@ -3736,9 +3737,10 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             let html = '';
             const startHour = parseInt(document.getElementById('startHourSelect')?.value || 7);
             const endHour = parseInt(document.getElementById('endHourSelect')?.value || 18);
+            const totalHours = endHour - startHour;
             
-            for (let hour = startHour; hour <= endHour; hour++) {
-                const position = ((hour - startHour) / (endHour - startHour)) * 100;
+            for (let hour = startHour; hour < endHour; hour++) {
+                const position = ((hour - startHour) / totalHours) * 100;
                 const time12h = hour > 12 ? `${hour - 12} PM` : (hour === 12 ? '12 PM' : (hour === 0 ? '12 AM' : `${hour} AM`));
                 html += `<div class="time-label" style="top: ${position}%">${time12h}</div>`;
             }
