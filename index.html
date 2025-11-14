@@ -1058,9 +1058,6 @@
                 <button class="btn btn-warning" onclick="openHistoryEditor()">
                     ✏️ Edit History
                 </button>
-                <button class="btn btn-danger" onclick="clearHistory()">
-                    🧹 Clear History
-                </button>
             </div>
 
             <!-- Hidden file input for import -->
@@ -3626,9 +3623,12 @@
                             </div>
                         </div>
                         
-                        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 20px;">
-                            <button onclick="closeHistoryEditor()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Cancel</button>
-                            <button onclick="saveHistoryEdits()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">💾 Save Changes</button>
+                        <div style="display: flex; gap: 10px; justify-content: space-between; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 20px;">
+                            <button onclick="clearHistory()" style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🧹 Clear All History</button>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="closeHistoryEditor()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">Cancel</button>
+                                <button onclick="saveHistoryEdits()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">💾 Save Changes</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3878,6 +3878,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 updateDropdowns();
                 updateSummary();
                 resetTimer();
+                closeHistoryEditor();
                 showAlert('⚠️ All data has been permanently deleted!', 'error');
             } else {
                 showAlert('Deletion cancelled - incorrect confirmation text entered', 'info');
