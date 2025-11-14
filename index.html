@@ -988,9 +988,9 @@
                             </select>
                         </div>
                         <div class="control-group">
-                            <button class="btn btn-secondary" onclick="setWorkHours()">Standard</button>
-                            <button class="btn btn-secondary" onclick="setFirstHalf()">First Half</button>
-                            <button class="btn btn-secondary" onclick="setSecondHalf()">Second Half</button>
+                            <button class="btn btn-secondary" onclick="setWorkHours()">All Day</button>
+                            <button class="btn btn-secondary" onclick="setFirstHalf()">1<sup>st</sup> Half</button>
+                            <button class="btn btn-secondary" onclick="setSecondHalf()">2<sup>nd</sup> Half</button>
                         </div>
                     </div>
                     <div class="calendar-grid" id="calendarGrid">
@@ -3731,21 +3731,21 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             return html;
         }
 
-        // Set standard work hours (8 AM - 5 PM)
+        // Set all day work hours (8 AM - 5 PM)
         function setWorkHours() {
             document.getElementById('startHourSelect').value = '8';
             document.getElementById('endHourSelect').value = '17';
             updateWeekView();
         }
 
-        // Set first half (8 AM - 12:30 PM)
+        // Set 1st half (8 AM - 12 PM)
         function setFirstHalf() {
             document.getElementById('startHourSelect').value = '8';
             document.getElementById('endHourSelect').value = '12';
             updateWeekView();
         }
 
-        // Set second half (12:30 PM - 5 PM)
+        // Set 2nd half (12 PM - 5 PM)
         function setSecondHalf() {
             document.getElementById('startHourSelect').value = '12';
             document.getElementById('endHourSelect').value = '17';
