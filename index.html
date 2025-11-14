@@ -344,16 +344,20 @@
             background: #6c757d;
             color: white;
             border: none;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.75em;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 0.85em;
             cursor: pointer;
             margin-left: 5px;
-            transition: background 0.3s;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-weight: 600;
         }
 
         .toggle-comments-btn:hover {
             background: #5a6268;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15);
         }
 
         .toggle-comments-btn.active {
@@ -2264,11 +2268,6 @@
             });
 
             let html = `
-                <div style="text-align: right; margin-bottom: 10px;">
-                    <button class="toggle-comments-btn" onclick="toggleAllComments(this)">
-                        👁️ Show Comments
-                    </button>
-                </div>
                 <table class="timecard-table">
                     <thead>
                         <tr>
@@ -2321,20 +2320,15 @@
                         projectDayTotals[i - 1] += seconds;
                         
                         html += `<td class="day-column ${i === currentDay ? 'current-day' : ''}">`;
-                        if (seconds > 0) {
-                            html += `<div style="cursor: pointer;" onclick="editCell(${entryIndex}, ${i}, 'time')" title="Click to edit time">`;
-                            html += `<span class="hours">${timeStr}</span>`;
-                            html += `</div>`;
-                            if (clockTime) {
-                                html += `<div style="font-size: 0.7em; color: #28a745; margin-top: 3px; text-align: center;">${clockTime}</div>`;
-                            }
+                        if (seconds > 0 || comment) {
+                            html += `<div style="text-align: center; color: #28a745; font-weight: bold; font-size: 1.2em;">✓</div>`;
                             if (comment) {
-                                html += `<div style="cursor: pointer; margin-top: 5px;" onclick="editCell(${entryIndex}, ${i}, 'comment')" title="Click to edit comment">`;
+                                html += `<div style="margin-top: 5px;">`;
                                 html += `<span class="comment" data-comment-row="${rowId}">${comment}</span>`;
                                 html += `</div>`;
                             }
                         } else {
-                            html += `<div style="cursor: pointer; color: #6c757d; padding: 8px;" onclick="editCell(${entryIndex}, ${i}, 'time')" title="Click to add time">-</div>`;
+                            html += `<div style="color: #6c757d; padding: 8px;">-</div>`;
                         }
                         html += `</td>`;
                     }
@@ -2350,6 +2344,9 @@
                     html += `</button>`;
                     html += `<button class="delete-btn" onclick="deleteEntry(${entryIndex})" title="Delete this entry">`;
                     html += `🗑️`;
+                    html += `</button>`;
+                    html += `<button class="toggle-comments-btn" onclick="toggleRowComments(${rowId}, this)" title="Show/hide comments">`;
+                    html += `💬`;
                     html += `</button>`;
                     html += `</td>`;
                     
@@ -3647,6 +3644,20 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 comments.forEach(comment => comment.classList.add('show'));
                 btn.classList.add('active');
                 btn.innerHTML = '👁️ Hide Comments';
+            }
+        }
+
+        // Toggle comments for a specific row
+        function toggleRowComments(rowId, btn) {
+            const comments = document.querySelectorAll(`.comment[data-comment-row="${rowId}"]`);
+            const isShowing = btn.classList.contains('active');
+            
+            if (isShowing) {
+                comments.forEach(comment => comment.classList.remove('show'));
+                btn.classList.remove('active');
+            } else {
+                comments.forEach(comment => comment.classList.add('show'));
+                btn.classList.add('active');
             }
         }
 
