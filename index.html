@@ -725,6 +725,32 @@
             box-shadow: 0 6px 12px rgba(0,0,0,0.4);
         }
 
+        .resize-handle {
+            position: absolute;
+            width: 100%;
+            height: 8px;
+            cursor: ns-resize;
+            z-index: 2;
+        }
+
+        .resize-handle.top {
+            top: 0;
+            cursor: n-resize;
+        }
+
+        .resize-handle.bottom {
+            bottom: 0;
+            cursor: s-resize;
+        }
+
+        .resize-handle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .time-blocks.clickable {
+            cursor: crosshair;
+        }
+
         .time-block-project {
             font-weight: bold;
             margin-bottom: 2px;
@@ -1000,8 +1026,8 @@
                         </div>
                         <div class="control-group">
                             <button class="btn btn-secondary" onclick="setWorkHours()">All Day</button>
-                            <button class="btn btn-secondary" onclick="setFirstHalf()">1<sup>st</sup> Half</button>
-                            <button class="btn btn-secondary" onclick="setSecondHalf()">2<sup>nd</sup> Half</button>
+                            <button class="btn btn-secondary" onclick="setFirstHalf()">1<sup>st</sup>Half</button>
+                            <button class="btn btn-secondary" onclick="setSecondHalf()">2<sup>nd</sup>Half</button>
                         </div>
                     </div>
                     <div class="calendar-grid" id="calendarGrid">
@@ -3652,7 +3678,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                             <div class="time-labels">
                                 ${generateTimeLabels()}
                             </div>
-                            <div class="time-blocks">
+                            <div class="time-blocks clickable" onclick="addNewTimeEntry(event, ${dayIndex})">
                                 ${generateTimeBlocks(dayEntries)}
                             </div>
                         </div>
@@ -3738,9 +3764,11 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                          title="${entry.projectName} - ${entry.task}\n${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}"
                          onmousedown="startDragTimeBlock(event, this)"
                          ondragstart="return false;">
+                        <div class="resize-handle top" onmousedown="startResize(event, this.parentElement, 'top')"></div>
                         <div class="time-block-project">${entry.projectName}</div>
                         <div class="time-block-task">${entry.task}</div>
                         <div class="time-block-duration">${entry.startTime} - ${entry.endTime}</div>
+                        <div class="resize-handle bottom" onmousedown="startResize(event, this.parentElement, 'bottom')"></div>
                     </div>
                 `;
             });
@@ -3902,6 +3930,190 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 updateSummary();
                 updateWeekView();
             }
+        }
+
+        // Resize functionality for time blocks
+        let resizingBlock = null;
+        let resizeDirection = null;
+        let resizeStartY = 0;
+        let resizeStartTop = 0;
+        let resizeStartHeight = 0;
+
+        function startResize(e, block, direction) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            resizingBlock = block;
+            resizeDirection = direction;
+            resizeStartY = e.clientY;
+            resizeStartTop = parseFloat(block.style.top);
+            resizeStartHeight = parseFloat(block.style.height);
+
+            block.classList.add('dragging');
+
+            document.addEventListener('mousemove', resizeTimeBlock);
+            document.addEventListener('mouseup', stopResize);
+        }
+
+        function resizeTimeBlock(e) {
+            if (!resizingBlock) return;
+
+            const timeline = resizingBlock.parentElement;
+            const timelineRect = timeline.getBoundingClientRect();
+            const deltaY = e.clientY - resizeStartY;
+            const deltaPercent = (deltaY / timelineRect.height) * 100;
+
+            if (resizeDirection === 'top') {
+                let newTop = resizeStartTop + deltaPercent;
+                let newHeight = resizeStartHeight - deltaPercent;
+
+                // Constrain
+                newTop = Math.max(0, newTop);
+                newHeight = Math.max(5, newHeight); // Minimum 5% height
+                
+                if (newTop + newHeight > 100) {
+                    newHeight = 100 - newTop;
+                }
+
+                resizingBlock.style.top = newTop + '%';
+                resizingBlock.style.height = newHeight + '%';
+            } else {
+                let newHeight = resizeStartHeight + deltaPercent;
+                
+                // Constrain
+                newHeight = Math.max(5, newHeight); // Minimum 5% height
+                if (resizeStartTop + newHeight > 100) {
+                    newHeight = 100 - resizeStartTop;
+                }
+
+                resizingBlock.style.height = newHeight + '%';
+            }
+        }
+
+        function stopResize(e) {
+            if (!resizingBlock) return;
+
+            document.removeEventListener('mousemove', resizeTimeBlock);
+            document.removeEventListener('mouseup', stopResize);
+
+            // Calculate new times
+            const startHour = parseInt(document.getElementById('startHourSelect')?.value || 8);
+            const endHour = parseInt(document.getElementById('endHourSelect')?.value || 17);
+            const totalMinutes = (endHour - startHour) * 60;
+
+            const topPercent = parseFloat(resizingBlock.style.top);
+            const heightPercent = parseFloat(resizingBlock.style.height);
+
+            const startMinutes = (topPercent / 100) * totalMinutes + (startHour * 60);
+            const endMinutes = ((topPercent + heightPercent) / 100) * totalMinutes + (startHour * 60);
+
+            const newStartTime = formatMinutesToTime(startMinutes);
+            const newEndTime = formatMinutesToTime(endMinutes);
+
+            // Get entry details
+            const projectName = resizingBlock.dataset.project;
+            const task = resizingBlock.dataset.task;
+            const oldStartTime = resizingBlock.dataset.start;
+            const oldEndTime = resizingBlock.dataset.end;
+
+            // Update the entry
+            updateTimeEntry(projectName, task, oldStartTime, oldEndTime, newStartTime, newEndTime);
+
+            showAlert(`Time resized: ${oldStartTime} - ${oldEndTime} → ${newStartTime} - ${newEndTime}`, 'success');
+
+            resizingBlock.classList.remove('dragging');
+            resizingBlock = null;
+            resizeDirection = null;
+        }
+
+        // Add new time entry by clicking on timeline
+        function addNewTimeEntry(e, dayIndex) {
+            // Don't trigger if clicking on existing block
+            if (e.target.classList.contains('time-block') || 
+                e.target.closest('.time-block') ||
+                e.target.classList.contains('resize-handle')) {
+                return;
+            }
+
+            const timeline = e.currentTarget;
+            const rect = timeline.getBoundingClientRect();
+            const clickY = e.clientY - rect.top;
+            const clickPercent = (clickY / rect.height) * 100;
+
+            const startHour = parseInt(document.getElementById('startHourSelect')?.value || 8);
+            const endHour = parseInt(document.getElementById('endHourSelect')?.value || 17);
+            const totalMinutes = (endHour - startHour) * 60;
+
+            // Calculate clicked time (default 1 hour block)
+            const clickMinutes = (clickPercent / 100) * totalMinutes + (startHour * 60);
+            const startTime = formatMinutesToTime(clickMinutes);
+            const endTime = formatMinutesToTime(clickMinutes + 60); // Default 1 hour
+
+            // Get current form values
+            const projectNameFilter = document.getElementById('projectNameFilter').value.trim();
+            const project = document.getElementById('projectName').value.trim();
+            const task = document.getElementById('taskName').value.trim();
+            const comment = document.getElementById('comment').value.trim();
+
+            if (!projectNameFilter || !project || !task) {
+                showAlert('Please fill in Project Name, Project Number, and Task Name first', 'error');
+                return;
+            }
+
+            // Find or create entry
+            let entry = timeEntries.find(e => 
+                e.projectNameFilter === projectNameFilter && 
+                e.project === project && 
+                e.task === task
+            );
+
+            if (!entry) {
+                entry = { 
+                    projectNameFilter, 
+                    project, 
+                    task 
+                };
+                for (let i = 1; i <= 5; i++) {
+                    entry[`day${i}_hr`] = '00:00:00';
+                    entry[`day${i}_comment`] = '';
+                    entry[`day${i}_clocktime`] = '';
+                }
+                timeEntries.push(entry);
+            }
+
+            // Add new time entry
+            const clockTimeKey = `day${dayIndex}_clocktime`;
+            const existingClockTime = entry[clockTimeKey] || '';
+            const newClockTime = `${startTime} - ${endTime}`;
+            
+            if (existingClockTime) {
+                entry[clockTimeKey] = `${existingClockTime}, ${newClockTime}`;
+            } else {
+                entry[clockTimeKey] = newClockTime;
+            }
+
+            // Add comment if provided
+            if (comment) {
+                const commentKey = `day${dayIndex}_comment`;
+                const existingComment = entry[commentKey] || '';
+                if (existingComment) {
+                    entry[commentKey] = `${existingComment}; ${comment}`;
+                } else {
+                    entry[commentKey] = comment;
+                }
+            }
+
+            // Calculate duration and add to total
+            const durationMinutes = 60; // 1 hour default
+            const durationSeconds = durationMinutes * 60;
+            const currentSeconds = parseHHMMSSToSeconds(entry[`day${dayIndex}_hr`] || '00:00:00');
+            entry[`day${dayIndex}_hr`] = formatSecondsToHHMMSS(currentSeconds + durationSeconds);
+
+            saveData();
+            updateSummary();
+            updateWeekView();
+            
+            showAlert(`Added ${newClockTime} to ${projectNameFilter} - ${task}`, 'success');
         }
 
         // Setup page protection to prevent accidental data loss
