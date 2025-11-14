@@ -889,8 +889,14 @@
                 </svg>
                 <h1>Time Card Tracker</h1>
             </div>
-            <div class="week-info">
-                Week: <span id="weekDates"></span> | Today: <span id="currentDay"></span>
+            <div class="week-info" style="display: flex; align-items: center; gap: 15px; justify-content: center;">
+                <button onclick="navigateWeek(-1)" class="btn" style="padding: 5px 12px; font-size: 18px; background: #6c757d; color: white; border: none; cursor: pointer;" title="Previous Week">◀</button>
+                <span style="display: flex; gap: 15px;">
+                    <span>Week: <span id="weekDates"></span></span>
+                    <span>|</span>
+                    <span>Today: <span id="currentDay"></span></span>
+                </span>
+                <button onclick="navigateWeek(1)" class="btn" style="padding: 5px 12px; font-size: 18px; background: #6c757d; color: white; border: none; cursor: pointer;" title="Next Week">▶</button>
             </div>
         </div>
 
@@ -1140,6 +1146,9 @@
         let isDragging = false;
         let dragOffset = { x: 0, y: 0 };
         
+        // Week navigation
+        let weekOffset = 0; // 0 = current week, -1 = last week, +1 = next week
+        
         // Structured history to track relationships
         let structuredHistory = {};
         
@@ -1165,6 +1174,7 @@
             registerServiceWorker(); // Register service worker for PWA
             setupIdleNotifications(); // Setup idle timer notifications
             setupMiniWindowDrag(); // Setup mini window dragging
+            setupWeekNavigation(); // Setup keyboard shortcuts for week navigation
         };
 
         // Enforce single instance - prevent multiple tabs/windows
@@ -1355,6 +1365,9 @@
             const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
             monday.setDate(today.getDate() + daysToMonday);
             
+            // Apply week offset (7 days per week)
+            monday.setDate(monday.getDate() + (weekOffset * 7));
+            
             const friday = new Date(monday);
             friday.setDate(monday.getDate() + 4);
             
@@ -1368,14 +1381,75 @@
                 return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}-${date.getFullYear()}`;
             };
             
-            document.getElementById('weekDates').textContent = 
-                `${formatDate(monday)} to ${formatDate(friday)}`;
+            let weekText = `${formatDate(monday)} to ${formatDate(friday)}`;
+            const weekDatesElement = document.getElementById('weekDates');
+            
+            if (weekOffset !== 0) {
+                weekText += weekOffset < 0 ? ` (${Math.abs(weekOffset)} week${Math.abs(weekOffset) > 1 ? 's' : ''} ago)` : ` (${weekOffset} week${weekOffset > 1 ? 's' : ''} ahead)`;
+                weekDatesElement.style.color = '#ff9800';
+                weekDatesElement.style.fontWeight = 'bold';
+            } else {
+                weekDatesElement.style.color = '';
+                weekDatesElement.style.fontWeight = '';
+            }
+            weekDatesElement.textContent = weekText;
             
             const today = new Date();
             const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
             const dayName = days[today.getDay()];
             const currentDayText = `${dayName}, ${formatDate(today)}`;
             document.getElementById('currentDay').textContent = currentDayText;
+        }
+
+        // Navigate between weeks
+        function navigateWeek(direction) {
+            weekOffset += direction;
+            
+            // Load data for the selected week
+            const { monday } = getWeekDates();
+            const weekKey = monday.toISOString().split('T')[0];
+            const allWeeks = getAllWeeks();
+            
+            if (allWeeks[weekKey]) {
+                timeEntries = allWeeks[weekKey].entries || [];
+            } else {
+                timeEntries = [];
+            }
+            
+            // Update displays
+            loadWeekDates();
+            updateSummary();
+            updateWeekView();
+        }
+
+        // Setup week navigation keyboard shortcuts
+        function setupWeekNavigation() {
+            document.addEventListener('keydown', function(e) {
+                // Only handle if not typing in an input field
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+                
+                // Left arrow or Ctrl+Left: Previous week
+                if ((e.key === 'ArrowLeft' && e.ctrlKey) || (e.key === 'ArrowLeft' && !e.shiftKey && !e.altKey)) {
+                    e.preventDefault();
+                    navigateWeek(-1);
+                }
+                // Right arrow or Ctrl+Right: Next week
+                else if ((e.key === 'ArrowRight' && e.ctrlKey) || (e.key === 'ArrowRight' && !e.shiftKey && !e.altKey)) {
+                    e.preventDefault();
+                    navigateWeek(1);
+                }
+                // Home key: Return to current week
+                else if (e.key === 'Home' && weekOffset !== 0) {
+                    e.preventDefault();
+                    weekOffset = 0;
+                    loadData();
+                    loadWeekDates();
+                    updateSummary();
+                    updateWeekView();
+                }
+            });
         }
 
         // Get current weekday (1=Monday, 5=Friday)
@@ -1426,6 +1500,13 @@
 
         // Start timer
         function startTimer() {
+            // Prevent starting timer if viewing a different week
+            if (weekOffset !== 0) {
+                const message = weekOffset < 0 ? 'a past week' : 'a future week';
+                showAlert(`Cannot start timer while viewing ${message}. Please navigate to the current week.`, 'error');
+                return;
+            }
+            
             let projectNameFilter = document.getElementById('projectNameFilter').value.trim();
             let project = document.getElementById('projectName').value.trim();
             let task = document.getElementById('taskName').value.trim();
@@ -2680,21 +2761,36 @@
 
         // Load data from localStorage
         function loadData() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                try {
-                    const data = JSON.parse(saved);
-                    const { monday } = getWeekDates();
-                    const savedMonday = new Date(data.weekStart);
-                    
-                    // Only load if same week
-                    if (savedMonday.toDateString() === monday.toDateString()) {
-                        timeEntries = data.entries || [];
-                    } else {
+            const { monday } = getWeekDates();
+            const weekKey = monday.toISOString().split('T')[0];
+            
+            // If viewing current week (weekOffset = 0), load from STORAGE_KEY
+            if (weekOffset === 0) {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        const savedMonday = new Date(data.weekStart);
+                        
+                        // Only load if same week
+                        if (savedMonday.toDateString() === monday.toDateString()) {
+                            timeEntries = data.entries || [];
+                        } else {
+                            timeEntries = [];
+                        }
+                    } catch (e) {
+                        console.error('Error loading data:', e);
                         timeEntries = [];
                     }
-                } catch (e) {
-                    console.error('Error loading data:', e);
+                } else {
+                    timeEntries = [];
+                }
+            } else {
+                // Load from historical weeks
+                const allWeeks = getAllWeeks();
+                if (allWeeks[weekKey]) {
+                    timeEntries = allWeeks[weekKey].entries || [];
+                } else {
                     timeEntries = [];
                 }
             }
