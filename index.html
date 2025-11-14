@@ -1110,6 +1110,17 @@
             return (seconds / 3600).toFixed(2);
         }
 
+        // Format time to HH:MM AM/PM
+        function formatClockTime(date) {
+            let hours = date.getHours();
+            let minutes = date.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // 0 should be 12
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            return hours + ':' + minutes + ' ' + ampm;
+        }
+
         // Start timer
         function startTimer() {
             let projectNameFilter = document.getElementById('projectNameFilter').value.trim();
@@ -1183,10 +1194,12 @@
             document.getElementById('projectName').disabled = true;
             document.getElementById('taskName').disabled = true;
             document.getElementById('comment').disabled = true;
-            document.getElementById('timerStatus').textContent = `Timer running for ${projectNameFilter} - ${project} - ${task}`;
+            
+            const startClockTime = formatClockTime(new Date(startTime));
+            document.getElementById('timerStatus').textContent = `Timer running for ${projectNameFilter} - ${project} - ${task} (Started: ${startClockTime})`;
 
             timerInterval = setInterval(updateTimerDisplay, 1000);
-            showAlert(`Timer started for ${projectNameFilter} - ${project} - ${task}`, 'success');
+            showAlert(`Timer started for ${projectNameFilter} - ${project} - ${task} at ${startClockTime}`, 'success');
             
             // Clear any reminder notifications
             const reminderAlert = document.querySelector('.reminder-alert');
@@ -1225,6 +1238,11 @@
             };
             saveLastTask(); // Persist to localStorage
 
+            // Format clock times
+            const fromTime = formatClockTime(new Date(startTime));
+            const toTime = formatClockTime(new Date(endTime));
+            const clockTimeRange = `${fromTime} - ${toTime}`;
+
             // Find or create entry
             let entry = timeEntries.find(e => e.projectNameFilter === projectNameFilter && e.project === project && e.task === task);
             
@@ -1234,6 +1252,14 @@
                 const existingSeconds = parseHHMMSSToSeconds(existingTime);
                 const totalSeconds = existingSeconds + elapsedSeconds;
                 entry[`day${currentDay}_hr`] = formatSecondsToHHMMSS(totalSeconds);
+                
+                // Append clock time range
+                const existingClockTime = entry[`day${currentDay}_clocktime`] || '';
+                if (existingClockTime) {
+                    entry[`day${currentDay}_clocktime`] = `${existingClockTime}, ${clockTimeRange}`;
+                } else {
+                    entry[`day${currentDay}_clocktime`] = clockTimeRange;
+                }
                 
                 const existingComment = entry[`day${currentDay}_comment`] || '';
                 if (existingComment && comment) {
@@ -1251,9 +1277,11 @@
                 for (let i = 1; i <= 5; i++) {
                     entry[`day${i}_hr`] = '00:00:00';
                     entry[`day${i}_comment`] = '';
+                    entry[`day${i}_clocktime`] = '';
                 }
                 entry[`day${currentDay}_hr`] = elapsedTime;
                 entry[`day${currentDay}_comment`] = comment;
+                entry[`day${currentDay}_clocktime`] = clockTimeRange;
                 timeEntries.push(entry);
             }
 
@@ -1287,6 +1315,11 @@
             };
             saveLastTask(); // Persist to localStorage
 
+            // Format clock times
+            const fromTime = formatClockTime(new Date(startTime));
+            const toTime = formatClockTime(new Date(endTime));
+            const clockTimeRange = `${fromTime} - ${toTime}`;
+
             // Find or create entry - now includes projectNameFilter
             let entry = timeEntries.find(e => e.projectNameFilter === projectNameFilter && e.project === project && e.task === task);
             
@@ -1296,6 +1329,14 @@
                 const existingSeconds = parseHHMMSSToSeconds(existingTime);
                 const totalSeconds = existingSeconds + elapsedSeconds;
                 entry[`day${currentDay}_hr`] = formatSecondsToHHMMSS(totalSeconds);
+                
+                // Append clock time range
+                const existingClockTime = entry[`day${currentDay}_clocktime`] || '';
+                if (existingClockTime) {
+                    entry[`day${currentDay}_clocktime`] = `${existingClockTime}, ${clockTimeRange}`;
+                } else {
+                    entry[`day${currentDay}_clocktime`] = clockTimeRange;
+                }
                 
                 const existingComment = entry[`day${currentDay}_comment`] || '';
                 if (existingComment && comment) {
@@ -1316,9 +1357,11 @@
                 for (let i = 1; i <= 5; i++) {
                     entry[`day${i}_hr`] = '00:00:00';
                     entry[`day${i}_comment`] = '';
+                    entry[`day${i}_clocktime`] = '';
                 }
                 entry[`day${currentDay}_hr`] = elapsedTime;
                 entry[`day${currentDay}_comment`] = comment;
+                entry[`day${currentDay}_clocktime`] = clockTimeRange;
                 timeEntries.push(entry);
             }
 
@@ -1341,7 +1384,7 @@
 
             const elapsedHours = (elapsedSeconds / 3600).toFixed(2);
             const minutes = (elapsedSeconds / 60).toFixed(1);
-            showAlert(`Time recorded: ${elapsedTime} (${elapsedHours} hours / ${minutes} minutes)`, 'success');
+            showAlert(`Time recorded: ${elapsedTime} (${elapsedHours} hours / ${minutes} minutes) from ${fromTime} to ${toTime}`, 'success');
             
             // Update mini window if active
             if (miniWindowActive) {
@@ -1593,11 +1636,21 @@
                         
                         const totalTime = formatSecondsToHHMMSS(projectTotalSeconds);
                         
-                        // Update combined display text
-                        const pipDisplayText = pipWindow.document.getElementById('pipDisplayText');
+                        // Build display text with clock time
                         const displayTaskName = currentTask || 'No Task';
                         const displayProjectName = currentProjectName || 'No Project';
-                        pipDisplayText.textContent = `${displayProjectName}: ${displayTaskName} - ${totalTime}`;
+                        let displayText = `${displayProjectName}: ${displayTaskName} - ${totalTime}`;
+                        
+                        // Add clock time range if timer is running
+                        if (startTime !== null) {
+                            const startClockTime = formatClockTime(new Date(startTime));
+                            const currentClockTime = formatClockTime(new Date());
+                            displayText += ` (${startClockTime} - ${currentClockTime})`;
+                        }
+                        
+                        // Update combined display text
+                        const pipDisplayText = pipWindow.document.getElementById('pipDisplayText');
+                        pipDisplayText.textContent = displayText;
                     } else {
                         // PiP window was closed
                         clearInterval(pipUpdateInterval);
@@ -1641,8 +1694,10 @@
                 const projectNameFilter = document.getElementById('projectNameFilter').value.trim();
                 const project = document.getElementById('projectName').value.trim();
                 const task = document.getElementById('taskName').value.trim();
+                const startClockTime = formatClockTime(new Date(startTime));
+                const currentClockTime = formatClockTime(new Date());
                 
-                miniProjectInfo.innerHTML = `<strong>${projectNameFilter}</strong><br>${project} - ${task}`;
+                miniProjectInfo.innerHTML = `<strong>${projectNameFilter}</strong><br>${project} - ${task}<br><small style="color: #28a745; font-weight: 600;">${startClockTime} - ${currentClockTime}</small>`;
                 miniStopBtn.disabled = false;
                 
                 // Update time
@@ -1902,6 +1957,7 @@
                         const timeStr = entry[`day${i}_hr`] || '00:00:00';
                         const seconds = parseHHMMSSToSeconds(timeStr);
                         const comment = entry[`day${i}_comment`] || '';
+                        const clockTime = entry[`day${i}_clocktime`] || '';
                         totalSeconds += seconds;
                         dayTotals[i - 1] += seconds;
                         projectDayTotals[i - 1] += seconds;
@@ -1913,6 +1969,9 @@
                             html += `<button class="edit-btn" style="padding: 2px 6px; font-size: 0.7em; margin: 0;" 
                                             onclick="editCell(${entryIndex}, ${i}, 'time')" title="Edit time">✎</button>`;
                             html += `</div>`;
+                            if (clockTime) {
+                                html += `<div style="font-size: 0.7em; color: #28a745; margin-top: 3px; text-align: center;">${clockTime}</div>`;
+                            }
                             if (comment) {
                                 html += `<div style="display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 5px;">`;
                                 html += `<span class="comment" data-comment-row="${rowId}">${comment}</span>`;
