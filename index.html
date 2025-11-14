@@ -4060,6 +4060,29 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             const dayIndex = parseInt(block.dataset.day);
             const currentComment = block.dataset.comment.replace(/&quot;/g, '"');
             
+            // Get current entry to find project number
+            const entry = timeEntries.find(e => 
+                e.projectNameFilter === projectName && e.task === task
+            );
+            const projectNumber = entry ? entry.project : '';
+            
+            // Build history datalists
+            let projectNameOptions = '';
+            let projectNumberOptions = '';
+            let taskOptions = '';
+            
+            projectNameHistory.forEach(item => {
+                projectNameOptions += `<option value="${item}">`;
+            });
+            
+            projectHistory.forEach(item => {
+                projectNumberOptions += `<option value="${item}">`;
+            });
+            
+            taskHistory.forEach(item => {
+                taskOptions += `<option value="${item}">`;
+            });
+            
             // Create edit dialog
             const dialogHTML = `
                 <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center;" id="editDialog" onclick="if(event.target.id === 'editDialog') this.remove();">
@@ -4067,11 +4090,18 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                         <h3 style="margin-top: 0; color: #333;">Edit Time Entry</h3>
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Project Name:</label>
-                            <input type="text" id="editProjectName" value="${projectName}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <input type="text" id="editProjectName" value="${projectName}" list="editProjectNameList" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <datalist id="editProjectNameList">${projectNameOptions}</datalist>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Project Number:</label>
+                            <input type="text" id="editProjectNumber" value="${projectNumber}" list="editProjectNumberList" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <datalist id="editProjectNumberList">${projectNumberOptions}</datalist>
                         </div>
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Task:</label>
-                            <input type="text" id="editTask" value="${task}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <input type="text" id="editTask" value="${task}" list="editTaskList" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <datalist id="editTaskList">${taskOptions}</datalist>
                         </div>
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Start Time:</label>
@@ -4087,7 +4117,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                         </div>
                         <div style="display: flex; gap: 10px; justify-content: flex-end;">
                             <button onclick="document.getElementById('editDialog').remove()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;">Cancel</button>
-                            <button onclick="saveTimeBlockEdit('${projectName}', '${task}', '${startTime}', '${endTime}', ${dayIndex})" style="padding: 8px 16px; background: #366092; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;">Save</button>
+                            <button onclick="saveTimeBlockEdit('${projectName}', '${task}', '${startTime}', '${endTime}', ${dayIndex}, '${projectNumber}')" style="padding: 8px 16px; background: #366092; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;">Save</button>
                         </div>
                     </div>
                 </div>
@@ -4097,14 +4127,15 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         }
 
         // Save edited time block
-        function saveTimeBlockEdit(oldProjectName, oldTask, oldStartTime, oldEndTime, dayIndex) {
+        function saveTimeBlockEdit(oldProjectName, oldTask, oldStartTime, oldEndTime, dayIndex, oldProjectNumber) {
             const newProjectName = document.getElementById('editProjectName').value.trim();
+            const newProjectNumber = document.getElementById('editProjectNumber').value.trim();
             const newTask = document.getElementById('editTask').value.trim();
             const newStartTime = document.getElementById('editStartTime').value.trim();
             const newEndTime = document.getElementById('editEndTime').value.trim();
             const newComment = document.getElementById('editComment').value.trim();
             
-            if (!newProjectName || !newTask || !newStartTime || !newEndTime) {
+            if (!newProjectName || !newProjectNumber || !newTask || !newStartTime || !newEndTime) {
                 showAlert('Please fill in all required fields', 'error');
                 return;
             }
@@ -4135,20 +4166,25 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                     entry[commentKey] = newComment;
                 }
                 
-                // If project name or task changed, we need to update or create new entry
-                if (newProjectName !== oldProjectName || newTask !== oldTask) {
+                // Update project number if only it changed (not name or task)
+                if (newProjectNumber !== oldProjectNumber && newProjectName === oldProjectName && newTask === oldTask) {
+                    entry.project = newProjectNumber;
+                }
+                
+                // If project name, number, or task changed significantly, we need to update or create new entry
+                if (newProjectName !== oldProjectName || (newProjectNumber !== oldProjectNumber && newProjectName !== oldProjectName) || newTask !== oldTask) {
                     // Remove old time from old entry
                     entry[clockTimeKey] = entry[clockTimeKey].split(',').map(r => r.trim()).filter(r => r !== newRange).join(', ');
                     
                     // Find or create new entry
                     let newEntry = timeEntries.find(e => 
-                        e.projectNameFilter === newProjectName && e.task === newTask
+                        e.projectNameFilter === newProjectName && e.project === newProjectNumber && e.task === newTask
                     );
                     
                     if (!newEntry) {
                         newEntry = { 
                             projectNameFilter: newProjectName, 
-                            project: entry.project,
+                            project: newProjectNumber,
                             task: newTask 
                         };
                         for (let i = 1; i <= 5; i++) {
