@@ -759,6 +759,46 @@
             text-overflow: ellipsis;
         }
 
+        .time-block-delete {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 18px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #dc3545;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.2s, background 0.2s;
+        }
+
+        .time-block:hover .time-block-delete {
+            opacity: 1;
+        }
+
+        .time-block-delete:hover {
+            background: #dc3545;
+            color: white;
+        }
+
+        .time-block-content {
+            cursor: pointer;
+            height: 100%;
+        }
+
+        .time-block-content:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
         .time-block-task {
             font-size: 0.9em;
             opacity: 0.9;
@@ -3654,7 +3694,8 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                                     task: entry.task,
                                     startTime: startStr,
                                     endTime: endStr,
-                                    comment: comment
+                                    comment: comment,
+                                    dayIndex: dayIndex
                                 });
                             }
                         });
@@ -3760,17 +3801,19 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                          data-task="${entry.task}"
                          data-start="${entry.startTime}"
                          data-end="${entry.endTime}"
+                         data-day="${entry.dayIndex}"
                          data-comment="${(entry.comment || '').replace(/"/g, '&quot;')}"
-                         data-day="${dayIndex}"
                          style="top: ${topPercent}%; height: ${heightPercent}%; background: ${colors[colorIndex]};"
-                         title="${entry.projectName} - ${entry.task}\n${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}\n\nClick to edit or delete"
+                         title="${entry.projectName} - ${entry.task}\n${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}\nClick to edit, drag to move"
                          onmousedown="startDragTimeBlock(event, this)"
-                         onclick="editTimeBlock(event, this)"
                          ondragstart="return false;">
                         <div class="resize-handle top" onmousedown="startResize(event, this.parentElement, 'top')"></div>
-                        <div class="time-block-project">${entry.projectName}</div>
-                        <div class="time-block-task">${entry.task}</div>
-                        <div class="time-block-duration">${entry.startTime} - ${entry.endTime}</div>
+                        <button class="time-block-delete" onclick="deleteTimeBlock(event, this.parentElement)" title="Delete this entry">×</button>
+                        <div class="time-block-content" onclick="editTimeBlock(event, this.parentElement)">
+                            <div class="time-block-project">${entry.projectName}</div>
+                            <div class="time-block-task">${entry.task}</div>
+                            <div class="time-block-duration">${entry.startTime} - ${entry.endTime}</div>
+                        </div>
                         <div class="resize-handle bottom" onmousedown="startResize(event, this.parentElement, 'bottom')"></div>
                     </div>
                 `;
@@ -3935,281 +3978,6 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             }
         }
 
-        // Edit time block details
-        function editTimeBlock(e, block) {
-            // Don't trigger if dragging or resizing
-            if (isBlockDragging || resizingBlock) {
-                return;
-            }
-
-            e.stopPropagation();
-
-            const projectName = block.dataset.project;
-            const task = block.dataset.task;
-            const startTime = block.dataset.start;
-            const endTime = block.dataset.end;
-            const comment = block.dataset.comment || '';
-            const dayIndex = parseInt(block.dataset.day);
-
-            // Create modal dialog
-            const modal = document.createElement('div');
-            modal.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.7);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 10000;
-            `;
-
-            const dialog = document.createElement('div');
-            dialog.style.cssText = `
-                background: white;
-                padding: 25px;
-                border-radius: 10px;
-                max-width: 500px;
-                width: 90%;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            `;
-
-            dialog.innerHTML = `
-                <h3 style="margin-top: 0; color: #333;">Edit Time Entry</h3>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; color: #666; font-weight: 600;">Project Name:</label>
-                    <input type="text" id="editProjectName" value="${projectName}" 
-                           style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; color: #666; font-weight: 600;">Task:</label>
-                    <input type="text" id="editTask" value="${task}" 
-                           style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; color: #666; font-weight: 600;">Comment:</label>
-                    <textarea id="editComment" rows="3" 
-                              style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; resize: vertical;">${comment}</textarea>
-                </div>
-                <div style="margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                    <strong style="color: #666;">Time:</strong> ${startTime} - ${endTime}
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button id="deleteBlockBtn" style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
-                        🗑️ Delete
-                    </button>
-                    <button id="cancelEditBtn" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
-                        Cancel
-                    </button>
-                    <button id="saveEditBtn" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
-                        💾 Save
-                    </button>
-                </div>
-            `;
-
-            modal.appendChild(dialog);
-            document.body.appendChild(modal);
-
-            // Cancel button
-            document.getElementById('cancelEditBtn').onclick = () => {
-                document.body.removeChild(modal);
-            };
-
-            // Delete button
-            document.getElementById('deleteBlockBtn').onclick = () => {
-                if (confirm(`Delete this time entry?\n\n${projectName} - ${task}\n${startTime} - ${endTime}`)) {
-                    deleteTimeBlock(projectName, task, startTime, endTime, dayIndex);
-                    document.body.removeChild(modal);
-                }
-            };
-
-            // Save button
-            document.getElementById('saveEditBtn').onclick = () => {
-                const newProjectName = document.getElementById('editProjectName').value.trim();
-                const newTask = document.getElementById('editTask').value.trim();
-                const newComment = document.getElementById('editComment').value.trim();
-
-                if (!newProjectName || !newTask) {
-                    alert('Project name and task are required!');
-                    return;
-                }
-
-                updateTimeBlockDetails(projectName, task, startTime, endTime, dayIndex, 
-                                      newProjectName, newTask, newComment);
-                document.body.removeChild(modal);
-            };
-
-            // Close on outside click
-            modal.onclick = (e) => {
-                if (e.target === modal) {
-                    document.body.removeChild(modal);
-                }
-            };
-        }
-
-        // Update time block details
-        function updateTimeBlockDetails(oldProjectName, oldTask, startTime, endTime, dayIndex,
-                                        newProjectName, newTask, newComment) {
-            // Find the entry
-            const entry = timeEntries.find(e => 
-                e.projectNameFilter === oldProjectName && e.task === oldTask
-            );
-
-            if (!entry) return;
-
-            const clockTimeKey = `day${dayIndex}_clocktime`;
-            const commentKey = `day${dayIndex}_comment`;
-            const oldClockTime = entry[clockTimeKey] || '';
-            const timeRange = `${startTime} - ${endTime}`;
-
-            // If project or task changed, need to move this time to a different entry
-            if (oldProjectName !== newProjectName || oldTask !== newTask) {
-                // Remove from old entry
-                const clockRanges = oldClockTime.split(',').map(r => r.trim()).filter(r => r !== timeRange);
-                entry[clockTimeKey] = clockRanges.join(', ');
-
-                // Recalculate hours for old entry
-                let totalSeconds = 0;
-                clockRanges.forEach(range => {
-                    const [start, end] = range.split('-').map(s => s.trim());
-                    if (start && end) {
-                        const startMin = parseTimeToMinutes(start);
-                        const endMin = parseTimeToMinutes(end);
-                        totalSeconds += (endMin - startMin) * 60;
-                    }
-                });
-                entry[`day${dayIndex}_hr`] = formatSecondsToHHMMSS(totalSeconds);
-
-                // Find or create new entry
-                let newEntry = timeEntries.find(e => 
-                    e.projectNameFilter === newProjectName && e.task === newTask
-                );
-
-                if (!newEntry) {
-                    // Create new entry
-                    newEntry = { 
-                        projectNameFilter: newProjectName, 
-                        project: newProjectName, 
-                        task: newTask 
-                    };
-                    for (let i = 1; i <= 5; i++) {
-                        newEntry[`day${i}_hr`] = '00:00:00';
-                        newEntry[`day${i}_comment`] = '';
-                        newEntry[`day${i}_clocktime`] = '';
-                    }
-                    timeEntries.push(newEntry);
-                }
-
-                // Add to new entry
-                const newClockTime = newEntry[clockTimeKey] || '';
-                if (newClockTime) {
-                    newEntry[clockTimeKey] = `${newClockTime}, ${timeRange}`;
-                } else {
-                    newEntry[clockTimeKey] = timeRange;
-                }
-
-                // Update comment
-                if (newComment) {
-                    const existingComment = newEntry[commentKey] || '';
-                    if (existingComment) {
-                        const existingComments = existingComment.split(';').map(c => c.trim());
-                        if (!existingComments.includes(newComment)) {
-                            newEntry[commentKey] = `${existingComment}; ${newComment}`;
-                        }
-                    } else {
-                        newEntry[commentKey] = newComment;
-                    }
-                }
-
-                // Recalculate hours for new entry
-                const newClockRanges = newEntry[clockTimeKey].split(',').map(r => r.trim());
-                let newTotalSeconds = 0;
-                newClockRanges.forEach(range => {
-                    const [start, end] = range.split('-').map(s => s.trim());
-                    if (start && end) {
-                        const startMin = parseTimeToMinutes(start);
-                        const endMin = parseTimeToMinutes(end);
-                        newTotalSeconds += (endMin - startMin) * 60;
-                    }
-                });
-                newEntry[`day${dayIndex}_hr`] = formatSecondsToHHMMSS(newTotalSeconds);
-
-                showAlert(`Entry moved from "${oldProjectName} - ${oldTask}" to "${newProjectName} - ${newTask}"`, 'success');
-            } else {
-                // Just update comment
-                if (newComment) {
-                    entry[commentKey] = newComment;
-                }
-                showAlert('Entry updated successfully', 'success');
-            }
-
-            saveData();
-            updateSummary();
-            updateWeekView();
-        }
-
-        // Delete time block
-        function deleteTimeBlock(projectName, task, startTime, endTime, dayIndex) {
-            // Find the entry
-            const entry = timeEntries.find(e => 
-                e.projectNameFilter === projectName && e.task === task
-            );
-
-            if (!entry) return;
-
-            const clockTimeKey = `day${dayIndex}_clocktime`;
-            const oldClockTime = entry[clockTimeKey] || '';
-            const timeRange = `${startTime} - ${endTime}`;
-
-            // Remove this time range
-            const clockRanges = oldClockTime.split(',').map(r => r.trim()).filter(r => r !== timeRange);
-            
-            if (clockRanges.length === 0) {
-                // No more time entries for this day
-                entry[clockTimeKey] = '';
-                entry[`day${dayIndex}_hr`] = '00:00:00';
-                entry[`day${dayIndex}_comment`] = '';
-
-                // Check if entry has any hours on any day
-                let hasAnyHours = false;
-                for (let i = 1; i <= 5; i++) {
-                    if (entry[`day${i}_hr`] && entry[`day${i}_hr`] !== '00:00:00') {
-                        hasAnyHours = true;
-                        break;
-                    }
-                }
-
-                // If no hours on any day, remove the entire entry
-                if (!hasAnyHours) {
-                    const entryIndex = timeEntries.indexOf(entry);
-                    if (entryIndex > -1) {
-                        timeEntries.splice(entryIndex, 1);
-                    }
-                }
-            } else {
-                // Update clock time and recalculate hours
-                entry[clockTimeKey] = clockRanges.join(', ');
-
-                let totalSeconds = 0;
-                clockRanges.forEach(range => {
-                    const [start, end] = range.split('-').map(s => s.trim());
-                    if (start && end) {
-                        const startMin = parseTimeToMinutes(start);
-                        const endMin = parseTimeToMinutes(end);
-                        totalSeconds += (endMin - startMin) * 60;
-                    }
-                });
-                entry[`day${dayIndex}_hr`] = formatSecondsToHHMMSS(totalSeconds);
-            }
-
-            saveData();
-            updateSummary();
-            updateWeekView();
-            showAlert(`Time entry deleted: ${startTime} - ${endTime}`, 'success');
-        }
-
         // Resize functionality for time blocks
         let resizingBlock = null;
         let resizeDirection = null;
@@ -4302,6 +4070,222 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             resizingBlock.classList.remove('dragging');
             resizingBlock = null;
             resizeDirection = null;
+        }
+
+        // Edit time block details
+        function editTimeBlock(e, block) {
+            e.stopPropagation();
+            
+            // Don't edit if we're dragging
+            if (isBlockDragging) return;
+            
+            const projectName = block.dataset.project;
+            const task = block.dataset.task;
+            const startTime = block.dataset.start;
+            const endTime = block.dataset.end;
+            const dayIndex = parseInt(block.dataset.day);
+            const currentComment = block.dataset.comment.replace(/&quot;/g, '"');
+            
+            // Create edit dialog
+            const dialogHTML = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center;" id="editDialog" onclick="if(event.target.id === 'editDialog') this.remove();">
+                    <div style="background: white; border-radius: 8px; padding: 20px; max-width: 500px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" onclick="event.stopPropagation();">
+                        <h3 style="margin-top: 0; color: #333;">Edit Time Entry</h3>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Project Name:</label>
+                            <input type="text" id="editProjectName" value="${projectName}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Task:</label>
+                            <input type="text" id="editTask" value="${task}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Start Time:</label>
+                            <input type="text" id="editStartTime" value="${startTime}" placeholder="9:00 AM" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">End Time:</label>
+                            <input type="text" id="editEndTime" value="${endTime}" placeholder="5:00 PM" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Comment:</label>
+                            <textarea id="editComment" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; min-height: 60px;">${currentComment}</textarea>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button onclick="document.getElementById('editDialog').remove()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;">Cancel</button>
+                            <button onclick="saveTimeBlockEdit('${projectName}', '${task}', '${startTime}', '${endTime}', ${dayIndex})" style="padding: 8px 16px; background: #366092; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;">Save</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', dialogHTML);
+        }
+
+        // Save edited time block
+        function saveTimeBlockEdit(oldProjectName, oldTask, oldStartTime, oldEndTime, dayIndex) {
+            const newProjectName = document.getElementById('editProjectName').value.trim();
+            const newTask = document.getElementById('editTask').value.trim();
+            const newStartTime = document.getElementById('editStartTime').value.trim();
+            const newEndTime = document.getElementById('editEndTime').value.trim();
+            const newComment = document.getElementById('editComment').value.trim();
+            
+            if (!newProjectName || !newTask || !newStartTime || !newEndTime) {
+                showAlert('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            // Find the entry
+            const entry = timeEntries.find(e => 
+                e.projectNameFilter === oldProjectName && e.task === oldTask
+            );
+            
+            if (!entry) {
+                showAlert('Entry not found', 'error');
+                return;
+            }
+            
+            const clockTimeKey = `day${dayIndex}_clocktime`;
+            const commentKey = `day${dayIndex}_comment`;
+            const oldClockTime = entry[clockTimeKey] || '';
+            
+            // Replace the old time range with new one
+            const oldRange = `${oldStartTime} - ${oldEndTime}`;
+            const newRange = `${newStartTime} - ${newEndTime}`;
+            
+            if (oldClockTime.includes(oldRange)) {
+                entry[clockTimeKey] = oldClockTime.replace(oldRange, newRange);
+                
+                // Update comment if changed
+                if (newComment !== entry[commentKey]) {
+                    entry[commentKey] = newComment;
+                }
+                
+                // If project name or task changed, we need to update or create new entry
+                if (newProjectName !== oldProjectName || newTask !== oldTask) {
+                    // Remove old time from old entry
+                    entry[clockTimeKey] = entry[clockTimeKey].split(',').map(r => r.trim()).filter(r => r !== newRange).join(', ');
+                    
+                    // Find or create new entry
+                    let newEntry = timeEntries.find(e => 
+                        e.projectNameFilter === newProjectName && e.task === newTask
+                    );
+                    
+                    if (!newEntry) {
+                        newEntry = { 
+                            projectNameFilter: newProjectName, 
+                            project: entry.project,
+                            task: newTask 
+                        };
+                        for (let i = 1; i <= 5; i++) {
+                            newEntry[`day${i}_hr`] = '00:00:00';
+                            newEntry[`day${i}_comment`] = '';
+                            newEntry[`day${i}_clocktime`] = '';
+                        }
+                        timeEntries.push(newEntry);
+                    }
+                    
+                    // Add time to new entry
+                    const newClockTime = newEntry[clockTimeKey] || '';
+                    newEntry[clockTimeKey] = newClockTime ? `${newClockTime}, ${newRange}` : newRange;
+                    if (newComment) {
+                        newEntry[commentKey] = newComment;
+                    }
+                }
+                
+                // Recalculate total hours for affected entries
+                [entry].forEach(e => {
+                    if (!e[clockTimeKey]) return;
+                    const clockRanges = e[clockTimeKey].split(',').map(r => r.trim()).filter(r => r);
+                    let totalSeconds = 0;
+                    
+                    clockRanges.forEach(range => {
+                        const [start, end] = range.split('-').map(s => s.trim());
+                        if (start && end) {
+                            const startMin = parseTimeToMinutes(start);
+                            const endMin = parseTimeToMinutes(end);
+                            totalSeconds += (endMin - startMin) * 60;
+                        }
+                    });
+                    
+                    e[`day${dayIndex}_hr`] = formatSecondsToHHMMSS(totalSeconds);
+                });
+                
+                saveData();
+                updateSummary();
+                updateWeekView();
+                document.getElementById('editDialog').remove();
+                showAlert('Time entry updated successfully', 'success');
+            }
+        }
+
+        // Delete time block
+        function deleteTimeBlock(e, block) {
+            e.stopPropagation();
+            
+            const projectName = block.dataset.project;
+            const task = block.dataset.task;
+            const startTime = block.dataset.start;
+            const endTime = block.dataset.end;
+            const dayIndex = parseInt(block.dataset.day);
+            
+            if (!confirm(`Delete time entry?\n\n${projectName} - ${task}\n${startTime} - ${endTime}`)) {
+                return;
+            }
+            
+            // Find the entry
+            const entry = timeEntries.find(e => 
+                e.projectNameFilter === projectName && e.task === task
+            );
+            
+            if (!entry) {
+                showAlert('Entry not found', 'error');
+                return;
+            }
+            
+            const clockTimeKey = `day${dayIndex}_clocktime`;
+            const oldClockTime = entry[clockTimeKey] || '';
+            
+            // Remove the time range
+            const rangeToRemove = `${startTime} - ${endTime}`;
+            const clockRanges = oldClockTime.split(',').map(r => r.trim());
+            const updatedRanges = clockRanges.filter(r => r !== rangeToRemove);
+            
+            entry[clockTimeKey] = updatedRanges.join(', ');
+            
+            // Recalculate total hours
+            let totalSeconds = 0;
+            updatedRanges.forEach(range => {
+                const [start, end] = range.split('-').map(s => s.trim());
+                if (start && end) {
+                    const startMin = parseTimeToMinutes(start);
+                    const endMin = parseTimeToMinutes(end);
+                    totalSeconds += (endMin - startMin) * 60;
+                }
+            });
+            
+            entry[`day${dayIndex}_hr`] = formatSecondsToHHMMSS(totalSeconds);
+            
+            // If no more time entries for this task, remove the entry
+            let hasAnyTime = false;
+            for (let i = 1; i <= 5; i++) {
+                if (entry[`day${i}_hr`] && entry[`day${i}_hr`] !== '00:00:00') {
+                    hasAnyTime = true;
+                    break;
+                }
+            }
+            
+            if (!hasAnyTime) {
+                const entryIndex = timeEntries.indexOf(entry);
+                if (entryIndex > -1) {
+                    timeEntries.splice(entryIndex, 1);
+                }
+            }
+            
+            saveData();
+            updateSummary();
+            updateWeekView();
+            showAlert('Time entry deleted', 'success');
         }
 
         // Add new time entry by clicking on timeline
