@@ -1717,11 +1717,18 @@
             if ('documentPictureInPicture' in window) {
                 // Use OS-level Picture-in-Picture
                 if (pipWindow && !pipWindow.closed) {
-                    // Close existing PiP window
+                    // Close existing PiP window and restore main window
                     pipWindow.close();
+                    window.focus();
                 } else {
                     // Open new OS-level PiP window
                     await openPictureInPicture();
+                    // Minimize the main window
+                    window.blur();
+                    // Attempt to minimize (browser dependent)
+                    if (window.minimize) {
+                        window.minimize();
+                    }
                 }
             } else {
                 // Fallback to browser-based mini window
