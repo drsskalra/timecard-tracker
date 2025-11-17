@@ -1854,19 +1854,13 @@
                 const projectNumber = document.getElementById('projectName').value.trim() || 'N/A';
                 const task = document.getElementById('taskName').value.trim() || 'No Task';
                 
-                // Calculate total time for this project and task for TODAY ONLY
-                let projectTotalSeconds = 0;
+                // Calculate total time for ALL tasks/projects for TODAY ONLY
+                let totalSecondsToday = 0;
                 const currentDay = getCurrentWeekday();
-                const matchingEntries = timeEntries.filter(e => 
-                    e.projectNameFilter === projectName && 
-                    e.project === projectNumber &&
-                    e.task === task
-                );
-                // Sum only today's time for matching entries
-                matchingEntries.forEach(entry => {
-                    projectTotalSeconds += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
+                timeEntries.forEach(entry => {
+                    totalSecondsToday += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
                 });
-                const projectTotalTime = formatSecondsToHHMMSS(projectTotalSeconds);
+                const projectTotalTime = formatSecondsToHHMMSS(totalSecondsToday);
 
                 // Open PiP window
                 pipWindow = await documentPictureInPicture.requestWindow({
