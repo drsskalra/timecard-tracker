@@ -1897,8 +1897,8 @@
                             display: flex;
                             justify-content: space-between;
                             align-items: center;
-                            padding: 0.5vw 0.5vw;
-                            gap: 0vw;
+                            padding: 2vw;
+                            gap: 2vw;
                         }
                         .pip-info {
                             flex: 1;
@@ -1928,12 +1928,12 @@
                         }
                         .pip-timer {
                             font-size: 2.5vw;
-                            font-weight: 600;
-                            line-height: 1.2;
+                            font-weight: bold;
+                            font-family: 'Courier New', monospace;
+                            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                            line-height: 1;
                             white-space: nowrap;
-                            overflow: hidden;
-                            text-overflow: ellipsis;
-                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            flex-shrink: 0;
                         }
                         .pip-today-timer {
                             font-size: 2vw;
@@ -1966,7 +1966,7 @@
                             cursor: pointer;
                             transition: all 0.3s;
                             position: relative;
-                            padding: 0.5vw;
+                            padding: 0;
                             display: flex;
                             align-items: center;
                             justify-content: center;
@@ -1999,29 +1999,17 @@
                         }
                         @media (max-width: 600px) {
                             .pip-content {
-                                flex-direction: column;
-                                align-items: stretch;
                                 padding: 2vw 1vw;
-                                gap: 0.5vw;
-                            }
-                            .pip-info {
-                                margin-bottom: 1vw;
+                                gap: 1vw;
                             }
                             .pip-timer {
                                 font-size: 5vw;
-                                text-align: right;
-                            }
-                            .pip-today-timer {
-                                font-size: 4vw !important;
-                                text-align: right;
                             }
                             .pip-project-task {
                                 font-size: 4vw;
-                                text-align: left;
                             }
                             .pip-clock-time {
                                 font-size: 3vw;
-                                text-align: left;
                             }
                         }
                     </style>
