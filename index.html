@@ -1897,18 +1897,18 @@
                             display: flex;
                             justify-content: space-between;
                             align-items: center;
-                            padding: clamp(6px, 2vw, 12px);
-                            gap: clamp(8px, 2vw, 16px);
+                            padding: 2vw;
+                            gap: 2vw;
                         }
                         .pip-info {
                             flex: 1;
                             display: flex;
                             flex-direction: column;
-                            gap: clamp(2px, 0.5vh, 6px);
+                            gap: 1vw;
                             min-width: 0;
                         }
                         .pip-project-task {
-                            font-size: clamp(0.7em, 2.5vw + 0.5vh, 1.4em);
+                            font-size: 2.5vw;
                             font-weight: 600;
                             line-height: 1.2;
                             white-space: nowrap;
@@ -1917,7 +1917,7 @@
                             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                         }
                         .pip-clock-time {
-                            font-size: clamp(0.6em, 2vw + 0.4vh, 1.1em);
+                            font-size: 2vw;
                             font-weight: 500;
                             color: #90EE90;
                             line-height: 1.2;
@@ -1927,7 +1927,7 @@
                             font-family: 'Courier New', monospace;
                         }
                         .pip-timer {
-                            font-size: clamp(1em, 4vw + 1vh, 2em);
+                            font-size: 3vw;
                             font-weight: bold;
                             font-family: 'Courier New', monospace;
                             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
@@ -1936,10 +1936,10 @@
                             flex-shrink: 0;
                         }
                         .pip-record-btn {
-                            min-width: 32px;
-                            min-height: 32px;
-                            width: calc(clamp(1em, 5vw, 2em) + 8px);
-                            height: calc(clamp(1em, 5vw, 2em) + 8px);
+                            min-width: 2vw;
+                            min-height: 2vw;
+                            width: 4vw;
+                            height: 4vw;
                             border: 3px solid rgba(255,255,255,0.9);
                             border-radius: 50%;
                             background: transparent;
@@ -1977,6 +1977,21 @@
                                 box-shadow: 0 0 20px rgba(220, 53, 69, 0.9);
                             }
                         }
+                        @media (max-width: 600px) {
+                            .pip-content {
+                                padding: 2vw 1vw;
+                                gap: 1vw;
+                            }
+                            .pip-timer {
+                                font-size: 5vw;
+                            }
+                            .pip-project-task {
+                                font-size: 4vw;
+                            }
+                            .pip-clock-time {
+                                font-size: 3vw;
+                            }
+                        }
                     </style>
                 `;
 
@@ -1995,10 +2010,8 @@
                                 <div class="pip-clock-time" id="pipClockTime">--:-- -- - --:-- --</div>
                             </div>
                             <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-                                <div class="pip-timer" id="pipTimer">${projectTotalTime}</div>
-                                <div style="font-size:0.9em;color:#fff;text-align:center;">Current Project/Task</div>
-                                <div class="pip-timer" id="pipDayTotalTimer" style="font-size:1.1em;margin-top:2px;">00:00:00</div>
-                                <div style="font-size:0.9em;color:#fff;text-align:center;">Today's Total</div>
+                                <div class="pip-timer" id="pipTimer">${projectTotalTime} <span style='font-size:0.9em;color:#fff;'>(Current)</span></div>
+                                <div class="pip-timer" id="pipDayTotalTimer" style="font-size:1.1em;margin-top:2px;">00:00:00 <span style='font-size:0.9em;color:#fff;'>(Today)</span></div>
                             </div>
                             <button class="pip-record-btn ${startTime !== null ? 'recording' : ''}" id="pipRecordBtn" onclick="window.opener.toggleTimerFromPip()" title="${startTime !== null ? 'Stop Recording' : 'Start Recording'}"></button>
                         </div>
@@ -2074,8 +2087,8 @@
                         const pipDayTotalTimer = pipWindow.document.getElementById('pipDayTotalTimer');
                         if (pipProjectTask) pipProjectTask.textContent = projectTaskText;
                         if (pipClockTime) pipClockTime.textContent = clockTimeText;
-                        if (pipTimer) pipTimer.textContent = totalTime;
-                        if (pipDayTotalTimer) pipDayTotalTimer.textContent = dayTotalTime;
+                        if (pipTimer) pipTimer.innerHTML = `${totalTime} <span style='font-size:0.9em;color:#fff;'>(Current)</span>`;
+                        if (pipDayTotalTimer) pipDayTotalTimer.innerHTML = `${dayTotalTime} <span style='font-size:0.9em;color:#fff;'>(Today)</span>`;
                     } else {
                         clearInterval(pipUpdateInterval);
                         document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
