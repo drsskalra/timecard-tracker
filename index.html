@@ -1854,13 +1854,19 @@
                 const projectNumber = document.getElementById('projectName').value.trim() || 'N/A';
                 const task = document.getElementById('taskName').value.trim() || 'No Task';
                 
-                // Calculate total time for ALL tasks/projects for TODAY ONLY
-                let totalSecondsToday = 0;
+                // Calculate total time for this project and task for TODAY ONLY
+                let projectTotalSeconds = 0;
                 const currentDay = getCurrentWeekday();
-                timeEntries.forEach(entry => {
-                    totalSecondsToday += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
+                const matchingEntries = timeEntries.filter(e => 
+                    e.projectNameFilter === projectName && 
+                    e.project === projectNumber &&
+                    e.task === task
+                );
+                // Sum only today's time for matching entries
+                matchingEntries.forEach(entry => {
+                    projectTotalSeconds += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
                 });
-                const projectTotalTime = formatSecondsToHHMMSS(totalSecondsToday);
+                const projectTotalTime = formatSecondsToHHMMSS(projectTotalSeconds);
 
                 // Open PiP window
                 pipWindow = await documentPictureInPicture.requestWindow({
@@ -1988,8 +1994,10 @@
                                 <div class="pip-project-task" id="pipProjectTask">${projectName}: ${task}</div>
                                 <div class="pip-clock-time" id="pipClockTime">--:-- -- - --:-- --</div>
                             </div>
-                            <div style="display:flex;flex-direction:column;align-items:center;">
+                            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
                                 <div class="pip-timer" id="pipTimer">${projectTotalTime}</div>
+                                <div style="font-size:0.9em;color:#fff;text-align:center;">Current Project/Task</div>
+                                <div class="pip-timer" id="pipDayTotalTimer" style="font-size:1.1em;margin-top:2px;">00:00:00</div>
                                 <div style="font-size:0.9em;color:#fff;text-align:center;">Today's Total</div>
                             </div>
                             <button class="pip-record-btn ${startTime !== null ? 'recording' : ''}" id="pipRecordBtn" onclick="window.opener.toggleTimerFromPip()" title="${startTime !== null ? 'Stop Recording' : 'Start Recording'}"></button>
@@ -2017,25 +2025,41 @@
                             pipRecordBtn.title = 'Start Recording';
                         }
 
-                        // Calculate total time for ALL tasks/projects for TODAY ONLY (including current running timer)
-                        let totalSecondsToday = 0;
+                        // Project/task timer for today
+                        let projectTotalSeconds = 0;
+                        const currentProjectName = document.getElementById('projectNameFilter').value.trim();
+                        const currentProjectNumber = document.getElementById('projectName').value.trim();
+                        const currentTask = document.getElementById('taskName').value.trim();
                         const currentDay = getCurrentWeekday();
-                        timeEntries.forEach(entry => {
-                            totalSecondsToday += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
+                        const matchingEntries = timeEntries.filter(e => 
+                            e.projectNameFilter === currentProjectName && 
+                            e.project === currentProjectNumber &&
+                            e.task === currentTask
+                        );
+                        matchingEntries.forEach(entry => {
+                            projectTotalSeconds += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
                         });
-                        // If timer is running, add its elapsed time to today's total
                         if (startTime !== null) {
                             const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                            totalSecondsToday += elapsed;
+                            projectTotalSeconds += elapsed;
                         }
-                        const totalTime = formatSecondsToHHMMSS(totalSecondsToday);
+                        const totalTime = formatSecondsToHHMMSS(projectTotalSeconds);
 
-                        // Build display text for current project/task
-                        const currentProjectName = document.getElementById('projectNameFilter').value.trim();
-                        const currentTask = document.getElementById('taskName').value.trim();
-                        const projectTaskText = `${currentProjectName || 'No Project'}: ${currentTask || 'No Task'}`;
+                        // Today's total timer for all tasks/projects
+                        let dayTotalSeconds = 0;
+                        timeEntries.forEach(entry => {
+                            dayTotalSeconds += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
+                        });
+                        // If timer is running, add current elapsed time to today's total
+                        if (startTime !== null) {
+                            dayTotalSeconds += Math.floor((Date.now() - startTime) / 1000);
+                        }
+                        const dayTotalTime = formatSecondsToHHMMSS(dayTotalSeconds);
 
-                        // Build clock time text
+                        // Build display text
+                        const displayTaskName = currentTask || 'No Task';
+                        const displayProjectName = currentProjectName || 'No Project';
+                        const projectTaskText = `${displayProjectName}: ${displayTaskName}`;
                         let clockTimeText = 'Not running';
                         if (startTime !== null) {
                             const startClockTime = formatClockTime(new Date(startTime));
@@ -2047,10 +2071,11 @@
                         const pipProjectTask = pipWindow.document.getElementById('pipProjectTask');
                         const pipClockTime = pipWindow.document.getElementById('pipClockTime');
                         const pipTimer = pipWindow.document.getElementById('pipTimer');
-
+                        const pipDayTotalTimer = pipWindow.document.getElementById('pipDayTotalTimer');
                         if (pipProjectTask) pipProjectTask.textContent = projectTaskText;
                         if (pipClockTime) pipClockTime.textContent = clockTimeText;
                         if (pipTimer) pipTimer.textContent = totalTime;
+                        if (pipDayTotalTimer) pipDayTotalTimer.textContent = dayTotalTime;
                     } else {
                         clearInterval(pipUpdateInterval);
                         document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
