@@ -1935,6 +1935,18 @@
                             white-space: nowrap;
                             flex-shrink: 0;
                         }
+                        .pip-today-timer {
+                            color: #90EE90 !important;
+                            font-size: 2vw !important;
+                            font-family: 'Courier New', monospace !important;
+                            font-weight: 500 !important;
+                        }
+                        .pip-today-label {
+                            color: #90EE90 !important;
+                            font-size: 2vw !important;
+                            font-family: 'Courier New', monospace !important;
+                            font-weight: 500 !important;
+                        }
                         .pip-record-btn {
                             min-width: 2vw;
                             min-height: 2vw;
@@ -2011,7 +2023,7 @@
                             </div>
                             <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
                                 <div class="pip-timer" id="pipTimer">${projectTotalTime} <span style='font-size:0.9em;color:#fff;'>(Current)</span></div>
-                                <div class="pip-timer" id="pipDayTotalTimer" style="font-size:1.1em;margin-top:2px;">00:00:00 <span style='font-size:0.9em;color:#fff;'>(Today)</span></div>
+                                <div class="pip-timer pip-today-timer" id="pipDayTotalTimer">00:00:00 <span class='pip-today-label'>(Today)</span></div>
                             </div>
                             <button class="pip-record-btn ${startTime !== null ? 'recording' : ''}" id="pipRecordBtn" onclick="window.opener.toggleTimerFromPip()" title="${startTime !== null ? 'Stop Recording' : 'Start Recording'}"></button>
                         </div>
@@ -2088,7 +2100,7 @@
                         if (pipProjectTask) pipProjectTask.textContent = projectTaskText;
                         if (pipClockTime) pipClockTime.textContent = clockTimeText;
                         if (pipTimer) pipTimer.innerHTML = `${totalTime} <span style='font-size:0.9em;color:#fff;'>(Current)</span>`;
-                        if (pipDayTotalTimer) pipDayTotalTimer.innerHTML = `${dayTotalTime} <span style='font-size:0.9em;color:#fff;'>(Today)</span>`;
+                        if (pipDayTotalTimer) pipDayTotalTimer.innerHTML = `<span style='color:#90EE90;font-size:2vw;font-family:Courier New,monospace;font-weight:500;'>${dayTotalTime}</span> <span class='pip-today-label' style='color:#90EE90;font-size:2vw;font-family:Courier New,monospace;font-weight:500;'>(Today)</span>`;
                     } else {
                         clearInterval(pipUpdateInterval);
                         document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
