@@ -1897,80 +1897,85 @@
                             display: flex;
                             justify-content: space-between;
                             align-items: center;
-                            padding: 2vw;
-                            gap: 2vw;
-                        }
-                        .pip-info {
-                            flex: 1;
-                            display: flex;
-                            flex-direction: column;
-                            gap: 1vw;
+                            padding: 0.5rem 0.6rem;
+                            gap: 0.5rem;
                             min-width: 0;
                         }
+                        .pip-info {
+                            flex: 1 1 auto;
+                            display: flex;
+                            flex-direction: column;
+                            gap: 0.2rem;
+                            min-width: 0;
+                            overflow: hidden;
+                        }
                         .pip-project-task {
-                            font-size: 2.5vw;
+                            font-size: clamp(12px, 1.6vw, 14px);
                             font-weight: 600;
-                            line-height: 1.2;
+                            line-height: 1.1;
                             white-space: nowrap;
                             overflow: hidden;
                             text-overflow: ellipsis;
                             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                         }
                         .pip-clock-time {
-                            font-size: 2vw;
+                            font-size: clamp(12px, 1.8vw, 18px);
                             font-weight: 500;
                             color: #90EE90;
-                            line-height: 1.2;
+                            line-height: 1.1;
                             white-space: nowrap;
                             overflow: hidden;
                             text-overflow: ellipsis;
                             font-family: 'Courier New', monospace;
                         }
                         .pip-timer {
-                            font-size: 2.5vw;
-                            font-weight: bold;
+                            font-size: clamp(12px, 1.4vw, 14px);
+                            font-weight: 700;
                             font-family: 'Courier New', monospace;
-                            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                            text-shadow: 1px 1px 2px rgba(0,0,0,0.25);
                             line-height: 1;
                             white-space: nowrap;
                             flex-shrink: 0;
                         }
                         .pip-today-timer {
-                            font-size: 2vw;
+                            font-size: clamp(12px, 1.8vw, 18px);
                             font-weight: 500;
                             color: #90EE90;
-                            line-height: 1.2;
+                            line-height: 1.1;
                             white-space: nowrap;
                             overflow: hidden;
                             text-overflow: ellipsis;
                             font-family: 'Courier New', monospace;
                         }
                         .pip-today-label {
-                            font-size: 2vw;
+                            font-size: clamp(12px, 1.8vw, 18px);
                             font-weight: 500;
                             color: #90EE90;
-                            line-height: 1.2;
+                            line-height: 1.1;
                             white-space: nowrap;
                             overflow: hidden;
                             text-overflow: ellipsis;
                             font-family: 'Courier New', monospace;
                         }
                         .pip-record-btn {
-                            min-width: 4vw;
-                            min-height: 4vw;
-                            width: 4vw;
-                            height: 4vw;
+                            min-width: 36px;
+                            min-height: 36px;
+                            width: 40px;
+                            height: 40px;
+                            max-width: 44px;
+                            max-height: 44px;
                             border: 3px solid rgba(255,255,255,0.9);
                             border-radius: 50%;
                             background: transparent;
                             cursor: pointer;
-                            transition: all 0.3s;
+                            transition: all 0.18s ease-in-out;
                             position: relative;
                             padding: 0;
                             display: flex;
                             align-items: center;
                             justify-content: center;
                             flex-shrink: 0;
+                            box-sizing: border-box;
                         }
                         .pip-record-btn:hover {
                             border-color: rgba(255,255,255,1);
@@ -1999,18 +2004,12 @@
                         }
                         @media (max-width: 600px) {
                             .pip-content {
-                                padding: 2vw 1vw;
-                                gap: 1vw;
+                                padding: 6px 8px;
+                                gap: 6px;
                             }
-                            .pip-timer {
-                                font-size: 5vw;
-                            }
-                            .pip-project-task {
-                                font-size: 4vw;
-                            }
-                            .pip-clock-time {
-                                font-size: 3vw;
-                            }
+                            .pip-timer { font-size: clamp(12px, 4.5vw, 20px); }
+                            .pip-project-task { font-size: clamp(10px, 4vw, 16px); }
+                            .pip-clock-time { font-size: clamp(10px, 3.5vw, 16px); }
                         }
                     </style>
                 `;
@@ -2029,9 +2028,9 @@
                                 <div class="pip-project-task" id="pipProjectTask">${projectName}: ${task}</div>
                                 <div class="pip-clock-time" id="pipClockTime">--:-- -- - --:-- --</div>
                             </div>
-                            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-                                <div class="pip-timer" id="pipTimer">${projectTotalTime} <span style='font-size:0.9em;color:#fff;'>(Current)</span></div>
-                                <div class="pip-timer pip-today-timer" id="pipDayTotalTimer">00:00:00 <span class='pip-today-label'>(Today)</span></div>
+                            <div style="display:flex;flex-direction:column;align-items:center;gap:0.1rem;min-width:0;">
+                                <div class="pip-timer" id="pipTimer" style="margin:0;">${projectTotalTime} <span style='font-size:0.8em;color:#fff;'>(Current)</span></div>
+                                <div class="pip-timer pip-today-timer" id="pipDayTotalTimer" style="margin:0;">00:00:00 <span class='pip-today-label'>(Today)</span></div>
                             </div>
                             <button class="pip-record-btn ${startTime !== null ? 'recording' : ''}" id="pipRecordBtn" onclick="window.opener.toggleTimerFromPip()" title="${startTime !== null ? 'Stop Recording' : 'Start Recording'}"></button>
                         </div>
