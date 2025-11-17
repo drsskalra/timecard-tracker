@@ -1999,17 +1999,29 @@
                         }
                         @media (max-width: 600px) {
                             .pip-content {
+                                flex-direction: column;
+                                align-items: stretch;
                                 padding: 2vw 1vw;
-                                gap: 1vw;
+                                gap: 0.5vw;
+                            }
+                            .pip-info {
+                                margin-bottom: 1vw;
                             }
                             .pip-timer {
                                 font-size: 5vw;
+                                text-align: right;
+                            }
+                            .pip-today-timer {
+                                font-size: 4vw !important;
+                                text-align: right;
                             }
                             .pip-project-task {
                                 font-size: 4vw;
+                                text-align: left;
                             }
                             .pip-clock-time {
                                 font-size: 3vw;
+                                text-align: left;
                             }
                         }
                     </style>
