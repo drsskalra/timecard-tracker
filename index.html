@@ -1928,12 +1928,12 @@
                         }
                         .pip-timer {
                             font-size: 2.5vw;
-                            font-weight: bold;
-                            font-family: 'Courier New', monospace;
-                            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                            line-height: 1;
+                            font-weight: 600;
+                            line-height: 1.2;
                             white-space: nowrap;
-                            flex-shrink: 0;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                         }
                         .pip-today-timer {
                             font-size: 2vw;
@@ -1966,7 +1966,7 @@
                             cursor: pointer;
                             transition: all 0.3s;
                             position: relative;
-                            padding: 0;
+                            padding: 0.5vw;
                             display: flex;
                             align-items: center;
                             justify-content: center;
