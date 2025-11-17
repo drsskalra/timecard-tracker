@@ -1994,7 +1994,10 @@
                                 <div class="pip-project-task" id="pipProjectTask">${projectName}: ${task}</div>
                                 <div class="pip-clock-time" id="pipClockTime">--:-- -- - --:-- --</div>
                             </div>
-                            <div class="pip-timer" id="pipTimer">${projectTotalTime}</div>
+                            <div style="display:flex;flex-direction:column;align-items:center;">
+                                <div class="pip-timer" id="pipTimer">${projectTotalTime}</div>
+                                <div style="font-size:0.9em;color:#fff;text-align:center;">Today's Total</div>
+                            </div>
                             <button class="pip-record-btn ${startTime !== null ? 'recording' : ''}" id="pipRecordBtn" onclick="window.opener.toggleTimerFromPip()" title="${startTime !== null ? 'Stop Recording' : 'Start Recording'}"></button>
                         </div>
                     </body>
