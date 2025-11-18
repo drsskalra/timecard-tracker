@@ -37,7 +37,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
         }
@@ -71,7 +71,8 @@
         }
 
         @keyframes flip {
-            0%, 100% {
+            0%,
+            100% {
                 transform: rotate(0deg);
             }
             50% {
@@ -118,9 +119,7 @@
         .form-group {
             margin-bottom: 0;
         }
-
-        /* PiP style template (used by Picture-in-Picture window) */
-        </style>
+    </style>
     <template id="pip-style-template" style="display:none;">
         <style>
             .pip-content {
@@ -133,13 +132,61 @@
                 min-height: 0;
                 grid-auto-flow: column;
             }
-            .pip-info { flex: 1 1 auto; display:flex; flex-direction:column; gap:0.15rem; min-width:0; overflow:hidden; padding-right:0.3rem; }
-            .pip-project-task { font-size: clamp(12px, 1.6vw, 14px); font-weight:600; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-            .pip-clock-time { font-size: clamp(12px, 1.8vw, 18px); font-weight:500; color:#90EE90; }
-            .pip-timer, .pip-today-timer { font-family: 'Courier New', monospace; font-weight:700; }
-            .pip-record-btn { width:34px; height:34px; border:2px solid rgba(255,255,255,0.9); border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center; }
-            .pip-record-btn.recording { background:#dc3545; border-color:#dc3545; }
-            .pip-record-container { padding:0 6px 0 0; display:flex; align-items:center; justify-content:center; min-width:34px; }
+
+            .pip-info {
+                flex: 1 1 auto;
+                display: flex;
+                flex-direction: column;
+                gap: 0.15rem;
+                min-width: 0;
+                overflow: hidden;
+                padding-right: 0.3rem;
+            }
+
+            .pip-project-task {
+                font-size: clamp(12px, 1.6vw, 14px);
+                font-weight: 600;
+                line-height: 1.1;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .pip-clock-time {
+                font-size: clamp(12px, 1.8vw, 18px);
+                font-weight: 500;
+                color: #90ee90;
+            }
+
+            .pip-timer,
+            .pip-today-timer {
+                font-family: "Courier New", monospace;
+                font-weight: 700;
+            }
+
+            .pip-record-btn {
+                width: 34px;
+                height: 34px;
+                border: 2px solid rgba(255, 255, 255, 0.9);
+                border-radius: 50%;
+                padding: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .pip-record-btn.recording {
+                background: #dc3545;
+                border-color: #dc3545;
+            }
+
+            .pip-record-container {
+                padding: 0 6px 0 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 34px;
+            }
         </style>
     </template>
 
