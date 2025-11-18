@@ -2620,12 +2620,22 @@
         }
 
         // Edit individual field (projectNameFilter, project, or task)
+        // Opens a modal dialog populated with history datalists (similar to week view)
         function editField(entryIndex, fieldName) {
             const entry = timeEntries[entryIndex];
             if (!entry) {
                 showAlert('Entry not found!', 'error');
                 return;
             }
+
+            // Build datalist options from history
+            let projectNameOptions = '';
+            let projectNumberOptions = '';
+            let taskOptions = '';
+
+            projectNameHistory.forEach(item => { projectNameOptions += `<option value="${item}">`; });
+            projectHistory.forEach(item => { projectNumberOptions += `<option value="${item}">`; });
+            taskHistory.forEach(item => { taskOptions += `<option value="${item}">`; });
 
             const fieldLabels = {
                 'projectNameFilter': 'Project Name',
@@ -2634,50 +2644,133 @@
             };
 
             const label = fieldLabels[fieldName] || fieldName;
-            const currentValue = entry[fieldName] || '';
-            
-            const newValue = prompt(`Edit ${label}:`, currentValue);
-            
-            if (newValue === null) return; // User cancelled
 
-            // Validate input
-            if (!newValue.trim()) {
-                showAlert(`${label} cannot be empty!`, 'error');
+            // Create modal dialog HTML (allows editing all three fields but focuses on requested one)
+            const dialogHTML = `
+                <div id="tableEditDialog" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; display: flex; align-items: center; justify-content: center;" onclick="if(event.target.id === 'tableEditDialog') document.getElementById('tableEditDialog').remove();">
+                    <div style="background: white; border-radius: 8px; padding: 20px; max-width: 520px; width: 92%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" onclick="event.stopPropagation();">
+                        <h3 style="margin-top: 0; color: #333;">Edit Entry - ${label}</h3>
+                        <div style="margin-bottom: 12px;">
+                            <label style="display:block; font-weight:600; margin-bottom:6px; color:#555;">Project Name:</label>
+                            <input type="text" id="tableEditProjectName" value="${(entry.projectNameFilter||'').replace(/"/g,'&quot;')}" list="tableEditProjectNameList" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:14px;">
+                            <datalist id="tableEditProjectNameList">${projectNameOptions}</datalist>
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <label style="display:block; font-weight:600; margin-bottom:6px; color:#555;">Project Number:</label>
+                            <input type="text" id="tableEditProjectNumber" value="${(entry.project||'').replace(/"/g,'&quot;')}" list="tableEditProjectNumberList" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:14px;">
+                            <datalist id="tableEditProjectNumberList">${projectNumberOptions}</datalist>
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label style="display:block; font-weight:600; margin-bottom:6px; color:#555;">Task Name:</label>
+                            <input type="text" id="tableEditTask" value="${(entry.task||'').replace(/"/g,'&quot;')}" list="tableEditTaskList" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:14px;">
+                            <datalist id="tableEditTaskList">${taskOptions}</datalist>
+                        </div>
+                        <div style="display:flex; gap:10px; justify-content:space-between; align-items:center;">
+                            <button onclick="openHistoryEditor()" style="padding:8px 12px; background:#17a2b8; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:600;">History</button>
+                            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                                <button onclick="document.getElementById('tableEditDialog').remove()" style="padding:8px 14px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">Cancel</button>
+                                <button onclick="saveTableFieldEdit(${entryIndex}, '${fieldName}')" style="padding:8px 14px; background:#366092; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:600;">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', dialogHTML);
+
+            // After dialog is added, wire input listener to filter project numbers and tasks
+            setTimeout(() => {
+                const projInput = document.getElementById('tableEditProjectName');
+                const projNumberList = document.getElementById('tableEditProjectNumberList');
+                const taskList = document.getElementById('tableEditTaskList');
+
+                function updateTableEditLists() {
+                    const selectedProjectName = projInput.value.trim();
+                    let projects = [];
+                    let tasks = [];
+
+                    if (selectedProjectName && structuredHistory[selectedProjectName]) {
+                        const projSet = structuredHistory[selectedProjectName].projects;
+                        const taskSet = structuredHistory[selectedProjectName].tasks;
+                        projects = Array.from(projSet instanceof Set ? projSet : new Set(projSet)).sort();
+                        tasks = Array.from(taskSet instanceof Set ? taskSet : new Set(taskSet)).sort();
+                    } else {
+                        projects = Array.from(projectHistory).sort();
+                        tasks = Array.from(taskHistory).sort();
+                    }
+
+                    projNumberList.innerHTML = '';
+                    projects.forEach(p => projNumberList.insertAdjacentHTML('beforeend', `<option value="${p}">`));
+
+                    taskList.innerHTML = '';
+                    tasks.forEach(t => taskList.insertAdjacentHTML('beforeend', `<option value="${t}">`));
+                }
+
+                projInput.addEventListener('input', () => {
+                    // clear dependent fields when project name changes
+                    document.getElementById('tableEditProjectNumber').value = '';
+                    document.getElementById('tableEditTask').value = '';
+                    updateTableEditLists();
+                });
+
+                // initialize lists
+                updateTableEditLists();
+
+                // Focus the specific input for convenience
+                if (fieldName === 'projectNameFilter') document.getElementById('tableEditProjectName').focus();
+                else if (fieldName === 'project') document.getElementById('tableEditProjectNumber').focus();
+                else document.getElementById('tableEditTask').focus();
+            }, 50);
+        }
+
+        // Save the table edit modal changes
+        function saveTableFieldEdit(entryIndex, fieldName) {
+            const entry = timeEntries[entryIndex];
+            if (!entry) {
+                showAlert('Entry not found!', 'error');
                 return;
             }
 
-            // Update entry
-            entry[fieldName] = newValue.trim();
+            const newProjectName = document.getElementById('tableEditProjectName').value.trim();
+            const newProjectNumber = document.getElementById('tableEditProjectNumber').value.trim();
+            const newTask = document.getElementById('tableEditTask').value.trim();
 
-            // Add to history
-            if (fieldName === 'projectNameFilter') {
-                projectNameHistory.add(newValue.trim());
-            } else if (fieldName === 'project') {
-                projectHistory.add(newValue.trim());
-            } else if (fieldName === 'task') {
-                taskHistory.add(newValue.trim());
+            if (!newProjectName || !newProjectNumber || !newTask) {
+                showAlert('Project Name, Project Number, and Task Name are required!', 'error');
+                return;
             }
 
-            // Update structured history
-            const projName = entry.projectNameFilter || 'Uncategorized';
-            if (!structuredHistory[projName]) {
-                structuredHistory[projName] = {
-                    projects: new Set(),
-                    tasks: new Set(),
-                    comments: new Set()
-                };
+            // Update history sets
+            projectNameHistory.add(newProjectName);
+            projectHistory.add(newProjectNumber);
+            taskHistory.add(newTask);
+
+            // Update structured history for project name
+            if (!structuredHistory[newProjectName]) {
+                structuredHistory[newProjectName] = { projects: new Set(), tasks: new Set(), comments: new Set() };
             }
-            if (fieldName === 'project') {
-                structuredHistory[projName].projects.add(newValue.trim());
-            } else if (fieldName === 'task') {
-                structuredHistory[projName].tasks.add(newValue.trim());
-            }
+            structuredHistory[newProjectName].projects.add(newProjectNumber);
+            structuredHistory[newProjectName].tasks.add(newTask);
+
+            // Apply changes to entry
+            const oldProjectName = entry.projectNameFilter || '';
+            const oldProjectNumber = entry.project || '';
+            const oldTask = entry.task || '';
+
+            entry.projectNameFilter = newProjectName;
+            entry.project = newProjectNumber;
+            entry.task = newTask;
 
             saveHistory();
             saveData();
             updateSummary();
             updateDropdowns();
-            showAlert(`${label} updated successfully!`, 'success');
+
+            // Remove dialog
+            const dlg = document.getElementById('tableEditDialog');
+            if (dlg) dlg.remove();
+
+            showAlert('Entry updated successfully!', 'success');
         }
 
         // Edit entry from summary table (all fields at once)
