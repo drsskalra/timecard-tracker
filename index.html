@@ -1929,7 +1929,7 @@
                             font-family: 'Courier New', monospace;
                         }
                         .pip-timer {
-                            font-size: clamp(12px, 1.4vw, 14px);
+                            font-size: clamp(12px, 1.8vw, 16px);
                             font-weight: 700;
                             font-family: 'Courier New', monospace;
                             text-shadow: 1px 1px 2px rgba(0,0,0,0.25);
@@ -1938,24 +1938,32 @@
                             flex-shrink: 0;
                         }
                         .pip-today-timer {
-                            font-size: clamp(12px, 1.8vw, 18px);
-                            font-weight: 500;
+                            font-size: clamp(12px, 1.8vw, 16px);
+                            font-weight: 700;
                             color: #90EE90;
-                            line-height: 1.1;
+                            line-height: 1.05;
                             white-space: nowrap;
                             overflow: hidden;
                             text-overflow: ellipsis;
                             font-family: 'Courier New', monospace;
                         }
                         .pip-today-label {
-                            font-size: clamp(12px, 1.8vw, 18px);
-                            font-weight: 500;
+                            font-size: clamp(10px, 1.6vw, 12px);
+                            font-weight: 600;
                             color: #90EE90;
-                            line-height: 1.1;
+                            line-height: 1;
                             white-space: nowrap;
                             overflow: hidden;
                             text-overflow: ellipsis;
                             font-family: 'Courier New', monospace;
+                            margin-left: 6px;
+                        }
+                        .pip-today-timer-value {
+                            font-size: clamp(12px, 1.8vw, 16px);
+                            font-weight: 700;
+                            color: #90EE90;
+                            font-family: 'Courier New', monospace;
+                            line-height: 1;
                         }
                         .pip-record-btn {
                             min-width: 36px;
@@ -2030,7 +2038,7 @@
                             </div>
                             <div style="display:flex;flex-direction:column;align-items:center;gap:0.1rem;min-width:0;">
                                 <div class="pip-timer" id="pipTimer" style="margin:0;">${projectTotalTime}</div>
-                                <div class="pip-timer pip-today-timer" id="pipDayTotalTimer" style="margin:0;">00:00:00 <span class='pip-today-label'>(Today)</span></div>
+                                <div class="pip-timer pip-today-timer" id="pipDayTotalTimer" style="margin:0;"></div>
                             </div>
                             <button class="pip-record-btn ${startTime !== null ? 'recording' : ''}" id="pipRecordBtn" onclick="window.opener.toggleTimerFromPip()" title="${startTime !== null ? 'Stop Recording' : 'Start Recording'}"></button>
                         </div>
@@ -2107,7 +2115,7 @@
                         if (pipProjectTask) pipProjectTask.textContent = projectTaskText;
                         if (pipClockTime) pipClockTime.textContent = clockTimeText;
                         if (pipTimer) pipTimer.innerHTML = `${totalTime}`;
-                        if (pipDayTotalTimer) pipDayTotalTimer.innerHTML = `<span style='color:#90EE90;font-size:2vw;font-family:Courier New,monospace;font-weight:500;'>${dayTotalTime}</span> <span class='pip-today-label' style='color:#90EE90;font-size:2vw;font-family:Courier New,monospace;font-weight:500;'>(Today)</span>`;
+                        if (pipDayTotalTimer) pipDayTotalTimer.innerHTML = `<span class="pip-today-timer-value">${dayTotalTime}</span><span class="pip-today-label">(Today)</span>`;
                     } else {
                         clearInterval(pipUpdateInterval);
                         document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
