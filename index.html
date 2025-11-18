@@ -1868,14 +1868,14 @@
                 });
                 const projectTotalTime = formatSecondsToHHMMSS(projectTotalSeconds);
 
-                // Minimum PiP dimensions to avoid overlap
-                const PIP_MIN_WIDTH = 380;
-                const PIP_MIN_HEIGHT = 72;
+                // PiP dimensions (no enforced minimums)
+                const PIP_MIN_WIDTH = 0;
+                const PIP_MIN_HEIGHT = 0;
 
-                // Open PiP window (start slightly larger than minimum)
+                // Open PiP window (requested size)
                 pipWindow = await documentPictureInPicture.requestWindow({
-                    width: Math.max(500, PIP_MIN_WIDTH),
-                    height: Math.max(80, PIP_MIN_HEIGHT)
+                    width: 500,
+                    height: 80
                 });
 
                 // Create styles for PiP window
@@ -1892,8 +1892,6 @@
                             color: white;
                             height: 100vh;
                             width: 100vw;
-                            min-width: 450px; /* enforce PiP minimum width */
-                            min-height: 100px; /* enforce PiP minimum height */
                             display: flex;
                             flex-direction: column;
                             overflow: hidden;
@@ -1906,7 +1904,8 @@
                             padding: 0; /* remove outer padding so controls can sit flush */
                             gap: 0; /* remove gaps between grid columns */
                             min-width: 0;
-                            min-height: 40px;
+                            /* allow content to wrap/shrink */
+                            min-height: 0;
                             grid-auto-flow: column;
                         }
                         .pip-info {
@@ -1975,8 +1974,8 @@
                             line-height: 1;
                         }
                         .pip-record-btn {
-                            min-width: 30px;
-                            min-height: 30px;
+                            min-width: 0;
+                            min-height: 0;
                             width: 34px;
                             height: 34px;
                             max-width: 38px;
@@ -2093,29 +2092,7 @@
                 pipWindow.document.write(pipHTML);
                 pipWindow.document.close();
 
-                // Enforce minimum PiP size if user attempts to resize smaller
-                try {
-                    // If the PiP window supports resizeTo, ensure it's at least the minimum
-                    if (typeof pipWindow.resizeTo === 'function') {
-                        if (pipWindow.innerWidth < PIP_MIN_WIDTH || pipWindow.innerHeight < PIP_MIN_HEIGHT) {
-                            pipWindow.resizeTo(PIP_MIN_WIDTH, PIP_MIN_HEIGHT);
-                        }
-
-                        pipWindow.addEventListener('resize', () => {
-                            try {
-                                const w = pipWindow.innerWidth;
-                                const h = pipWindow.innerHeight;
-                                if (w < PIP_MIN_WIDTH || h < PIP_MIN_HEIGHT) {
-                                    pipWindow.resizeTo(Math.max(w, PIP_MIN_WIDTH), Math.max(h, PIP_MIN_HEIGHT));
-                                }
-                            } catch (err) {
-                                // ignore resize enforcing errors
-                            }
-                        });
-                    }
-                } catch (err) {
-                    // Some environments may not allow programmatic resizing — rely on CSS fallbacks
-                }
+                // Do not enforce minimum PiP size; let CSS and the host decide resize behavior.
 
                 // Update button text
                 document.getElementById('miniWindowBtn').innerHTML = '🔽 Close PiP';
