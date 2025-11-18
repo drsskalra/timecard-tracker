@@ -4006,9 +4006,7 @@
                                     </div>
                                     <div style="width:1px; height:48px; background:rgba(0,0,0,0.06);"></div>
                                     <div style="display:flex; flex-direction:column; gap:8px;">
-                                        <button onclick="addNewProjectName()" style="padding:8px 12px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">➕ Add Project Name</button>
-                                        <button onclick="addNewProjectNumberQuick()" style="padding:8px 12px; background:#0d6efd; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">➕ Add Project Number</button>
-                                        <button onclick="addNewTaskQuick()" style="padding:8px 12px; background:#6610f2; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">➕ Add Task</button>
+                                        <button onclick="openAddNewProjectDialog()" style="padding:8px 12px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">➕ Add New Project</button>
                                         <button onclick="document.getElementById('historyProjectSelector').value = ''; loadProjectHistory();" style="padding:8px 12px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">Clear</button>
                                     </div>
                                 </div>
@@ -4263,6 +4261,66 @@
 
             loadProjectHistory();
             showAlert(`Task "${trimmed}" added to ${selected}`, 'success');
+        }
+
+        // Open a modal to add project name, number and one task at once
+        function openAddNewProjectDialog() {
+            const html = `
+                <div id="addNewProjectDialog" style="position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.7); z-index:10000; display:flex; align-items:center; justify-content:center;">
+                    <div style="background:white; padding:20px; border-radius:8px; width:420px; max-width:95%;">
+                        <h3 style="margin-top:0; color:#366092;">Add New Project</h3>
+                        <div style="margin-bottom:10px;"><label style="font-weight:600;">Project Name</label><input id="addProjName" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;" /></div>
+                        <div style="margin-bottom:10px;"><label style="font-weight:600;">Project Number</label><input id="addProjNumber" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;" /></div>
+                        <div style="margin-bottom:14px;"><label style="font-weight:600;">Task</label><input id="addProjTask" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;" /></div>
+                        <div style="display:flex; justify-content:flex-end; gap:8px;"><button onclick="document.getElementById('addNewProjectDialog').remove()" style="padding:8px 12px; background:#6c757d; color:white; border:none; border-radius:4px;">Cancel</button><button onclick="saveNewProjectFromDialog()" style="padding:8px 12px; background:#28a745; color:white; border:none; border-radius:4px;">Add</button></div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', html);
+            setTimeout(() => document.getElementById('addProjName').focus(), 50);
+        }
+
+        function saveNewProjectFromDialog() {
+            const name = document.getElementById('addProjName').value.trim();
+            const number = document.getElementById('addProjNumber').value.trim();
+            const task = document.getElementById('addProjTask').value.trim();
+
+            if (!name) { showAlert('Project Name is required', 'error'); return; }
+            if (!number && !task) { if (!confirm('No project number or task provided. Continue?')) return; }
+
+            if (!projectNameHistory.has(name)) {
+                projectNameHistory.add(name);
+            }
+            if (!structuredHistory[name]) {
+                structuredHistory[name] = { projects: new Set(), tasks: new Set(), comments: new Set() };
+            }
+            if (number) {
+                structuredHistory[name].projects.add(number);
+                projectHistory.add(number);
+            }
+            if (task) {
+                structuredHistory[name].tasks.add(task);
+                taskHistory.add(task);
+            }
+
+            saveHistory();
+            updateDropdowns();
+
+            // Close dialog and open project editor with selection
+            const dlg = document.getElementById('addNewProjectDialog'); if (dlg) dlg.remove();
+            const selector = document.getElementById('historyProjectSelector');
+            if (selector) {
+                // ensure option exists
+                let found = false;
+                for (const opt of selector.options) { if (opt.value === name) { found = true; break; } }
+                if (!found) {
+                    const opt = document.createElement('option'); opt.value = name; opt.textContent = name; selector.appendChild(opt);
+                }
+                selector.value = name;
+                loadProjectHistory();
+            }
+
+            showAlert('New project saved to history', 'success');
         }
 
         function updateCounts() {
