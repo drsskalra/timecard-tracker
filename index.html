@@ -3997,12 +3997,19 @@
                         <h2 style="margin-top: 0; color: #366092;">✏️ Edit History</h2>
                         <p style="color: #666; margin-bottom: 20px;">Select a project name to edit its associated information (project numbers, tasks, and comments).</p>
                         
-                        <div style="margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 6px; border: 2px solid #366092;">
-                            <label style="display: block; font-weight: bold; color: #366092; margin-bottom: 10px;">Select Project Name:</label>
-                            <select id="historyProjectSelector" onchange="loadProjectHistory()" style="width: 100%; padding: 10px; border: 2px solid #366092; border-radius: 4px; font-size: 16px; background: white;">
-                                ${projectOptionsHTML}
-                            </select>
-                        </div>
+                        <div style="margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 6px; border: 2px solid #366092; display:flex; gap:10px; align-items:center;">
+                                    <div style="flex:1;">
+                                        <label style="display: block; font-weight: bold; color: #366092; margin-bottom: 10px;">Select Project Name:</label>
+                                        <select id="historyProjectSelector" onchange="loadProjectHistory()" style="width: 100%; padding: 10px; border: 2px solid #366092; border-radius: 4px; font-size: 16px; background: white;">
+                                            ${projectOptionsHTML}
+                                        </select>
+                                    </div>
+                                    <div style="width:1px; height:48px; background:rgba(0,0,0,0.06);"></div>
+                                    <div style="display:flex; flex-direction:column; gap:8px;">
+                                        <button onclick="addNewProjectName()" style="padding:8px 12px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">➕ Add Project Name</button>
+                                        <button onclick="document.getElementById('historyProjectSelector').value = ''; loadProjectHistory();" style="padding:8px 12px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">Clear</button>
+                                    </div>
+                                </div>
                         
                         <div id="projectHistoryContent" style="display: none;">
                             <div style="margin-bottom: 20px; padding: 15px; background: #e7f3ff; border-left: 4px solid #366092; border-radius: 4px;">
@@ -4156,6 +4163,51 @@
                 <button onclick="this.parentElement.remove(); updateCounts();" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">🗑️</button>
             </div>`);
             updateCounts();
+        }
+
+        // Prompt to add a new project name to history and open its editor
+        function addNewProjectName() {
+            const newName = prompt('Enter new Project Name:');
+            if (newName === null) return; // cancelled
+            const trimmed = newName.trim();
+            if (!trimmed) {
+                showAlert('Project Name cannot be empty', 'error');
+                return;
+            }
+
+            if (projectNameHistory.has(trimmed)) {
+                showAlert('Project Name already exists in history', 'info');
+                const selector = document.getElementById('historyProjectSelector');
+                if (selector) {
+                    selector.value = trimmed;
+                    loadProjectHistory();
+                }
+                return;
+            }
+
+            // Add to history sets and structuredHistory
+            projectNameHistory.add(trimmed);
+            structuredHistory[trimmed] = {
+                projects: new Set(),
+                tasks: new Set(),
+                comments: new Set()
+            };
+
+            saveHistory();
+            updateDropdowns();
+
+            // Refresh selector and open the new project's editor view
+            const selector = document.getElementById('historyProjectSelector');
+            if (selector) {
+                const opt = document.createElement('option');
+                opt.value = trimmed;
+                opt.textContent = trimmed;
+                selector.appendChild(opt);
+                selector.value = trimmed;
+                loadProjectHistory();
+            }
+
+            showAlert(`Project "${trimmed}" added to history`, 'success');
         }
 
         function updateCounts() {
