@@ -1893,7 +1893,7 @@
                             height: 100vh;
                             width: 100vw;
                             min-width: 450px; /* enforce PiP minimum width */
-                            min-height: 72px; /* enforce PiP minimum height */
+                            min-height: 100px; /* enforce PiP minimum height */
                             display: flex;
                             flex-direction: column;
                             overflow: hidden;
@@ -2025,6 +2025,25 @@
                             justify-content: center;
                             min-width: 34px;
                         }
+                        .pip-record-container.floating {
+                            position: absolute;
+                            right: 8px;
+                            bottom: 8px;
+                            background: transparent;
+                            padding: 0;
+                            min-width: 0;
+                            z-index: 10;
+                        }
+                        .pip-float-toggle {
+                            margin-left: 6px;
+                            background: rgba(0,0,0,0.15);
+                            border: 1px solid rgba(255,255,255,0.08);
+                            color: white;
+                            border-radius: 4px;
+                            padding: 2px 6px;
+                            font-size: 12px;
+                            cursor: pointer;
+                        }
                         @keyframes pulse {
                             0%, 100% {
                                 opacity: 1;
@@ -2083,6 +2102,7 @@
                             </div>
                             <div class="pip-record-container" style="display:flex;justify-content:center;align-items:center;">
                                 <button class="pip-record-btn ${startTime !== null ? 'recording' : ''}" id="pipRecordBtn" onclick="window.opener.toggleTimerFromPip()" title="${startTime !== null ? 'Stop Recording' : 'Start Recording'}"></button>
+                                <button id="pipFloatToggle" class="pip-float-toggle" title="Toggle floating record button">📌</button>
                             </div>
                         </div>
                     </body>
@@ -2092,6 +2112,29 @@
                 // Write content to PiP window
                 pipWindow.document.write(pipHTML);
                 pipWindow.document.close();
+
+                // Add behavior inside PiP to toggle floating record button and persist choice
+                try {
+                    const initFloating = window.localStorage && window.localStorage.getItem && window.localStorage.getItem('pipFloatingButton') === 'true';
+                    const applyFloating = () => {
+                        const doc = pipWindow.document;
+                        const container = doc.querySelector('.pip-record-container');
+                        if (!container) return;
+                        if (initFloating) container.classList.add('floating');
+                        const toggle = doc.getElementById('pipFloatToggle');
+                        if (toggle) {
+                            toggle.addEventListener('click', () => {
+                                const isFloating = container.classList.toggle('floating');
+                                try { window.localStorage.setItem('pipFloatingButton', isFloating ? 'true' : 'false'); } catch (e) {}
+                                // update appearance
+                            });
+                        }
+                    };
+                    // Wait for pipWindow to be ready
+                    pipWindow.addEventListener('load', applyFloating);
+                } catch (e) {
+                    console.warn('PiP floating toggle setup failed', e);
+                }
 
                 // Enforce minimum PiP size if user attempts to resize smaller
                 try {
