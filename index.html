@@ -1359,10 +1359,10 @@
                 
                 navigator.serviceWorker.register(swUrl)
                     .then(registration => {
-                        console.log('Service Worker registered successfully');
+                        // Service Worker registered successfully
                     })
                     .catch(error => {
-                        console.log('Service Worker registration failed:', error);
+                        // Service Worker registration failed
                     });
             }
         }
@@ -3028,7 +3028,7 @@
             if (saved) {
                 try {
                     lastActiveTask = JSON.parse(saved);
-                    console.log('Loaded last active task:', lastActiveTask);
+                    // Loaded last active task
                     
                     // Auto-populate form fields with last task (but don't start timer)
                     if (lastActiveTask.projectNameFilter) {
