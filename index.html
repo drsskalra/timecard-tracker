@@ -4007,6 +4007,8 @@
                                     <div style="width:1px; height:48px; background:rgba(0,0,0,0.06);"></div>
                                     <div style="display:flex; flex-direction:column; gap:8px;">
                                         <button onclick="addNewProjectName()" style="padding:8px 12px; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">➕ Add Project Name</button>
+                                        <button onclick="addNewProjectNumberQuick()" style="padding:8px 12px; background:#0d6efd; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">➕ Add Project Number</button>
+                                        <button onclick="addNewTaskQuick()" style="padding:8px 12px; background:#6610f2; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">➕ Add Task</button>
                                         <button onclick="document.getElementById('historyProjectSelector').value = ''; loadProjectHistory();" style="padding:8px 12px; background:#6c757d; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px;">Clear</button>
                                     </div>
                                 </div>
@@ -4208,6 +4210,59 @@
             }
 
             showAlert(`Project "${trimmed}" added to history`, 'success');
+        }
+
+        // Quick add a project number to the currently selected project in history editor
+        function addNewProjectNumberQuick() {
+            const selector = document.getElementById('historyProjectSelector');
+            const selected = selector ? selector.value : '';
+            if (!selected) {
+                showAlert('Select a Project Name first (or add one).', 'error');
+                return;
+            }
+
+            const pn = prompt('Enter new Project Number for ' + selected + ':');
+            if (pn === null) return;
+            const trimmed = pn.trim();
+            if (!trimmed) { showAlert('Project Number cannot be empty', 'error'); return; }
+
+            if (!structuredHistory[selected]) {
+                structuredHistory[selected] = { projects: new Set(), tasks: new Set(), comments: new Set() };
+            }
+            structuredHistory[selected].projects.add(trimmed);
+            projectHistory.add(trimmed);
+            saveHistory();
+            updateDropdowns();
+
+            // If editor is open for this project, refresh its list
+            loadProjectHistory();
+            showAlert(`Project Number "${trimmed}" added to ${selected}`, 'success');
+        }
+
+        // Quick add a task to the currently selected project in history editor
+        function addNewTaskQuick() {
+            const selector = document.getElementById('historyProjectSelector');
+            const selected = selector ? selector.value : '';
+            if (!selected) {
+                showAlert('Select a Project Name first (or add one).', 'error');
+                return;
+            }
+
+            const t = prompt('Enter new Task for ' + selected + ':');
+            if (t === null) return;
+            const trimmed = t.trim();
+            if (!trimmed) { showAlert('Task cannot be empty', 'error'); return; }
+
+            if (!structuredHistory[selected]) {
+                structuredHistory[selected] = { projects: new Set(), tasks: new Set(), comments: new Set() };
+            }
+            structuredHistory[selected].tasks.add(trimmed);
+            taskHistory.add(trimmed);
+            saveHistory();
+            updateDropdowns();
+
+            loadProjectHistory();
+            showAlert(`Task "${trimmed}" added to ${selected}`, 'success');
         }
 
         function updateCounts() {
