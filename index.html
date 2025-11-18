@@ -1900,8 +1900,8 @@
                         }
                         .pip-content {
                             flex: 1;
-                            display: flex;
-                            justify-content: space-between;
+                            display: grid;
+                            grid-template-columns: 1fr auto minmax(110px, auto);
                             align-items: center;
                             padding: 0.5rem 0.6rem;
                             gap: 0.5rem;
@@ -1994,6 +1994,12 @@
                             box-sizing: border-box;
                             z-index: 2;
                         }
+                        .pip-content > div:nth-child(2) {
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            min-width: 56px;
+                        }
                         .pip-record-btn:hover {
                             border-color: rgba(255,255,255,1);
                             transform: scale(1.15);
@@ -2064,6 +2070,8 @@
                                     <div class="pip-timer" id="pipTimer" style="margin:0;">${projectTotalTime}</div>
                                     <div class="pip-timer pip-today-timer" id="pipDayTotalTimer" style="margin:0;"></div>
                                 </div>
+                            </div>
+                            <div style="display:flex;justify-content:center;align-items:center;">
                                 <button class="pip-record-btn ${startTime !== null ? 'recording' : ''}" id="pipRecordBtn" onclick="window.opener.toggleTimerFromPip()" title="${startTime !== null ? 'Stop Recording' : 'Start Recording'}"></button>
                             </div>
                         </div>
