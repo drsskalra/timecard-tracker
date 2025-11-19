@@ -1724,6 +1724,10 @@
 
             // Save data immediately
             saveData();
+            updateSummary();
+            updateWeekView();
+            updateSummary();
+            updateWeekView();
         }
 
         // Stop timer
@@ -2924,7 +2928,8 @@
             if (userInput === 'Delete') {
                 timeEntries.splice(entryIndex, 1);
                 saveData();
-                updateSummary();
+                    updateSummary();
+                    updateWeekView();
                 showAlert('Entry deleted successfully!', 'success');
             } else if (userInput !== null) {
                 showAlert('Delete cancelled - you must type "Delete" exactly to confirm', 'error');
@@ -2972,6 +2977,7 @@
                 entry[`day${day}_hr`] = formattedTime;
                 saveData();
                 updateSummary();
+                updateWeekView();
                 showAlert('Time updated successfully!', 'success');
 
             } else if (type === 'comment') {
@@ -2998,6 +3004,7 @@
 
                 saveData();
                 updateSummary();
+                updateWeekView();
                 showAlert('Comment updated successfully!', 'success');
             }
         }
