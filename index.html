@@ -2588,6 +2588,15 @@
             // Update dropdowns to reflect the selection
             updateDropdowns();
 
+            // Ensure we're on the current week so startTimer isn't blocked by weekOffset
+            if (weekOffset !== 0) {
+                weekOffset = 0;
+                loadData();
+                loadWeekDates();
+                updateSummary();
+                updateWeekView();
+            }
+
             // Scroll to timer section
             document.querySelector('.timer-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
