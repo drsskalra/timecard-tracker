@@ -2761,6 +2761,8 @@
         }
 
         // Edit entry from summary table (all fields at once)
+        // Opens the modal-based editor and focuses Project Name first so subsequent fields
+        // (Project Number, Task) are filtered by the selected project.
         function editEntry(entryIndex) {
             const entry = timeEntries[entryIndex];
             if (!entry) {
@@ -2768,32 +2770,8 @@
                 return;
             }
 
-            const newProjectName = prompt('Edit Project Name:', entry.projectNameFilter || '');
-            if (newProjectName === null) return; // User cancelled
-
-            const newProject = prompt('Edit Project Number:', entry.project || '');
-            if (newProject === null) return;
-
-            const newTask = prompt('Edit Task Name:', entry.task || '');
-            if (newTask === null) return;
-
-            // Validate inputs
-            if (!newProjectName.trim() || !newProject.trim() || !newTask.trim()) {
-                showAlert('Project Name, Project Number, and Task Name are required!', 'error');
-                return;
-            }
-
-            // Update entry
-            entry.projectNameFilter = newProjectName.trim();
-            entry.project = newProject.trim();
-            entry.task = newTask.trim();
-
-            // Add to history
-            addToHistory(entry.projectNameFilter, entry.project, entry.task, '');
-
-            saveData();
-            updateSummary();
-            showAlert('Entry updated successfully!', 'success');
+            // Reuse the table edit modal which prompts for Project Name first
+            editField(entryIndex, 'projectNameFilter');
         }
 
         // Delete entry from summary table
