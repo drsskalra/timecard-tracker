@@ -2615,12 +2615,16 @@
                 return;
             }
 
-            // Build datalist options from history
+            // Build datalist/select options from history
             let projectNameOptions = '';
+            let projectNameSelectOptions = '';
             let projectNumberOptions = '';
             let taskOptions = '';
 
-            projectNameHistory.forEach(item => { projectNameOptions += `<option value="${item}">`; });
+            projectNameHistory.forEach(item => {
+                projectNameOptions += `<option value="${item}">`;
+                projectNameSelectOptions += `<option value="${item}">${item}</option>`;
+            });
             projectHistory.forEach(item => { projectNumberOptions += `<option value="${item}">`; });
             taskHistory.forEach(item => { taskOptions += `<option value="${item}">`; });
 
@@ -2639,6 +2643,10 @@
                         <h3 style="margin-top: 0; color: #333;">Edit Entry - ${label}</h3>
                         <div style="margin-bottom: 12px;">
                             <label style="display:block; font-weight:600; margin-bottom:6px; color:#555;">Project Name:</label>
+                            <select id="tableEditProjectNameSelect" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:14px; margin-bottom:8px;">
+                                <option value="">-- Select Project --</option>
+                                ${projectNameSelectOptions}
+                            </select>
                             <input type="text" id="tableEditProjectName" value="${(entry.projectNameFilter||'').replace(/"/g,'&quot;')}" list="tableEditProjectNameList" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:14px;">
                             <datalist id="tableEditProjectNameList">${projectNameOptions}</datalist>
                         </div>
@@ -2697,8 +2705,28 @@
                     // clear dependent fields when project name changes
                     document.getElementById('tableEditProjectNumber').value = '';
                     document.getElementById('tableEditTask').value = '';
+                    // reset select to empty if user types a custom name
+                    const sel = document.getElementById('tableEditProjectNameSelect');
+                    if (sel) sel.value = '';
                     updateTableEditLists();
                 });
+
+                // When user selects from dropdown, populate the input and update lists
+                const sel = document.getElementById('tableEditProjectNameSelect');
+                if (sel) {
+                    sel.addEventListener('change', () => {
+                        const val = sel.value || '';
+                        projInput.value = val;
+                        document.getElementById('tableEditProjectNumber').value = '';
+                        document.getElementById('tableEditTask').value = '';
+                        updateTableEditLists();
+                    });
+                    // If the input already has a value, try to set the select to that value
+                    if (projInput.value) {
+                        const matchOpt = Array.from(sel.options).find(o => o.value === projInput.value);
+                        if (matchOpt) sel.value = projInput.value;
+                    }
+                }
 
                 // initialize lists
                 updateTableEditLists();
