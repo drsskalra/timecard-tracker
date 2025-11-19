@@ -4781,14 +4781,32 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
             ];
 
+            // Precompute overlap counts so isolated blocks can span full width
+            const overlapCounts = new Array(blocks.length).fill(0);
+            for (let i = 0; i < blocks.length; i++) {
+                for (let j = 0; j < blocks.length; j++) {
+                    if (i === j) continue;
+                    if (blocks[i].startMinutes < blocks[j].endMinutes && blocks[j].startMinutes < blocks[i].endMinutes) {
+                        overlapCounts[i]++;
+                    }
+                }
+            }
+
             placements.forEach(place => {
                 const entry = place.block;
                 const startMinutes = entry.startMinutes;
                 const endMinutes = entry.endMinutes;
                 const topPercent = (startMinutes / totalMinutes) * 100;
                 const heightPercent = ((endMinutes - startMinutes) / totalMinutes) * 100;
-                const leftPercent = place.col * (colWidth + gapPercent);
-                const widthPercent = colWidth;
+                let leftPercent = place.col * (colWidth + gapPercent);
+                let widthPercent = colWidth;
+
+                // If this block doesn't overlap any other block, span full available width
+                const blockIndex = blocks.indexOf(entry);
+                if (blockIndex >= 0 && overlapCounts[blockIndex] === 0 && numCols > 1) {
+                    leftPercent = 0;
+                    widthPercent = 100;
+                }
                 const colorIndex = (entry.projectName || ' ')[0].charCodeAt(0) % colors.length;
 
                 html += `
