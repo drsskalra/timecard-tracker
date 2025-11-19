@@ -36,33 +36,6 @@
             box-sizing: border-box;
         }
 
-        // Find an entry by keys and resume it (used by week-view time-block record buttons)
-        function resumeEntryByKeys(projectName, task, startTime, endTime, dayIndex) {
-            // Normalize inputs
-            projectName = projectName || '';
-            task = task || '';
-            startTime = startTime || '';
-            endTime = endTime || '';
-            // Search through timeEntries to find a matching entry
-            for (let i = 0; i < timeEntries.length; i++) {
-                const e = timeEntries[i];
-                if ((e.projectName || '') === projectName && (e.task || '') === task && (e.startTime || '') === startTime && (e.endTime || '') === endTime && (e.dayIndex == dayIndex)) {
-                    resumeEntry(i);
-                    return true;
-                }
-            }
-            // Fallback: try matching by projectName and task and dayIndex if exact time match not found
-            for (let i = 0; i < timeEntries.length; i++) {
-                const e = timeEntries[i];
-                if ((e.projectName || '') === projectName && (e.task || '') === task && (e.dayIndex == dayIndex)) {
-                    resumeEntry(i);
-                    return true;
-                }
-            }
-            alert('Could not find matching entry to resume.');
-            return false;
-        }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -2622,6 +2595,50 @@
             setTimeout(() => {
                 startTimer();
             }, 500);
+        }
+
+        // Find an entry by keys and resume it (used by week-view time-block record buttons)
+        function resumeEntryByKeys(projectName, task, startTime, endTime, dayIndex) {
+            // Normalize inputs
+            projectName = projectName || '';
+            task = task || '';
+            startTime = startTime || '';
+            endTime = endTime || '';
+
+            // Search through timeEntries to find a matching entry (exact match)
+            for (let i = 0; i < timeEntries.length; i++) {
+                const e = timeEntries[i];
+                const eStart = e[`day${dayIndex}_clocktime`] ? (e[`day${dayIndex}_clocktime`].split(',').pop().trim()) : '';
+                // eStart may be in format "HH:MM AM - HH:MM PM"; compare start/end strings too if provided
+                if ((e.projectNameFilter || '') === projectName && (e.task || '') === task) {
+                    // If we have exact start/end times in the block, prefer exact match
+                    if (startTime && endTime) {
+                        // Compare stored clocktimes for the day (contains ranges), try to match the last range
+                        if (eStart && eStart.includes(startTime) && eStart.includes(endTime)) {
+                            resumeEntry(i);
+                            return true;
+                        }
+                    } else {
+                        // No exact times provided — resume on project/task/day match
+                        if (e.dayIndex == dayIndex || typeof e.dayIndex === 'undefined') {
+                            resumeEntry(i);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            // Fallback: match by project and task only
+            for (let i = 0; i < timeEntries.length; i++) {
+                const e = timeEntries[i];
+                if ((e.projectNameFilter || '') === projectName && (e.task || '') === task) {
+                    resumeEntry(i);
+                    return true;
+                }
+            }
+
+            alert('Could not find matching entry to resume.');
+            return false;
         }
 
         // Resume last job (used by PiP window)
