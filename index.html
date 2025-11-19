@@ -2664,6 +2664,46 @@
             `;
 
             document.body.insertAdjacentHTML('beforeend', dialogHTML);
+            // After dialog is added, wire input listener to filter project numbers and tasks
+            setTimeout(() => {
+                const projInput = document.getElementById('editProjectName');
+                const projNumberList = document.getElementById('editProjectNumberList');
+                const taskList = document.getElementById('editTaskList');
+
+                function updateEditLists() {
+                    const selectedProjectName = projInput.value.trim();
+                    let projects = [];
+                    let tasks = [];
+
+                    if (selectedProjectName && structuredHistory[selectedProjectName]) {
+                        const projSet = structuredHistory[selectedProjectName].projects;
+                        const taskSet = structuredHistory[selectedProjectName].tasks;
+                        projects = Array.from(projSet instanceof Set ? projSet : new Set(projSet)).sort();
+                        tasks = Array.from(taskSet instanceof Set ? taskSet : new Set(taskSet)).sort();
+                    } else {
+                        projects = Array.from(projectHistory).sort();
+                        tasks = Array.from(taskHistory).sort();
+                    }
+
+                    projNumberList.innerHTML = '';
+                    projects.forEach(p => projNumberList.insertAdjacentHTML('beforeend', `<option value="${p}">`));
+
+                    taskList.innerHTML = '';
+                    tasks.forEach(t => taskList.insertAdjacentHTML('beforeend', `<option value="${t}">`));
+                }
+
+                projInput.addEventListener('input', () => {
+                    document.getElementById('editProjectNumber').value = '';
+                    document.getElementById('editTask').value = '';
+                    updateEditLists();
+                });
+
+                // initialize lists based on current project name
+                updateEditLists();
+
+                // focus project name for convenience
+                if (projInput) projInput.focus();
+            }, 50);
 
             // After dialog is added, wire input listener to filter project numbers and tasks
             setTimeout(() => {
