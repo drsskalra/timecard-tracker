@@ -1225,71 +1225,8 @@
             registerServiceWorker(); // Register service worker for PWA
             setupIdleNotifications(); // Setup idle timer notifications
             setupMiniWindowDrag(); // Setup mini window dragging
-            setupAutoPipOnMinimize(); // Auto-enter PiP when window minimized/hidden
             setupWeekNavigation(); // Setup keyboard shortcuts for week navigation
         };
-
-        // Automatically enter PiP / mini window when the page is hidden (e.g., minimized)
-        function setupAutoPipOnMinimize() {
-            let pipMonitorInterval = null;
-
-            document.addEventListener('visibilitychange', () => {
-                try {
-                    if (document.hidden) {
-                        // Always enter PiP / mini window when hidden
-                        if ((typeof pipWindow === 'undefined' || !pipWindow || pipWindow.closed) && !miniWindowActive) {
-                            toggleMiniWindow();
-
-                            // If OS PiP window is opened, monitor it and restore app when it's closed
-                            if (typeof pipWindow !== 'undefined' && pipWindow && !pipWindow.closed) {
-                                pipMonitorInterval = setInterval(() => {
-                                    if (!pipWindow || pipWindow.closed) {
-                                        // PiP window closed - ensure main UI is visible
-                                        if (miniWindowActive) toggleMiniWindow();
-                                        clearInterval(pipMonitorInterval);
-                                        pipMonitorInterval = null;
-                                    }
-                                }, 1000);
-                            }
-                        }
-                    } else {
-                        // When returning to visible, ensure fallback mini window is hidden and main app is visible
-                        try {
-                            const miniWindowEl = document.getElementById('miniWindow');
-                            const mainContainer = document.querySelector('.container');
-                            if (miniWindowEl && miniWindowEl.classList.contains('show')) {
-                                miniWindowEl.classList.remove('show');
-                            }
-                            miniWindowActive = false;
-                            if (mainContainer) mainContainer.style.display = 'block';
-
-                            // If an interval was monitoring PiP, stop it
-                            if (pipMonitorInterval) {
-                                clearInterval(pipMonitorInterval);
-                                pipMonitorInterval = null;
-                            }
-
-                            // If OS-level pipWindow exists and is open, attempt to close it (best-effort)
-                            try {
-                                if (pipWindow && !pipWindow.closed) {
-                                    pipWindow.close();
-                                    pipWindow = null;
-                                }
-                            } catch (e) {
-                                // Some environments may not allow programmatic close
-                            }
-
-                            // Bring main window to front when possible
-                            try { window.focus(); } catch (e) { /* ignore */ }
-                        } catch (e) {
-                            // ignore
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Auto PiP on minimize failed:', e);
-                }
-            });
-        }
 
         // Enforce single instance - prevent multiple tabs/windows
         function enforceSingleInstance() {
@@ -2275,27 +2212,11 @@
                     }
                 }, 1000);
 
-                // Handle PiP window close — restore full UI and hide any fallback mini-window
+                // Handle PiP window close
                 pipWindow.addEventListener('pagehide', () => {
                     clearInterval(pipUpdateInterval);
                     pipWindow = null;
                     document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
-
-                    try {
-                        // Ensure fallback mini window is hidden and main container is shown
-                        const miniWindow = document.getElementById('miniWindow');
-                        const mainContainer = document.querySelector('.container');
-                        if (miniWindow && miniWindow.classList.contains('show')) {
-                            miniWindow.classList.remove('show');
-                        }
-                        miniWindowActive = false;
-                        if (mainContainer) mainContainer.style.display = 'block';
-
-                        // Bring focus back to the main window where possible
-                        try { window.focus(); } catch (e) { /* ignore */ }
-                    } catch (e) {
-                        // ignore restore errors
-                    }
                 });
 
                 showAlert('Picture-in-Picture window opened! It will stay on top of other windows.', 'success');
