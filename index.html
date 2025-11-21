@@ -1253,24 +1253,36 @@
                             }
                         }
                     } else {
-                        // When returning to visible, close fallback mini window and bring back full app
-                        if (miniWindowActive) {
-                            toggleMiniWindow();
-                        }
-
-                        // If an interval was monitoring PiP, stop it
-                        if (pipMonitorInterval) {
-                            clearInterval(pipMonitorInterval);
-                            pipMonitorInterval = null;
-                        }
-                        // If OS-level pipWindow exists and is open, attempt to close it (best-effort)
+                        // When returning to visible, ensure fallback mini window is hidden and main app is visible
                         try {
-                            if (pipWindow && !pipWindow.closed) {
-                                pipWindow.close();
-                                pipWindow = null;
+                            const miniWindowEl = document.getElementById('miniWindow');
+                            const mainContainer = document.querySelector('.container');
+                            if (miniWindowEl && miniWindowEl.classList.contains('show')) {
+                                miniWindowEl.classList.remove('show');
                             }
+                            miniWindowActive = false;
+                            if (mainContainer) mainContainer.style.display = 'block';
+
+                            // If an interval was monitoring PiP, stop it
+                            if (pipMonitorInterval) {
+                                clearInterval(pipMonitorInterval);
+                                pipMonitorInterval = null;
+                            }
+
+                            // If OS-level pipWindow exists and is open, attempt to close it (best-effort)
+                            try {
+                                if (pipWindow && !pipWindow.closed) {
+                                    pipWindow.close();
+                                    pipWindow = null;
+                                }
+                            } catch (e) {
+                                // Some environments may not allow programmatic close
+                            }
+
+                            // Bring main window to front when possible
+                            try { window.focus(); } catch (e) { /* ignore */ }
                         } catch (e) {
-                            // Some environments may not allow programmatic close
+                            // ignore
                         }
                     }
                 } catch (e) {
@@ -2263,11 +2275,27 @@
                     }
                 }, 1000);
 
-                // Handle PiP window close
+                // Handle PiP window close — restore full UI and hide any fallback mini-window
                 pipWindow.addEventListener('pagehide', () => {
                     clearInterval(pipUpdateInterval);
                     pipWindow = null;
                     document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
+
+                    try {
+                        // Ensure fallback mini window is hidden and main container is shown
+                        const miniWindow = document.getElementById('miniWindow');
+                        const mainContainer = document.querySelector('.container');
+                        if (miniWindow && miniWindow.classList.contains('show')) {
+                            miniWindow.classList.remove('show');
+                        }
+                        miniWindowActive = false;
+                        if (mainContainer) mainContainer.style.display = 'block';
+
+                        // Bring focus back to the main window where possible
+                        try { window.focus(); } catch (e) { /* ignore */ }
+                    } catch (e) {
+                        // ignore restore errors
+                    }
                 });
 
                 showAlert('Picture-in-Picture window opened! It will stay on top of other windows.', 'success');
