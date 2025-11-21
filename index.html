@@ -1231,23 +1231,47 @@
 
         // Automatically enter PiP / mini window when the page is hidden (e.g., minimized)
         function setupAutoPipOnMinimize() {
+            let pipMonitorInterval = null;
+
             document.addEventListener('visibilitychange', () => {
                 try {
-                    // When page becomes hidden and a timer is running, open PiP or mini window
                     if (document.hidden) {
-                        if (startTime !== null) {
-                            // Only open if not already open
-                            if ((typeof pipWindow === 'undefined' || !pipWindow || pipWindow.closed) && !miniWindowActive) {
-                                // toggleMiniWindow will use OS-level PiP if available, otherwise fallback mini window
-                                toggleMiniWindow();
+                        // Always enter PiP / mini window when hidden
+                        if ((typeof pipWindow === 'undefined' || !pipWindow || pipWindow.closed) && !miniWindowActive) {
+                            toggleMiniWindow();
+
+                            // If OS PiP window is opened, monitor it and restore app when it's closed
+                            if (typeof pipWindow !== 'undefined' && pipWindow && !pipWindow.closed) {
+                                pipMonitorInterval = setInterval(() => {
+                                    if (!pipWindow || pipWindow.closed) {
+                                        // PiP window closed - ensure main UI is visible
+                                        if (miniWindowActive) toggleMiniWindow();
+                                        clearInterval(pipMonitorInterval);
+                                        pipMonitorInterval = null;
+                                    }
+                                }, 1000);
                             }
                         }
                     } else {
-                        // When returning to visible, if fallback mini window is active, restore main UI
+                        // When returning to visible, close fallback mini window and bring back full app
                         if (miniWindowActive) {
                             toggleMiniWindow();
                         }
-                        // Do not force-close OS-level PiP; let the user manage it
+
+                        // If an interval was monitoring PiP, stop it
+                        if (pipMonitorInterval) {
+                            clearInterval(pipMonitorInterval);
+                            pipMonitorInterval = null;
+                        }
+                        // If OS-level pipWindow exists and is open, attempt to close it (best-effort)
+                        try {
+                            if (pipWindow && !pipWindow.closed) {
+                                pipWindow.close();
+                                pipWindow = null;
+                            }
+                        } catch (e) {
+                            // Some environments may not allow programmatic close
+                        }
                     }
                 } catch (e) {
                     console.warn('Auto PiP on minimize failed:', e);
