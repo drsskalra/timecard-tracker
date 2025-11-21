@@ -1225,8 +1225,35 @@
             registerServiceWorker(); // Register service worker for PWA
             setupIdleNotifications(); // Setup idle timer notifications
             setupMiniWindowDrag(); // Setup mini window dragging
+            setupAutoPipOnMinimize(); // Auto-enter PiP when window minimized/hidden
             setupWeekNavigation(); // Setup keyboard shortcuts for week navigation
         };
+
+        // Automatically enter PiP / mini window when the page is hidden (e.g., minimized)
+        function setupAutoPipOnMinimize() {
+            document.addEventListener('visibilitychange', () => {
+                try {
+                    // When page becomes hidden and a timer is running, open PiP or mini window
+                    if (document.hidden) {
+                        if (startTime !== null) {
+                            // Only open if not already open
+                            if ((typeof pipWindow === 'undefined' || !pipWindow || pipWindow.closed) && !miniWindowActive) {
+                                // toggleMiniWindow will use OS-level PiP if available, otherwise fallback mini window
+                                toggleMiniWindow();
+                            }
+                        }
+                    } else {
+                        // When returning to visible, if fallback mini window is active, restore main UI
+                        if (miniWindowActive) {
+                            toggleMiniWindow();
+                        }
+                        // Do not force-close OS-level PiP; let the user manage it
+                    }
+                } catch (e) {
+                    console.warn('Auto PiP on minimize failed:', e);
+                }
+            });
+        }
 
         // Enforce single instance - prevent multiple tabs/windows
         function enforceSingleInstance() {
