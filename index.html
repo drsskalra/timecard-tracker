@@ -1109,6 +1109,9 @@
                 <button class="btn btn-primary" onclick="document.getElementById('importFile').click()">
                     📥 Import Data from Previous Export
                 </button>
+                    <button class="btn btn-primary" onclick="document.getElementById('importIcs').click()">
+                        📅 Import from Outlook (.ics)
+                    </button>
                 <button class="btn btn-warning" onclick="openHistoryEditor()">
                     ✏️ Edit History
                 </button>
@@ -1116,6 +1119,7 @@
 
             <!-- Hidden file input for import -->
             <input type="file" id="importFile" accept=".xlsx,.xls" style="display: none;" onchange="importFromExcel(event)">
+            <input type="file" id="importIcs" accept=".ics,text/calendar" style="display: none;" onchange="importFromICS(event)">
 
             <!-- Copyright Footer -->
             <div style="text-align: center; margin-top: 30px; padding: 20px; color: #6c757d; font-size: 0.9em; border-top: 1px solid #dee2e6;">
@@ -1196,6 +1200,8 @@
         let alwaysOnTop = false;
         let isDragging = false;
         let dragOffset = { x: 0, y: 0 };
+        // Interval used to refresh week view while a timer is active
+        let weekViewRefreshInterval = null;
         
         // Week navigation
         let weekOffset = 0; // 0 = current week, -1 = last week, +1 = next week
@@ -1636,6 +1642,12 @@
             document.getElementById('timerStatus').textContent = `Timer running for ${projectNameFilter} - ${project} - ${task} (Started: ${startClockTime})`;
 
             timerInterval = setInterval(updateTimerDisplay, 1000);
+            // Refresh week view periodically so the running timer is visible
+            if (!weekViewRefreshInterval) {
+                weekViewRefreshInterval = setInterval(() => {
+                    try { updateWeekView(); } catch (e) { /* ignore */ }
+                }, 10000); // every 10 seconds
+            }
             showAlert(`Timer started for ${projectNameFilter} - ${project} - ${task} at ${startClockTime}`, 'success');
             
             // Clear any reminder notifications
@@ -1728,6 +1740,11 @@
             updateWeekView();
             updateSummary();
             updateWeekView();
+            // Clear week view refresh when timer is no longer running
+            if (weekViewRefreshInterval) {
+                clearInterval(weekViewRefreshInterval);
+                weekViewRefreshInterval = null;
+            }
         }
 
         // Stop timer
@@ -1829,6 +1846,12 @@
             // Update mini window if active
             if (miniWindowActive) {
                 updateMiniWindowInfo();
+            }
+
+            // Clear periodic week view refresh when timer stops
+            if (weekViewRefreshInterval) {
+                clearInterval(weekViewRefreshInterval);
+                weekViewRefreshInterval = null;
             }
         }
 
@@ -3650,6 +3673,159 @@
             event.target.value = '';
         }
 
+        // Import from Outlook .ics file
+        function importFromICS(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const icsText = e.target.result;
+                    const events = parseICS(icsText);
+                    if (!events || events.length === 0) {
+                        showAlert('No events found in the .ics file', 'error');
+                        return;
+                    }
+
+                    // Map events into current week's days
+                    const { monday } = getWeekDates();
+                    let importedCount = 0;
+
+                    events.forEach(ev => {
+                        // We only handle events that overlap Mon-Fri of the current week
+                        const evStart = new Date(ev.dtstart);
+                        const evEnd = new Date(ev.dtend || ev.dtstart);
+
+                        // For recurring events RRULE, we ignore recurrence expansion for now
+                        // Only include single-instance events
+                        for (let dayOffset = 0; dayOffset < 5; dayOffset++) {
+                            const dayDate = new Date(monday);
+                            dayDate.setDate(monday.getDate() + dayOffset);
+
+                            // If event occurs on this day (start before end of day and end after start of day)
+                            const dayStart = new Date(dayDate);
+                            dayStart.setHours(0,0,0,0);
+                            const dayEnd = new Date(dayDate);
+                            dayEnd.setHours(23,59,59,999);
+
+                            if (evEnd <= dayStart || evStart >= dayEnd) continue;
+
+                            // Compute clipped start and end times within the day
+                            const clipStart = evStart < dayStart ? dayStart : evStart;
+                            const clipEnd = evEnd > dayEnd ? dayEnd : evEnd;
+
+                            // Format times as 'H:MM AM/PM'
+                            const startStr = formatClockTime(clipStart);
+                            const endStr = formatClockTime(clipEnd);
+
+                            // Heuristic: split summary into Project - Task if possible
+                            let projectName = ev.summary || 'Calendar Event';
+                            let projectNumber = '';
+                            let task = '';
+                            if (projectName.includes(' - ')) {
+                                const parts = projectName.split(' - ');
+                                projectName = parts[0].trim();
+                                task = parts.slice(1).join(' - ').trim();
+                            } else {
+                                task = projectName;
+                            }
+
+                            // Create or find entry
+                            let entry = timeEntries.find(e => e.projectNameFilter === projectName && e.task === task);
+                            if (!entry) {
+                                entry = { projectNameFilter: projectName, project: projectNumber, task: task };
+                                for (let i = 1; i <= 5; i++) {
+                                    entry[`day${i}_hr`] = '00:00:00';
+                                    entry[`day${i}_comment`] = '';
+                                    entry[`day${i}_clocktime`] = '';
+                                }
+                                timeEntries.push(entry);
+                            }
+
+                            const dayIndex = dayOffset + 1; // Monday=1
+                            const clockKey = `day${dayIndex}_clocktime`;
+                            const existing = entry[clockKey] || '';
+                            const range = `${startStr} - ${endStr}`;
+                            entry[clockKey] = existing ? `${existing}, ${range}` : range;
+
+                            // Recalculate day total
+                            const clockRanges = entry[clockKey].split(',').map(r => r.trim()).filter(r => r);
+                            let totalSeconds = 0;
+                            clockRanges.forEach(rangeItem => {
+                                const [s,e] = rangeItem.split('-').map(x => x.trim());
+                                if (s && e) {
+                                    totalSeconds += (parseTimeToMinutes(e) - parseTimeToMinutes(s)) * 60;
+                                }
+                            });
+                            entry[`day${dayIndex}_hr`] = formatSecondsToHHMMSS(totalSeconds);
+                            importedCount++;
+                        }
+                    });
+
+                    if (importedCount > 0) {
+                        saveData();
+                        updateSummary();
+                        updateWeekView();
+                        showAlert(`Imported ${importedCount} events from calendar`, 'success');
+                    } else {
+                        showAlert('No events imported for the current week', 'info');
+                    }
+
+                } catch (err) {
+                    console.error('ICS import error', err);
+                    showAlert('Error importing .ics file', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // Very small ICS parser to extract VEVENT dtstart/dtend/summary (no RRULE or complex parsing)
+        function parseICS(icsText) {
+            const lines = icsText.split(/\r?\n/);
+            const events = [];
+            let current = null;
+
+            lines.forEach(line => {
+                if (line.startsWith('BEGIN:VEVENT')) {
+                    current = {};
+                } else if (line.startsWith('END:VEVENT')) {
+                    if (current) events.push(current);
+                    current = null;
+                } else if (current) {
+                    const idx = line.indexOf(':');
+                    if (idx > -1) {
+                        const key = line.substring(0, idx).split(';')[0];
+                        const val = line.substring(idx+1).trim();
+                        if (key === 'DTSTART') current.dtstart = val;
+                        else if (key === 'DTEND') current.dtend = val;
+                        else if (key === 'SUMMARY') current.summary = val;
+                    }
+                }
+            });
+
+            // Normalize dates
+            return events.map(ev => {
+                const normalize = (v) => {
+                    // Handle basic formats like 20251121T090000Z or 20251121T090000
+                    if (!v) return null;
+                    const m = v.match(/(\d{4})(\d{2})(\d{2})T?(\d{2})(\d{2})(\d{2})Z?/);
+                    if (m) {
+                        return new Date(Date.UTC(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6])));
+                    }
+                    // Fallback parse
+                    const d = new Date(v);
+                    return isNaN(d.getTime()) ? null : d;
+                };
+                return {
+                    dtstart: normalize(ev.dtstart),
+                    dtend: normalize(ev.dtend),
+                    summary: ev.summary || ''
+                };
+            }).filter(e => e.dtstart);
+        }
+
         // Import all weeks from multi-sheet Excel file
         function importAllWeeksFromExcel(workbook) {
             try {
@@ -4666,6 +4842,29 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                                 });
                             }
                         });
+                        // If timer is running and this is the current day (only show active timer for current day)
+                        if (startTime !== null) {
+                            const todayIndex = getCurrentWeekday();
+                            if (dayIndex === todayIndex) {
+                                // Build a running block using current form values
+                                const runningProject = document.getElementById('projectNameFilter').value.trim() || (lastActiveTask && lastActiveTask.projectNameFilter) || 'Running Task';
+                                const runningProjectNum = document.getElementById('projectName').value.trim() || (lastActiveTask && lastActiveTask.project) || '';
+                                const runningTask = document.getElementById('taskName').value.trim() || (lastActiveTask && lastActiveTask.task) || '';
+                                const startClock = formatClockTime(new Date(startTime));
+                                const nowClock = formatClockTime(new Date());
+                                // Mark comment to indicate running
+                                dayEntries.push({
+                                    projectName: runningProject,
+                                    project: runningProjectNum,
+                                    task: runningTask,
+                                    startTime: startClock,
+                                    endTime: nowClock,
+                                    comment: 'Currently running',
+                                    dayIndex: dayIndex,
+                                    running: true
+                                });
+                            }
+                        }
                     }
                 });
 
@@ -4816,8 +5015,10 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 }
                 const colorIndex = (entry.projectName || ' ')[0].charCodeAt(0) % colors.length;
 
+                const runningClass = entry.running ? ' time-block-running' : '';
+                const runningStyle = entry.running ? 'box-shadow: 0 6px 18px rgba(0,0,0,0.45), 0 0 10px rgba(255,255,255,0.12); border: 2px dashed rgba(255,255,255,0.6);' : '';
                 html += `
-                    <div class="time-block" 
+                    <div class="time-block${runningClass}" 
                          draggable="true"
                          data-project="${entry.projectName}"
                          data-task="${entry.task}"
@@ -4825,7 +5026,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                          data-end="${entry.endTime}"
                          data-day="${entry.dayIndex}"
                          data-comment="${(entry.comment || '').replace(/"/g, '&quot;')}"
-                         style="top: ${topPercent}%; height: ${heightPercent}%; left: ${leftPercent}%; width: ${widthPercent}%; background: ${colors[colorIndex]};"
+                         style="top: ${topPercent}%; height: ${heightPercent}%; left: ${leftPercent}%; width: ${widthPercent}%; background: ${colors[colorIndex]}; ${runningStyle}"
                          title="${entry.projectName} - ${entry.task}\n${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}\nClick to edit, drag to move"
                          onmousedown="startDragTimeBlock(event, this)"
                          ondragstart="return false;">
@@ -4834,7 +5035,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                         <button class="time-block-record" onclick="resumeEntryByKeys('${(entry.projectName||'').replace(/'/g, "\\'")}', '${(entry.task||'').replace(/'/g, "\\'")}', '${entry.startTime}', '${entry.endTime}', ${entry.dayIndex})" title="Resume this block">▶</button>
                         <div class="time-block-content" onclick="editTimeBlock(event, this.parentElement)">
                             <div class="time-block-project">${entry.projectName}</div>
-                            <div class="time-block-task">${entry.task}</div>
+                            <div class="time-block-task">${entry.task}${entry.running ? ' (running)' : ''}</div>
                             <div class="time-block-duration">${entry.startTime} - ${entry.endTime}</div>
                         </div>
                         <div class="resize-handle bottom" onmousedown="startResize(event, this.parentElement, 'bottom')"></div>
