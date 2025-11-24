@@ -1636,7 +1636,8 @@
             document.getElementById('projectNameFilter').disabled = true;
             document.getElementById('projectName').disabled = true;
             document.getElementById('taskName').disabled = true;
-            document.getElementById('comment').disabled = true;
+            // Keep comment editable while timer is running so user can update it live
+            // document.getElementById('comment').disabled = true;
             
             const startClockTime = formatClockTime(new Date(startTime));
             document.getElementById('timerStatus').textContent = `Timer running for ${projectNameFilter} - ${project} - ${task} (Started: ${startClockTime})`;
@@ -4853,13 +4854,14 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                                 const startClock = formatClockTime(new Date(startTime));
                                 const nowClock = formatClockTime(new Date());
                                 // Mark comment to indicate running
+                                const liveComment = (document.getElementById('comment') && document.getElementById('comment').value.trim()) || '';
                                 dayEntries.push({
                                     projectName: runningProject,
                                     project: runningProjectNum,
                                     task: runningTask,
                                     startTime: startClock,
                                     endTime: nowClock,
-                                    comment: 'Currently running',
+                                    comment: liveComment || 'Currently running',
                                     dayIndex: dayIndex,
                                     running: true
                                 });
