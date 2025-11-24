@@ -1646,7 +1646,7 @@
             if (!weekViewRefreshInterval) {
                 weekViewRefreshInterval = setInterval(() => {
                     try { updateWeekView(); } catch (e) { /* ignore */ }
-                }, 10000); // every 10 seconds
+                }, 1000); // every 1 second for smooth live update
             }
             showAlert(`Timer started for ${projectNameFilter} - ${project} - ${task} at ${startClockTime}`, 'success');
             
