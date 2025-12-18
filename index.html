@@ -3085,42 +3085,42 @@
             const projectNameOptions = Array.from(projectNameHistory).sort().map(item => `<option value="${item}">`).join('');
             
             // Build filtered project numbers and tasks based on current project name
-            let projectNumberOptions = '';
-            let taskOptions = '';
+            let projectNumbers = [];
+            let tasks = [];
             
             if (origProjectName && structuredHistory[origProjectName]) {
                 const projSet = structuredHistory[origProjectName].projects;
                 const taskSet = structuredHistory[origProjectName].tasks;
-                const projects = Array.from(projSet instanceof Set ? projSet : new Set(projSet)).sort();
-                const tasks = Array.from(taskSet instanceof Set ? taskSet : new Set(taskSet)).sort();
+                projectNumbers = Array.from(projSet instanceof Set ? projSet : new Set(projSet)).sort();
+                tasks = Array.from(taskSet instanceof Set ? taskSet : new Set(taskSet)).sort();
                 
                 console.log('Filtered dropdowns for:', origProjectName);
-                console.log('Project numbers:', projects);
+                console.log('Project numbers:', projectNumbers);
                 console.log('Tasks:', tasks);
-                
-                projectNumberOptions = projects.map(p => `<option value="${p}">`).join('');
-                taskOptions = tasks.map(t => `<option value="${t}">`).join('');
             } else {
                 console.log('No structured history found for:', origProjectName);
                 console.log('Using all history - projects:', Array.from(projectHistory));
                 console.log('Using all history - tasks:', Array.from(taskHistory));
                 
-                projectNumberOptions = Array.from(projectHistory).sort().map(item => `<option value="${item}">`).join('');
-                taskOptions = Array.from(taskHistory).sort().map(item => `<option value="${item}">`).join('');
+                projectNumbers = Array.from(projectHistory).sort();
+                tasks = Array.from(taskHistory).sort();
             }
 
-            // Replace project name cell with input (if present)
+            // Replace project name cell with select dropdown (if present)
             if (projNameCell && projNameCell.hasAttribute('rowspan')) {
+                const projectNameList = Array.from(projectNameHistory).sort();
+                let projectNameSelectOptions = projectNameList.map(p => 
+                    `<option value="${p.replace(/"/g, '&quot;')}" ${p === origProjectName ? 'selected' : ''}>${p}</option>`
+                ).join('');
+                
                 const projectNameHTML = `
                     <div>
-                        <input type="text" 
-                               class="inline-edit-input" 
-                               id="inline-proj-name-${entryIndex}" 
-                               value="${origProjectName.replace(/"/g, '&quot;')}"
-                               list="inline-proj-name-list-${entryIndex}"
-                               placeholder="Project Name"
-                               onfocus="this.select()">
-                        <datalist id="inline-proj-name-list-${entryIndex}">${projectNameOptions}</datalist>
+                        <select class="inline-edit-input" 
+                                id="inline-proj-name-${entryIndex}"
+                                style="width: 100%;">
+                            <option value="">Select Project Name...</option>
+                            ${projectNameSelectOptions}
+                        </select>
                     </div>
                 `;
                 projNameCell.innerHTML = projectNameHTML;
@@ -3128,74 +3128,44 @@
                 
                 // Add listener to filter project numbers and tasks
                 const projNameInput = document.getElementById(`inline-proj-name-${entryIndex}`);
-                projNameInput.addEventListener('input', () => updateInlineEditLists(entryIndex));
-                // Show all options when clicking
-                projNameInput.addEventListener('click', function() {
-                    this.select();
-                    // Trigger dropdown by temporarily clearing and restoring
-                    const val = this.value;
-                    this.value = '';
-                    setTimeout(() => { this.value = val; this.select(); }, 1);
-                });
+                projNameInput.addEventListener('change', () => updateInlineEditLists(entryIndex));
             }
 
-            // Replace project number cell with input
+            // Replace project number cell with select dropdown
+            let projectNumberSelectOptions = projectNumbers.map(p => 
+                `<option value="${p.replace(/"/g, '&quot;')}" ${p === origProjectNumber ? 'selected' : ''}>${p}</option>`
+            ).join('');
+            
             const projectNumberHTML = `
                 <div>
-                    <input type="text" 
-                           class="inline-edit-input" 
-                           id="inline-proj-num-${entryIndex}" 
-                           value="${origProjectNumber.replace(/"/g, '&quot;')}"
-                           list="inline-proj-num-list-${entryIndex}"
-                           placeholder="Project Number"
-                           onfocus="this.select()">
-                    <datalist id="inline-proj-num-list-${entryIndex}">${projectNumberOptions}</datalist>
+                    <select class="inline-edit-input" 
+                            id="inline-proj-num-${entryIndex}"
+                            style="width: 100%;">
+                        <option value="">Select Project Number...</option>
+                        ${projectNumberSelectOptions}
+                    </select>
                 </div>
             `;
             projNumCell.innerHTML = projectNumberHTML;
             projNumCell.style.cursor = 'default';
-            
-            // Show all options when clicking
-            setTimeout(() => {
-                const projNumInput = document.getElementById(`inline-proj-num-${entryIndex}`);
-                if (projNumInput) {
-                    projNumInput.addEventListener('click', function() {
-                        this.select();
-                        const val = this.value;
-                        this.value = '';
-                        setTimeout(() => { this.value = val; this.select(); }, 1);
-                    });
-                }
-            }, 50);
 
-            // Replace task cell with input
+            // Replace task cell with select dropdown
+            let taskSelectOptions = tasks.map(t => 
+                `<option value="${t.replace(/"/g, '&quot;')}" ${t === origTask ? 'selected' : ''}>${t}</option>`
+            ).join('');
+            
             const taskHTML = `
                 <div>
-                    <input type="text" 
-                           class="inline-edit-input" 
-                           id="inline-task-${entryIndex}" 
-                           value="${origTask.replace(/"/g, '&quot;')}"
-                           list="inline-task-list-${entryIndex}"
-                           placeholder="Task"
-                           onfocus="this.select()">
-                    <datalist id="inline-task-list-${entryIndex}">${taskOptions}</datalist>
+                    <select class="inline-edit-input" 
+                            id="inline-task-${entryIndex}"
+                            style="width: 100%;">
+                        <option value="">Select Task...</option>
+                        ${taskSelectOptions}
+                    </select>
                 </div>
             `;
             taskCell.innerHTML = taskHTML;
             taskCell.style.cursor = 'default';
-            
-            // Show all options when clicking
-            setTimeout(() => {
-                const taskInput = document.getElementById(`inline-task-${entryIndex}`);
-                if (taskInput) {
-                    taskInput.addEventListener('click', function() {
-                        this.select();
-                        const val = this.value;
-                        this.value = '';
-                        setTimeout(() => { this.value = val; this.select(); }, 1);
-                    });
-                }
-            }, 50);
 
             // Add save/cancel buttons to the edit column
             const editCell = cells[0];
@@ -3220,14 +3190,14 @@
             }
         }
 
-        // Update inline edit datalists based on selected project name
+        // Update inline edit select dropdowns based on selected project name
         function updateInlineEditLists(entryIndex) {
             const projNameInput = document.getElementById(`inline-proj-name-${entryIndex}`);
             if (!projNameInput) return;
 
             const selectedProjectName = projNameInput.value.trim();
-            const projNumList = document.getElementById(`inline-proj-num-list-${entryIndex}`);
-            const taskList = document.getElementById(`inline-task-list-${entryIndex}`);
+            const projNumSelect = document.getElementById(`inline-proj-num-${entryIndex}`);
+            const taskSelect = document.getElementById(`inline-task-${entryIndex}`);
 
             let projects = [];
             let tasks = [];
@@ -3242,19 +3212,21 @@
                 tasks = Array.from(taskHistory).sort();
             }
 
-            if (projNumList) {
-                projNumList.innerHTML = projects.map(p => `<option value="${p}">`).join('');
+            // Update project number dropdown
+            if (projNumSelect) {
+                const projectNumberSelectOptions = projects.map(p => 
+                    `<option value="${p.replace(/"/g, '&quot;')}">${p}</option>`
+                ).join('');
+                projNumSelect.innerHTML = `<option value="">Select Project Number...</option>${projectNumberSelectOptions}`;
             }
 
-            if (taskList) {
-                taskList.innerHTML = tasks.map(t => `<option value="${t}">`).join('');
+            // Update task dropdown
+            if (taskSelect) {
+                const taskSelectOptions = tasks.map(t => 
+                    `<option value="${t.replace(/"/g, '&quot;')}">${t}</option>`
+                ).join('');
+                taskSelect.innerHTML = `<option value="">Select Task...</option>${taskSelectOptions}`;
             }
-
-            // Clear dependent fields when project name changes (but not if they're empty already)
-            const projNumInput = document.getElementById(`inline-proj-num-${entryIndex}`);
-            const taskInput = document.getElementById(`inline-task-${entryIndex}`);
-            if (projNumInput && projNumInput.value) projNumInput.value = '';
-            if (taskInput && taskInput.value) taskInput.value = '';
         }
 
         // Save inline edit changes
