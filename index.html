@@ -356,6 +356,71 @@
             display: block;
         }
 
+        .edit-column {
+            width: 50px;
+            text-align: center;
+            background: #f8f9fa;
+            border-right: 3px solid #366092;
+        }
+
+        .edit-column-header {
+            background: #2d5075 !important;
+        }
+
+        .edit-mode-active {
+            background: #e7f3ff !important;
+        }
+
+        .inline-edit-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 2px solid #366092;
+            border-radius: 4px;
+            font-size: 0.9em;
+            background: white;
+        }
+
+        .inline-edit-input:focus {
+            outline: none;
+            border-color: #28a745;
+            box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
+        }
+
+        .inline-edit-actions {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        .inline-edit-btn {
+            padding: 5px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .inline-edit-btn.save {
+            background: #28a745;
+            color: white;
+        }
+
+        .inline-edit-btn.save:hover {
+            background: #218838;
+        }
+
+        .inline-edit-btn.cancel {
+            background: #6c757d;
+            color: white;
+        }
+
+        .inline-edit-btn.cancel:hover {
+            background: #5a6268;
+        }
+
         .action-btn {
             background: transparent;
             border: none;
@@ -2474,6 +2539,7 @@
                 <table class="timecard-table">
                     <thead>
                         <tr>
+                            <th class="edit-column edit-column-header" title="Quick edit row">✏️</th>
                             <th>Project Name</th>
                             <th>Project Number</th>
                             <th>Task</th>
@@ -2497,7 +2563,12 @@
                     // Get entry index before building HTML
                     const entryIndex = timeEntries.indexOf(entry);
                     
-                    html += `<tr>`;
+                    html += `<tr id="row-${entryIndex}">`;
+                    
+                    // Add edit column with pencil icon
+                    html += `<td class="edit-column" onclick="toggleInlineEdit(${entryIndex})" title="Click to edit this row" style="cursor: pointer;">`;
+                    html += `<span style="font-size: 1.2em;">✏️</span>`;
+                    html += `</td>`;
                     
                     // Show project name only on first row of each group
                     if (index === 0) {
@@ -2562,6 +2633,7 @@
 
             // Add grand totals row
             html += `<tr style="background: #f8f9fa; font-weight: bold; border-top: 3px solid #366092;">`;
+            html += `<td class="edit-column"></td>`; // Empty edit column for grand total row
             html += `<td colspan="3" style="text-align: right; padding-right: 15px;">Grand Total:</td>`;
             
             let grandTotalSeconds = 0;
@@ -2958,6 +3030,240 @@
             } else if (userInput !== null) {
                 showAlert('Delete cancelled - you must type "Delete" exactly to confirm', 'error');
             }
+        }
+
+        // Toggle inline edit mode for a table row
+        function toggleInlineEdit(entryIndex) {
+            const entry = timeEntries[entryIndex];
+            if (!entry) {
+                showAlert('Entry not found!', 'error');
+                return;
+            }
+
+            const row = document.getElementById(`row-${entryIndex}`);
+            if (!row) return;
+
+            // Check if already in edit mode
+            if (row.classList.contains('edit-mode-active')) {
+                cancelInlineEdit(entryIndex);
+                return;
+            }
+
+            // Close any other row in edit mode
+            document.querySelectorAll('.edit-mode-active').forEach(r => {
+                const idx = r.id.replace('row-', '');
+                cancelInlineEdit(parseInt(idx));
+            });
+
+            // Enable edit mode
+            row.classList.add('edit-mode-active');
+
+            // Find the cells (skip edit column)
+            const cells = row.querySelectorAll('td');
+            
+            // Determine which cell indices to edit (accounting for potential rowspan)
+            let projNameCell, projNumCell, taskCell;
+            
+            // Check if this row has the project name cell (not rowspanned)
+            const firstContentCell = cells[1]; // After edit column
+            if (firstContentCell.hasAttribute('rowspan')) {
+                projNameCell = firstContentCell;
+                projNumCell = cells[2];
+                taskCell = cells[3];
+            } else {
+                // This row doesn't have project name (it's part of a rowspan group)
+                projNumCell = cells[1];
+                taskCell = cells[2];
+            }
+
+            // Build datalist options from history
+            const projectNameOptions = Array.from(projectNameHistory).sort().map(item => `<option value="${item}">`).join('');
+            const projectNumberOptions = Array.from(projectHistory).sort().map(item => `<option value="${item}">`).join('');
+            const taskOptions = Array.from(taskHistory).sort().map(item => `<option value="${item}">`).join('');
+
+            // Store original values
+            const origProjectName = entry.projectNameFilter || '';
+            const origProjectNumber = entry.project || '';
+            const origTask = entry.task || '';
+
+            // Replace project name cell with input (if present)
+            if (projNameCell && projNameCell.hasAttribute('rowspan')) {
+                const projectNameHTML = `
+                    <div>
+                        <input type="text" 
+                               class="inline-edit-input" 
+                               id="inline-proj-name-${entryIndex}" 
+                               value="${origProjectName.replace(/"/g, '&quot;')}"
+                               list="inline-proj-name-list-${entryIndex}"
+                               placeholder="Project Name">
+                        <datalist id="inline-proj-name-list-${entryIndex}">${projectNameOptions}</datalist>
+                    </div>
+                `;
+                projNameCell.innerHTML = projectNameHTML;
+                projNameCell.style.cursor = 'default';
+                
+                // Add listener to filter project numbers and tasks
+                const projNameInput = document.getElementById(`inline-proj-name-${entryIndex}`);
+                projNameInput.addEventListener('input', () => updateInlineEditLists(entryIndex));
+            }
+
+            // Replace project number cell with input
+            const projectNumberHTML = `
+                <div>
+                    <input type="text" 
+                           class="inline-edit-input" 
+                           id="inline-proj-num-${entryIndex}" 
+                           value="${origProjectNumber.replace(/"/g, '&quot;')}"
+                           list="inline-proj-num-list-${entryIndex}"
+                           placeholder="Project Number">
+                    <datalist id="inline-proj-num-list-${entryIndex}">${projectNumberOptions}</datalist>
+                </div>
+            `;
+            projNumCell.innerHTML = projectNumberHTML;
+            projNumCell.style.cursor = 'default';
+
+            // Replace task cell with input
+            const taskHTML = `
+                <div>
+                    <input type="text" 
+                           class="inline-edit-input" 
+                           id="inline-task-${entryIndex}" 
+                           value="${origTask.replace(/"/g, '&quot;')}"
+                           list="inline-task-list-${entryIndex}"
+                           placeholder="Task">
+                    <datalist id="inline-task-list-${entryIndex}">${taskOptions}</datalist>
+                </div>
+            `;
+            taskCell.innerHTML = taskHTML;
+            taskCell.style.cursor = 'default';
+
+            // Add save/cancel buttons to the edit column
+            const editCell = cells[0];
+            editCell.innerHTML = `
+                <div class="inline-edit-actions">
+                    <button class="inline-edit-btn save" onclick="saveInlineEdit(${entryIndex})" title="Save changes">✓</button>
+                    <button class="inline-edit-btn cancel" onclick="cancelInlineEdit(${entryIndex})" title="Cancel">✕</button>
+                </div>
+            `;
+
+            // Store original values for cancel
+            row.dataset.origProjectName = origProjectName;
+            row.dataset.origProjectNumber = origProjectNumber;
+            row.dataset.origTask = origTask;
+
+            // Focus the first input
+            if (projNameCell && projNameCell.hasAttribute('rowspan')) {
+                document.getElementById(`inline-proj-name-${entryIndex}`).focus();
+            } else {
+                document.getElementById(`inline-proj-num-${entryIndex}`).focus();
+            }
+        }
+
+        // Update inline edit datalists based on selected project name
+        function updateInlineEditLists(entryIndex) {
+            const projNameInput = document.getElementById(`inline-proj-name-${entryIndex}`);
+            if (!projNameInput) return;
+
+            const selectedProjectName = projNameInput.value.trim();
+            const projNumList = document.getElementById(`inline-proj-num-list-${entryIndex}`);
+            const taskList = document.getElementById(`inline-task-list-${entryIndex}`);
+
+            let projects = [];
+            let tasks = [];
+
+            if (selectedProjectName && structuredHistory[selectedProjectName]) {
+                const projSet = structuredHistory[selectedProjectName].projects;
+                const taskSet = structuredHistory[selectedProjectName].tasks;
+                projects = Array.from(projSet instanceof Set ? projSet : new Set(projSet)).sort();
+                tasks = Array.from(taskSet instanceof Set ? taskSet : new Set(taskSet)).sort();
+            } else {
+                projects = Array.from(projectHistory).sort();
+                tasks = Array.from(taskHistory).sort();
+            }
+
+            if (projNumList) {
+                projNumList.innerHTML = projects.map(p => `<option value="${p}">`).join('');
+            }
+
+            if (taskList) {
+                taskList.innerHTML = tasks.map(t => `<option value="${t}">`).join('');
+            }
+
+            // Clear dependent fields when project name changes
+            const projNumInput = document.getElementById(`inline-proj-num-${entryIndex}`);
+            const taskInput = document.getElementById(`inline-task-${entryIndex}`);
+            if (projNumInput) projNumInput.value = '';
+            if (taskInput) taskInput.value = '';
+        }
+
+        // Save inline edit changes
+        function saveInlineEdit(entryIndex) {
+            const entry = timeEntries[entryIndex];
+            if (!entry) {
+                showAlert('Entry not found!', 'error');
+                return;
+            }
+
+            const projNameInput = document.getElementById(`inline-proj-name-${entryIndex}`);
+            const projNumInput = document.getElementById(`inline-proj-num-${entryIndex}`);
+            const taskInput = document.getElementById(`inline-task-${entryIndex}`);
+
+            // Get new values
+            const newProjectName = projNameInput ? projNameInput.value.trim() : entry.projectNameFilter;
+            const newProjectNumber = projNumInput ? projNumInput.value.trim() : entry.project;
+            const newTask = taskInput ? taskInput.value.trim() : entry.task;
+
+            // Validate
+            if (!newProjectName || !newProjectNumber || !newTask) {
+                showAlert('Project Name, Project Number, and Task are required!', 'error');
+                return;
+            }
+
+            // Check if anything changed
+            if (newProjectName === entry.projectNameFilter && 
+                newProjectNumber === entry.project && 
+                newTask === entry.task) {
+                // No changes, just cancel
+                cancelInlineEdit(entryIndex);
+                return;
+            }
+
+            // Update the entry
+            entry.projectNameFilter = newProjectName;
+            entry.project = newProjectNumber;
+            entry.task = newTask;
+
+            // Update history
+            projectNameHistory.add(newProjectName);
+            projectHistory.add(newProjectNumber);
+            taskHistory.add(newTask);
+
+            // Update structured history
+            if (!structuredHistory[newProjectName]) {
+                structuredHistory[newProjectName] = { projects: new Set(), tasks: new Set(), comments: new Set() };
+            }
+            structuredHistory[newProjectName].projects.add(newProjectNumber);
+            structuredHistory[newProjectName].tasks.add(newTask);
+
+            // Save and refresh
+            saveHistory();
+            saveData();
+            updateSummary();
+            updateDropdowns();
+            updateWeekView();
+
+            showAlert('Entry updated successfully!', 'success');
+        }
+
+        // Cancel inline edit
+        function cancelInlineEdit(entryIndex) {
+            const row = document.getElementById(`row-${entryIndex}`);
+            if (!row) return;
+
+            row.classList.remove('edit-mode-active');
+            
+            // Refresh the table to restore original state
+            updateSummary();
         }
 
         // Edit cell (time or comment) in summary table
