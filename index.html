@@ -2992,13 +2992,67 @@
                 updateWeekView();
             }
 
+            // Ask user if they want to continue from where they stopped or start fresh
+            const currentDay = getCurrentWeekday();
+            const clockTimeKey = `day${currentDay}_clocktime`;
+            const existingClockTime = entry[clockTimeKey] || '';
+            
+            let continueFromLast = false;
+            if (existingClockTime) {
+                // Get the last time block
+                const blocks = existingClockTime.split(',').map(b => b.trim());
+                const lastBlock = blocks[blocks.length - 1];
+                const [lastStart, lastEnd] = lastBlock.split('-').map(s => s.trim());
+                
+                const resumeChoice = confirm(
+                    `Do you want to continue from where you stopped?\n\n` +
+                    `Last time block: ${lastBlock}\n\n` +
+                    `Click "OK" to continue from ${lastEnd}\n` +
+                    `Click "Cancel" to start a new time block from now`
+                );
+                
+                continueFromLast = resumeChoice;
+                
+                if (continueFromLast) {
+                    // Parse the last end time and set startTime to that
+                    const lastEndTime = parseClockTime(lastEnd);
+                    if (lastEndTime) {
+                        startTime = lastEndTime.getTime();
+                        showAlert(`Continuing from ${lastEnd}`, 'info');
+                    }
+                }
+            }
+
             // Scroll to timer section
             document.querySelector('.timer-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
             // Start the timer automatically
-            setTimeout(() => {
-                startTimer();
-            }, 500);
+            if (!continueFromLast) {
+                setTimeout(() => {
+                    startTimer();
+                }, 500);
+            } else {
+                // Timer already started with custom start time
+                timerInterval = setInterval(updateTimer, 1000);
+                document.getElementById('timerStatus').textContent = 'Timer running (Click time to edit)';
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('projectNameFilter').disabled = true;
+                document.getElementById('projectName').disabled = true;
+                document.getElementById('taskName').disabled = true;
+                document.getElementById('comment').disabled = true;
+                updateTimer();
+                updateWeekView();
+                
+                // Set up periodic week view refresh
+                if (!weekViewRefreshInterval) {
+                    weekViewRefreshInterval = setInterval(() => {
+                        if (startTime !== null) {
+                            updateWeekView();
+                        }
+                    }, 5000);
+                }
+            }
         }
 
         // Find an entry by keys and resume it (used by week-view time-block record buttons)
