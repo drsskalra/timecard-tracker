@@ -1830,6 +1830,13 @@
                 // Sort comments alphabetically
                 comments.sort();
 
+                // Get the last comment used (from history if not provided)
+                let defaultComment = currentComment;
+                if (!defaultComment && comments.length > 0) {
+                    // Use the first comment from history (most recent based on how we store it)
+                    defaultComment = comments[comments.length - 1];
+                }
+
                 // Create modal dialog
                 const dialog = targetWindow.document.createElement('div');
                 dialog.style.cssText = `
@@ -1862,55 +1869,55 @@
                 title.style.cssText = 'margin: 0 0 clamp(5px, 1.5vw, 8px) 0; color: #366092; font-size: clamp(12px, 2.5vw, 14px); font-weight: 600;';
 
                 const inputWrapper = targetWindow.document.createElement('div');
-                inputWrapper.style.cssText = 'position: relative; margin-bottom: clamp(5px, 1.5vw, 8px);';
+                inputWrapper.style.cssText = 'position: relative; margin-bottom: clamp(5px, 1.5vw, 8px); display: flex; align-items: center; gap: clamp(4px, 1vw, 6px);';
 
                 const input = targetWindow.document.createElement('input');
                 input.type = 'text';
-                input.value = currentComment;
+                input.value = defaultComment;
                 input.placeholder = 'Type or select...';
+                input.setAttribute('list', 'comment-history-datalist');
                 input.style.cssText = `
-                    width: 100%;
-                    padding: clamp(5px, 1.5vw, 7px);
+                    flex: 1;
+                    padding: clamp(5px, 1.5vw, 7px) clamp(5px, 1.5vw, 7px) clamp(5px, 1.5vw, 7px) clamp(5px, 1.5vw, 7px);
                     border: 1px solid #366092;
                     border-radius: 4px;
                     font-size: clamp(11px, 2.5vw, 12px);
                     box-sizing: border-box;
                 `;
 
-                // Create custom dropdown for history
-                const dropdown = targetWindow.document.createElement('select');
-                dropdown.style.cssText = `
-                    width: 100%;
-                    padding: clamp(5px, 1.5vw, 7px);
-                    border: 1px solid #366092;
-                    border-radius: 4px;
-                    font-size: clamp(11px, 2.5vw, 12px);
-                    box-sizing: border-box;
-                    margin-bottom: clamp(5px, 1.5vw, 7px);
-                    background: white;
-                    cursor: pointer;
-                `;
-
-                // Add default option
-                const defaultOption = targetWindow.document.createElement('option');
-                defaultOption.value = '';
-                defaultOption.textContent = '-- Select from history --';
-                dropdown.appendChild(defaultOption);
-
-                // Add comment options
+                // Create datalist for autocomplete
+                const datalist = targetWindow.document.createElement('datalist');
+                datalist.id = 'comment-history-datalist';
                 comments.forEach(comment => {
                     const option = targetWindow.document.createElement('option');
                     option.value = comment;
-                    option.textContent = comment;
-                    dropdown.appendChild(option);
+                    datalist.appendChild(option);
                 });
 
-                // Update input when dropdown selection changes
-                dropdown.addEventListener('change', function() {
-                    if (this.value) {
-                        input.value = this.value;
-                        input.focus();
-                    }
+                // Create clear button (X)
+                const clearBtn = targetWindow.document.createElement('button');
+                clearBtn.innerHTML = '✕';
+                clearBtn.style.cssText = `
+                    padding: clamp(4px, 1vw, 6px) clamp(6px, 1.5vw, 8px);
+                    background: #dc3545;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: clamp(14px, 3vw, 16px);
+                    line-height: 1;
+                    min-width: clamp(24px, 5vw, 28px);
+                    display: ${defaultComment ? 'block' : 'none'};
+                `;
+                clearBtn.onclick = () => {
+                    input.value = '';
+                    clearBtn.style.display = 'none';
+                    input.focus();
+                };
+
+                // Show/hide clear button based on input value
+                input.addEventListener('input', () => {
+                    clearBtn.style.display = input.value ? 'block' : 'none';
                 });
 
                 const buttonWrapper = targetWindow.document.createElement('div');
@@ -1966,11 +1973,9 @@
                 buttonWrapper.appendChild(cancelBtn);
                 buttonWrapper.appendChild(okBtn);
 
-                // Only show dropdown if there are comments
-                if (comments.length > 0) {
-                    inputWrapper.appendChild(dropdown);
-                }
                 inputWrapper.appendChild(input);
+                inputWrapper.appendChild(clearBtn);
+                inputWrapper.appendChild(datalist);
 
                 content.appendChild(title);
                 content.appendChild(inputWrapper);
@@ -1979,8 +1984,11 @@
                 dialog.appendChild(content);
                 targetWindow.document.body.appendChild(dialog);
 
-                // Focus input
-                setTimeout(() => input.focus(), 100);
+                // Focus input and select text
+                setTimeout(() => {
+                    input.focus();
+                    input.select();
+                }, 100);
             });
         }
 
