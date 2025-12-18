@@ -3050,24 +3050,27 @@
             setTimeout(() => {
                 // If we have a custom start time, set it before starting
                 if (customStartTime !== null) {
+                    // Set startTime first before anything else
                     startTime = customStartTime;
                     manualTimeOffset = 0;
                     
-                    // Update displays immediately
-                    updateTimer();
-                    
                     // Set up timer UI
-                    timerInterval = setInterval(updateTimer, 1000);
-                    document.getElementById('timerStatus').textContent = 'Timer running (Click time to edit)';
                     document.getElementById('startBtn').disabled = true;
                     document.getElementById('stopBtn').disabled = false;
                     document.getElementById('projectNameFilter').disabled = true;
                     document.getElementById('projectName').disabled = true;
                     document.getElementById('taskName').disabled = true;
                     document.getElementById('comment').disabled = true;
+                    document.getElementById('timerStatus').textContent = 'Timer running (Click time to edit)';
                     
-                    // Update week view
+                    // Update displays immediately
+                    updateTimer();
+                    
+                    // Update week view immediately since startTime is now set
                     updateWeekView();
+                    
+                    // Set up timer interval
+                    timerInterval = setInterval(updateTimer, 1000);
                     
                     // Set up mini window if active
                     if (miniWindowActive) {
