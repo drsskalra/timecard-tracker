@@ -565,8 +565,12 @@
 
         .current-day {
             background: #28a745;
-            color: white;
+            color: white !important;
             font-weight: bold;
+        }
+
+        .current-day .hours {
+            color: white !important;
         }
 
         .action-buttons {
@@ -2911,18 +2915,19 @@
             });
 
             // Add grand totals row
-            html += `<tr style="background: var(--section-bg); font-weight: bold; border-top: 3px solid var(--header-bg);">`;
-            html += `<td class="edit-column"></td>`; // Empty edit column for grand total row
-            html += `<td colspan="3" style="text-align: right; padding-right: 15px; color: var(--text-color);">Grand Total:</td>`;
+            html += `<tr style="background: var(--header-bg); font-weight: 600; border-top: 3px solid var(--header-bg);">`;
+            html += `<td class="edit-column" style="background: var(--header-bg);"></td>`; // Empty edit column for grand total row
+            html += `<td colspan="3" style="text-align: right; padding-right: 15px; color: var(--header-text); background: var(--header-bg); padding: 15px;">Grand Total:</td>`;
             
             let grandTotalSeconds = 0;
             for (let i = 0; i < 5; i++) {
                 grandTotalSeconds += dayTotals[i];
                 const dayTotal = formatSecondsToHHMMSS(dayTotals[i]);
                 const dayHours = convertToDecimalHours(dayTotal);
-                html += `<td class="day-column ${i + 1 === currentDay ? 'current-day' : ''}" style="text-align: center; color: var(--text-color);">`;
+                const isCurrentDayCell = i + 1 === currentDay;
+                html += `<td class="day-column ${isCurrentDayCell ? 'current-day' : ''}" style="text-align: center; background: var(--header-bg); color: var(--header-text); padding: 15px;">`;
                 if (dayTotals[i] > 0) {
-                    html += `<div class="hours">${dayHours} hrs</div>`;
+                    html += `<div class="hours" style="color: var(--header-text) !important;">${dayHours} hrs</div>`;
                 } else {
                     html += '-';
                 }
@@ -2931,11 +2936,11 @@
             
             const grandTotal = formatSecondsToHHMMSS(grandTotalSeconds);
             const grandTotalHours = convertToDecimalHours(grandTotal);
-            html += `<td class="day-column" style="text-align: center; background: var(--header-bg); color: var(--header-text);">`;
-            html += `<div class="hours" style="color: var(--header-text);">${grandTotalHours} hrs</div>`;
+            html += `<td class="day-column" style="text-align: center; background: var(--header-bg); color: var(--header-text); padding: 15px;">`;
+            html += `<div class="hours" style="color: var(--header-text) !important;">${grandTotalHours} hrs</div>`;
             html += `<div style="font-size: 0.85em; margin-top: 5px; color: var(--header-text);">Total Week</div>`;
             html += `</td>`;
-            html += `<td></td>`; // Empty action cell for grand total row
+            html += `<td style="background: var(--header-bg);"></td>`; // Empty action cell for grand total row
             html += `</tr>`;
 
             html += `</tbody></table>`;
@@ -3382,11 +3387,8 @@
             }, 200);
         }
 
-        // Add a new time block for editing
+        // Add a new time block for editing (only updates UI, not saved until user clicks save)
         function addTimeBlock(entryIndex, dayNum) {
-            const entry = timeEntries[entryIndex];
-            if (!entry) return;
-            
             // Prompt for start and end time
             const startTime = prompt('Enter start time (e.g., 09:00 AM):', '');
             if (!startTime) return;
@@ -3394,51 +3396,57 @@
             const endTime = prompt('Enter end time (e.g., 05:00 PM):', '');
             if (!endTime) return;
             
-            // Add to clock time
-            const clockTimeKey = `day${dayNum}_clocktime`;
-            const existingClockTime = entry[clockTimeKey] || '';
-            const newBlock = `${startTime} - ${endTime}`;
+            // Validate that end time is after start time
+            const start = parseClockTime(startTime);
+            const end = parseClockTime(endTime);
             
-            if (existingClockTime) {
-                entry[clockTimeKey] = `${existingClockTime}, ${newBlock}`;
-            } else {
-                entry[clockTimeKey] = newBlock;
+            if (!start || !end) {
+                showAlert('Invalid time format! Use formats like "9:00 AM" or "17:00"', 'error');
+                return;
             }
             
-            // Recalculate total time from blocks
-            recalculateTimeFromBlocks(entryIndex, dayNum);
+            if (end <= start) {
+                showAlert('End time must be after start time!', 'error');
+                return;
+            }
             
-            // Refresh the inline edit view
+            // Temporarily store the new block in the row's dataset
             const row = document.getElementById(`row-${entryIndex}`);
-            if (row) {
-                row.classList.remove('edit-mode-active');
+            if (!row) return;
+            
+            // Get or initialize temp storage for new blocks
+            let tempNewBlocks = row.dataset.tempNewBlocks ? JSON.parse(row.dataset.tempNewBlocks) : {};
+            if (!tempNewBlocks[dayNum]) {
+                tempNewBlocks[dayNum] = [];
             }
+            
+            // Add the new block
+            tempNewBlocks[dayNum].push(`${startTime} - ${endTime}`);
+            row.dataset.tempNewBlocks = JSON.stringify(tempNewBlocks);
+            
+            // Refresh the inline edit view to show the new block
+            row.classList.remove('edit-mode-active');
             toggleInlineEdit(entryIndex);
         }
 
-        // Remove a time block
+        // Remove a time block (only updates UI, not saved until user clicks save)
         function removeTimeBlock(entryIndex, dayNum, blockIndex) {
-            const entry = timeEntries[entryIndex];
-            if (!entry) return;
-            
-            const clockTimeKey = `day${dayNum}_clocktime`;
-            const clockTime = entry[clockTimeKey] || '';
-            const blocks = clockTime.split(',').map(b => b.trim());
-            
-            // Remove the block at the specified index
-            blocks.splice(blockIndex, 1);
-            
-            // Update the entry
-            entry[clockTimeKey] = blocks.join(', ');
-            
-            // Recalculate total time
-            recalculateTimeFromBlocks(entryIndex, dayNum);
-            
-            // Refresh the inline edit view
+            // Temporarily store the removed block index in the row's dataset
             const row = document.getElementById(`row-${entryIndex}`);
-            if (row) {
-                row.classList.remove('edit-mode-active');
+            if (!row) return;
+            
+            // Get or initialize temp storage for removed blocks
+            let tempRemovedBlocks = row.dataset.tempRemovedBlocks ? JSON.parse(row.dataset.tempRemovedBlocks) : {};
+            if (!tempRemovedBlocks[dayNum]) {
+                tempRemovedBlocks[dayNum] = [];
             }
+            
+            // Add this block index to the removed list
+            tempRemovedBlocks[dayNum].push(blockIndex);
+            row.dataset.tempRemovedBlocks = JSON.stringify(tempRemovedBlocks);
+            
+            // Refresh the inline edit view to hide the removed block
+            row.classList.remove('edit-mode-active');
             toggleInlineEdit(entryIndex);
         }
 
@@ -3741,13 +3749,51 @@
                 const dayCell = dayCells[i];
                 const dayNum = i + 1;
                 const timeValue = origDayTimes[i];
-                const clockTime = entry[`day${dayNum}_clocktime`] || '';
+                let clockTime = entry[`day${dayNum}_clocktime`] || '';
                 const comment = entry[`day${dayNum}_comment`] || '';
+                
+                // Get temporary additions and removals
+                const tempNewBlocks = row.dataset.tempNewBlocks ? JSON.parse(row.dataset.tempNewBlocks) : {};
+                const tempRemovedBlocks = row.dataset.tempRemovedBlocks ? JSON.parse(row.dataset.tempRemovedBlocks) : {};
+                
+                // Parse existing time blocks
+                let clockRanges = clockTime ? clockTime.split(',').map(range => range.trim()) : [];
+                
+                // Remove blocks marked for deletion (in reverse order to maintain indices)
+                if (tempRemovedBlocks[dayNum]) {
+                    const removedIndices = tempRemovedBlocks[dayNum].sort((a, b) => b - a);
+                    removedIndices.forEach(idx => {
+                        if (idx < clockRanges.length) {
+                            clockRanges.splice(idx, 1);
+                        }
+                    });
+                }
+                
+                // Add new blocks
+                if (tempNewBlocks[dayNum]) {
+                    clockRanges = clockRanges.concat(tempNewBlocks[dayNum]);
+                }
+                
+                // Calculate total time from current blocks (including temp changes)
+                let totalSeconds = 0;
+                clockRanges.forEach(range => {
+                    const [startStr, endStr] = range.split('-').map(s => s.trim());
+                    if (startStr && endStr) {
+                        const start = parseClockTime(startStr);
+                        const end = parseClockTime(endStr);
+                        if (start && end) {
+                            const diff = end - start;
+                            if (diff > 0) {
+                                totalSeconds += Math.floor(diff / 1000);
+                            }
+                        }
+                    }
+                });
+                const calculatedTime = formatSecondsToHHMMSS(totalSeconds);
                 
                 // Parse time blocks for this day
                 let timeBlocksHTML = '';
-                if (clockTime) {
-                    const clockRanges = clockTime.split(',').map(range => range.trim());
+                if (clockRanges.length > 0) {
                     timeBlocksHTML = '<div style="margin-top: 8px; font-size: 0.85em;">';
                     clockRanges.forEach((range, blockIndex) => {
                         const [startStr, endStr] = range.split('-').map(s => s.trim());
@@ -3782,7 +3828,7 @@
                         <input type="text" 
                                class="inline-edit-input" 
                                id="inline-day${dayNum}-time-${entryIndex}" 
-                               value="${timeValue}"
+                               value="${calculatedTime}"
                                placeholder="HH:MM:SS"
                                pattern="[0-9]{1,2}:[0-9]{2}:[0-9]{2}"
                                style="width: 100%; text-align: center;"
@@ -3894,6 +3940,7 @@
                 return;
             }
 
+            const row = document.getElementById(`row-${entryIndex}`);
             const projNameInput = document.getElementById(`inline-proj-name-input-${entryIndex}`);
             const projNumInput = document.getElementById(`inline-proj-num-input-${entryIndex}`);
             const taskInput = document.getElementById(`inline-task-input-${entryIndex}`);
@@ -3902,6 +3949,10 @@
             const newProjectName = projNameInput ? projNameInput.value.trim() : entry.projectNameFilter;
             const newProjectNumber = projNumInput ? projNumInput.value.trim() : entry.project;
             const newTask = taskInput ? taskInput.value.trim() : entry.task;
+            
+            // Get temporary time block changes
+            const tempNewBlocks = row && row.dataset.tempNewBlocks ? JSON.parse(row.dataset.tempNewBlocks) : {};
+            const tempRemovedBlocks = row && row.dataset.tempRemovedBlocks ? JSON.parse(row.dataset.tempRemovedBlocks) : {};
             
             // Process time blocks for each day and recalculate totals
             const newDayTimes = [];
@@ -3912,22 +3963,45 @@
                 const clockTimeKey = `day${dayNum}_clocktime`;
                 const clockTime = entry[clockTimeKey] || '';
                 
-                // Collect edited time blocks
-                const updatedBlocks = [];
+                // Start with existing blocks
+                let clockRanges = [];
                 if (clockTime) {
-                    const blocks = clockTime.split(',').map(b => b.trim());
-                    blocks.forEach((block, blockIndex) => {
-                        const startInput = document.getElementById(`inline-day${dayNum}-block${blockIndex}-start-${entryIndex}`);
-                        const endInput = document.getElementById(`inline-day${dayNum}-block${blockIndex}-end-${entryIndex}`);
-                        
-                        if (startInput && endInput) {
-                            const startTime = startInput.value.trim();
-                            const endTime = endInput.value.trim();
-                            
-                            if (startTime && endTime) {
-                                updatedBlocks.push(`${startTime} - ${endTime}`);
-                            }
+                    clockRanges = clockTime.split(',').map(b => b.trim());
+                }
+                
+                // Apply removals from temporary state
+                if (tempRemovedBlocks[dayNum] && Array.isArray(tempRemovedBlocks[dayNum])) {
+                    const indicesToRemove = [...tempRemovedBlocks[dayNum]].sort((a, b) => b - a);
+                    indicesToRemove.forEach(idx => {
+                        if (idx >= 0 && idx < clockRanges.length) {
+                            clockRanges.splice(idx, 1);
                         }
+                    });
+                }
+                
+                // Collect edited time blocks (from UI inputs)
+                const updatedBlocks = [];
+                clockRanges.forEach((block, blockIndex) => {
+                    const startInput = document.getElementById(`inline-day${dayNum}-block${blockIndex}-start-${entryIndex}`);
+                    const endInput = document.getElementById(`inline-day${dayNum}-block${blockIndex}-end-${entryIndex}`);
+                    
+                    if (startInput && endInput) {
+                        const startTime = startInput.value.trim();
+                        const endTime = endInput.value.trim();
+                        
+                        if (startTime && endTime) {
+                            updatedBlocks.push(`${startTime} - ${endTime}`);
+                        }
+                    } else {
+                        // Keep block if no inputs found (shouldn't happen, but safety)
+                        updatedBlocks.push(block);
+                    }
+                });
+                
+                // Apply additions from temporary state
+                if (tempNewBlocks[dayNum] && Array.isArray(tempNewBlocks[dayNum])) {
+                    tempNewBlocks[dayNum].forEach(newBlock => {
+                        updatedBlocks.push(newBlock);
                     });
                 }
                 
@@ -3935,8 +4009,9 @@
                 const newClockTime = updatedBlocks.join(', ');
                 newClockTimes.push(newClockTime);
                 
-                // Recalculate total time from blocks
+                // Recalculate total time from blocks and validate
                 let totalSeconds = 0;
+                let hasInvalidBlock = false;
                 updatedBlocks.forEach(block => {
                     const [startStr, endStr] = block.split('-').map(s => s.trim());
                     if (startStr && endStr) {
@@ -3946,10 +4021,18 @@
                             const diff = end - start;
                             if (diff > 0) {
                                 totalSeconds += Math.floor(diff / 1000);
+                            } else {
+                                hasInvalidBlock = true;
                             }
                         }
                     }
                 });
+                
+                // Alert if there are invalid time blocks
+                if (hasInvalidBlock) {
+                    showAlert(`Day ${dayNum} has invalid time blocks where end time is before or equal to start time!`, 'error');
+                    return;
+                }
                 
                 newDayTimes.push(formatSecondsToHHMMSS(totalSeconds));
             }
@@ -4006,6 +4089,12 @@
             structuredHistory[newProjectName].projects.add(newProjectNumber);
             structuredHistory[newProjectName].tasks.add(newTask);
 
+            // Clear temporary time block data
+            if (row) {
+                delete row.dataset.tempNewBlocks;
+                delete row.dataset.tempRemovedBlocks;
+            }
+
             // Remove Escape key handler
             if (window.inlineEditHandlers && window.inlineEditHandlers[entryIndex]) {
                 document.removeEventListener('keydown', window.inlineEditHandlers[entryIndex]);
@@ -4026,6 +4115,10 @@
         function cancelInlineEdit(entryIndex) {
             const row = document.getElementById(`row-${entryIndex}`);
             if (!row) return;
+
+            // Clear temporary time block data
+            delete row.dataset.tempNewBlocks;
+            delete row.dataset.tempRemovedBlocks;
 
             row.classList.remove('edit-mode-active');
             
@@ -4517,6 +4610,16 @@
                 showCommentDropdown();
             });
 
+            // Handle when user finishes entering comment (blur or Enter key)
+            let lastCommentValue = '';
+            commentInput.addEventListener('blur', function() {
+                const currentValue = commentInput.value.trim();
+                if (currentValue && currentValue !== lastCommentValue) {
+                    lastCommentValue = currentValue;
+                    handleCommentChange(currentValue);
+                }
+            });
+            
             // Hide dropdown when clicking outside
             document.addEventListener('click', function(e) {
                 if (!commentInput.contains(e.target) && !commentDropdown.contains(e.target)) {
@@ -4524,7 +4627,7 @@
                 }
             });
 
-            // Keyboard navigation
+            // Keyboard navigation and Enter key handling
             commentInput.addEventListener('keydown', function(e) {
                 const options = commentDropdown.querySelectorAll('.comment-option');
                 
@@ -4539,6 +4642,13 @@
                 } else if (e.key === 'Enter' && selectedIndex >= 0) {
                     e.preventDefault();
                     options[selectedIndex].click();
+                } else if (e.key === 'Enter' && selectedIndex < 0 && !e.shiftKey) {
+                    // User pressed Enter without selecting from dropdown
+                    const currentValue = commentInput.value.trim();
+                    if (currentValue && currentValue !== lastCommentValue) {
+                        lastCommentValue = currentValue;
+                        handleCommentChange(currentValue);
+                    }
                 } else if (e.key === 'Escape') {
                     commentDropdown.classList.remove('show');
                 }
@@ -4588,12 +4698,96 @@
                         commentInput.value = comment;
                         commentDropdown.classList.remove('show');
                         commentInput.focus();
+                        // Handle comment change for running timer
+                        handleCommentChange(comment);
                     });
                     commentDropdown.appendChild(option);
                 });
 
                 commentDropdown.classList.add('show');
             }
+        }
+
+        // Handle comment change when timer is running
+        function handleCommentChange(newComment) {
+            // Only act if timer is running
+            if (!startTime) return;
+            
+            const projectNameFilter = document.getElementById('projectNameFilter').value.trim();
+            const project = document.getElementById('projectName').value.trim();
+            const task = document.getElementById('taskName').value.trim();
+            
+            if (!projectNameFilter || !project || !task) return;
+            
+            // Save the current running entry
+            const endTime = Date.now();
+            const elapsedSeconds = Math.floor((endTime - startTime) / 1000);
+            const currentDay = getCurrentWeekday();
+            
+            // Format clock times
+            const fromTime = formatClockTime(new Date(startTime));
+            const toTime = formatClockTime(new Date(endTime));
+            const clockTimeRange = `${fromTime} - ${toTime}`;
+            
+            // Find existing entry
+            let entry = timeEntries.find(e => e.projectNameFilter === projectNameFilter && e.project === project && e.task === task);
+            
+            if (entry) {
+                // Update existing entry
+                const existingTime = entry[`day${currentDay}_hr`] || '00:00:00';
+                const existingSeconds = parseHHMMSSToSeconds(existingTime);
+                const totalSeconds = existingSeconds + elapsedSeconds;
+                entry[`day${currentDay}_hr`] = formatSecondsToHHMMSS(totalSeconds);
+                
+                // Append clock time range
+                const existingClockTime = entry[`day${currentDay}_clocktime`] || '';
+                if (existingClockTime) {
+                    entry[`day${currentDay}_clocktime`] = `${existingClockTime}, ${clockTimeRange}`;
+                } else {
+                    entry[`day${currentDay}_clocktime`] = clockTimeRange;
+                }
+                
+                // Update comment if it was empty initially
+                const existingComment = entry[`day${currentDay}_comment`] || '';
+                if (!existingComment && newComment) {
+                    entry[`day${currentDay}_comment`] = newComment;
+                } else if (existingComment && newComment) {
+                    // Check if the new comment already exists
+                    const existingComments = existingComment.split(';').map(c => c.trim());
+                    if (!existingComments.includes(newComment.trim())) {
+                        entry[`day${currentDay}_comment`] = `${existingComment}; ${newComment}`;
+                    }
+                }
+                
+                saveData();
+                updateSummary();
+                
+                // Continue the timer with updated comment
+                startTime = Date.now();
+                showAlert('Entry saved and timer continuing with updated comment', 'success');
+                
+            } else {
+                // Create new entry and restart timer
+                entry = { projectNameFilter, project, task };
+                for (let i = 1; i <= 5; i++) {
+                    entry[`day${i}_hr`] = '00:00:00';
+                    entry[`day${i}_comment`] = '';
+                    entry[`day${i}_clocktime`] = '';
+                }
+                entry[`day${currentDay}_hr`] = formatSecondsToHHMMSS(elapsedSeconds);
+                entry[`day${currentDay}_comment`] = newComment;
+                entry[`day${currentDay}_clocktime`] = clockTimeRange;
+                timeEntries.push(entry);
+                
+                saveData();
+                updateSummary();
+                
+                // Restart the timer for new entry
+                startTime = Date.now();
+                showAlert('Entry saved and timer restarted', 'success');
+            }
+            
+            updateWeekView();
         }
 
         // Import from Excel
@@ -6186,7 +6380,21 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             const blockHeight = parseFloat(draggedBlock.style.height);
             newTop = Math.max(0, Math.min(100 - blockHeight, newTop));
 
-            draggedBlock.style.top = newTop + '%';
+            // Snap to 30-minute intervals
+            const startHour = parseInt(document.getElementById('startHourSelect')?.value || 8);
+            const endHour = parseInt(document.getElementById('endHourSelect')?.value || 17);
+            const totalMinutes = (endHour - startHour) * 60;
+            
+            // Convert percent to minutes
+            const topMinutes = (newTop / 100) * totalMinutes;
+            
+            // Snap to nearest 30-minute interval
+            const snappedMinutes = Math.round(topMinutes / 30) * 30;
+            
+            // Convert back to percent
+            const snappedTop = (snappedMinutes / totalMinutes) * 100;
+
+            draggedBlock.style.top = snappedTop + '%';
         }
 
         function stopDragTimeBlock(e) {
@@ -6229,15 +6437,11 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
 
         // Format minutes to time string (e.g., 540 -> "9:00 AM")
         function formatMinutesToTime(totalMinutes) {
+            // Snap to nearest 30 minutes
+            totalMinutes = Math.round(totalMinutes / 30) * 30;
+            
             let hours = Math.floor(totalMinutes / 60);
-            let minutes = Math.round(totalMinutes % 60);
-
-            // Round to nearest 15 minutes for cleaner times
-            minutes = Math.round(minutes / 15) * 15;
-            if (minutes === 60) {
-                hours += 1;
-                minutes = 0;
-            }
+            let minutes = totalMinutes % 60;
 
             const period = hours >= 12 ? 'PM' : 'AM';
             const displayHours = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
@@ -6319,13 +6523,29 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             const deltaY = e.clientY - resizeStartY;
             const deltaPercent = (deltaY / timelineRect.height) * 100;
 
+            const startHour = parseInt(document.getElementById('startHourSelect')?.value || 8);
+            const endHour = parseInt(document.getElementById('endHourSelect')?.value || 17);
+            const totalMinutes = (endHour - startHour) * 60;
+
             if (resizeDirection === 'top') {
                 let newTop = resizeStartTop + deltaPercent;
                 let newHeight = resizeStartHeight - deltaPercent;
 
+                // Snap top to 30-minute intervals
+                const topMinutes = (newTop / 100) * totalMinutes;
+                const snappedTopMinutes = Math.round(topMinutes / 30) * 30;
+                newTop = (snappedTopMinutes / totalMinutes) * 100;
+
+                // Recalculate height based on snapped top
+                newHeight = resizeStartTop + resizeStartHeight - newTop;
+
+                // Snap height to 30-minute intervals
+                const heightMinutes = (newHeight / 100) * totalMinutes;
+                const snappedHeightMinutes = Math.max(30, Math.round(heightMinutes / 30) * 30); // Minimum 30 minutes
+                newHeight = (snappedHeightMinutes / totalMinutes) * 100;
+
                 // Constrain
                 newTop = Math.max(0, newTop);
-                newHeight = Math.max(5, newHeight); // Minimum 5% height
                 
                 if (newTop + newHeight > 100) {
                     newHeight = 100 - newTop;
@@ -6336,8 +6556,12 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             } else {
                 let newHeight = resizeStartHeight + deltaPercent;
                 
+                // Snap height to 30-minute intervals
+                const heightMinutes = (newHeight / 100) * totalMinutes;
+                const snappedHeightMinutes = Math.max(30, Math.round(heightMinutes / 30) * 30); // Minimum 30 minutes
+                newHeight = (snappedHeightMinutes / totalMinutes) * 100;
+                
                 // Constrain
-                newHeight = Math.max(5, newHeight); // Minimum 5% height
                 if (resizeStartTop + newHeight > 100) {
                     newHeight = 100 - resizeStartTop;
                 }
