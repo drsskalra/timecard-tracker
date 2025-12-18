@@ -560,6 +560,7 @@
 
         .total-row {
             font-weight: bold;
+            background: #f8f9fa !important;
         }
 
         .current-day {
@@ -2910,16 +2911,16 @@
             });
 
             // Add grand totals row
-            html += `<tr style="font-weight: bold; border-top: 3px solid var(--header-bg);">`;
+            html += `<tr style="background: var(--section-bg); font-weight: bold; border-top: 3px solid var(--header-bg);">`;
             html += `<td class="edit-column"></td>`; // Empty edit column for grand total row
-            html += `<td colspan="3" style="text-align: right; padding-right: 15px;">Grand Total:</td>`;
+            html += `<td colspan="3" style="text-align: right; padding-right: 15px; color: var(--text-color);">Grand Total:</td>`;
             
             let grandTotalSeconds = 0;
             for (let i = 0; i < 5; i++) {
                 grandTotalSeconds += dayTotals[i];
                 const dayTotal = formatSecondsToHHMMSS(dayTotals[i]);
                 const dayHours = convertToDecimalHours(dayTotal);
-                html += `<td class="day-column ${i + 1 === currentDay ? 'current-day' : ''}" style="text-align: center;">`;
+                html += `<td class="day-column ${i + 1 === currentDay ? 'current-day' : ''}" style="text-align: center; color: var(--text-color);">`;
                 if (dayTotals[i] > 0) {
                     html += `<div class="hours">${dayHours} hrs</div>`;
                 } else {
@@ -2930,9 +2931,9 @@
             
             const grandTotal = formatSecondsToHHMMSS(grandTotalSeconds);
             const grandTotalHours = convertToDecimalHours(grandTotal);
-            html += `<td class="day-column" style="text-align: center;">`;
-            html += `<div class="hours">${grandTotalHours} hrs</div>`;
-            html += `<div style="font-size: 0.85em; margin-top: 5px;">Total Week</div>`;
+            html += `<td class="day-column" style="text-align: center; background: var(--header-bg); color: var(--header-text);">`;
+            html += `<div class="hours" style="color: var(--header-text);">${grandTotalHours} hrs</div>`;
+            html += `<div style="font-size: 0.85em; margin-top: 5px; color: var(--header-text);">Total Week</div>`;
             html += `</td>`;
             html += `<td></td>`; // Empty action cell for grand total row
             html += `</tr>`;
