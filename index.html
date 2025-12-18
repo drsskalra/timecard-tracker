@@ -1735,7 +1735,89 @@
 
         // Start timer
         // Prompt for comment with smart selection from history
-        function promptForComment(currentComment, projectNameFilter, projectNumber, task) {
+        // Helper function to show confirm dialog in the appropriate window (main or PiP)
+        function showConfirmDialog(message, targetWindow = window) {
+            return new Promise((resolve) => {
+                const dialog = targetWindow.document.createElement('div');
+                dialog.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                `;
+
+                const content = targetWindow.document.createElement('div');
+                content.style.cssText = `
+                    background: white;
+                    padding: 25px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    max-width: 500px;
+                    width: 90%;
+                `;
+
+                const title = targetWindow.document.createElement('h3');
+                title.textContent = 'Resume Timer';
+                title.style.cssText = 'margin-top: 0; color: #366092;';
+
+                const messageEl = targetWindow.document.createElement('p');
+                messageEl.innerHTML = message.replace(/\n/g, '<br>');
+                messageEl.style.cssText = 'margin-bottom: 20px; white-space: pre-wrap;';
+
+                const buttonWrapper = targetWindow.document.createElement('div');
+                buttonWrapper.style.cssText = 'display: flex; gap: 10px; justify-content: flex-end;';
+
+                const cancelBtn = targetWindow.document.createElement('button');
+                cancelBtn.textContent = 'Start New';
+                cancelBtn.style.cssText = `
+                    padding: 10px 20px;
+                    background: #6c757d;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                `;
+                cancelBtn.onclick = () => {
+                    dialog.remove();
+                    resolve(false);
+                };
+
+                const okBtn = targetWindow.document.createElement('button');
+                okBtn.textContent = 'Continue';
+                okBtn.style.cssText = `
+                    padding: 10px 20px;
+                    background: #366092;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                `;
+                okBtn.onclick = () => {
+                    dialog.remove();
+                    resolve(true);
+                };
+
+                buttonWrapper.appendChild(cancelBtn);
+                buttonWrapper.appendChild(okBtn);
+
+                content.appendChild(title);
+                content.appendChild(messageEl);
+                content.appendChild(buttonWrapper);
+
+                dialog.appendChild(content);
+                targetWindow.document.body.appendChild(dialog);
+            });
+        }
+
+        function promptForComment(currentComment, projectNameFilter, projectNumber, task, targetWindow = window) {
             return new Promise((resolve) => {
                 // Get comments from structured history for this project
                 let comments = [];
@@ -1751,7 +1833,7 @@
                 comments.sort();
 
                 // Create modal dialog
-                const dialog = document.createElement('div');
+                const dialog = targetWindow.document.createElement('div');
                 dialog.style.cssText = `
                     position: fixed;
                     top: 0;
@@ -1765,7 +1847,7 @@
                     z-index: 10000;
                 `;
 
-                const content = document.createElement('div');
+                const content = targetWindow.document.createElement('div');
                 content.style.cssText = `
                     background: white;
                     padding: 25px;
@@ -1775,18 +1857,18 @@
                     width: 90%;
                 `;
 
-                const title = document.createElement('h3');
+                const title = targetWindow.document.createElement('h3');
                 title.textContent = 'Comment Required';
                 title.style.cssText = 'margin-top: 0; color: #366092;';
 
-                const message = document.createElement('p');
+                const message = targetWindow.document.createElement('p');
                 message.textContent = 'Please provide a comment before starting the timer:';
                 message.style.cssText = 'margin-bottom: 15px;';
 
-                const inputWrapper = document.createElement('div');
+                const inputWrapper = targetWindow.document.createElement('div');
                 inputWrapper.style.cssText = 'position: relative; margin-bottom: 15px;';
 
-                const input = document.createElement('input');
+                const input = targetWindow.document.createElement('input');
                 input.type = 'text';
                 input.value = currentComment;
                 input.placeholder = 'Type or select from history...';
@@ -1800,18 +1882,18 @@
                 `;
                 input.setAttribute('list', 'comment-datalist-prompt');
 
-                const datalist = document.createElement('datalist');
+                const datalist = targetWindow.document.createElement('datalist');
                 datalist.id = 'comment-datalist-prompt';
                 comments.forEach(comment => {
-                    const option = document.createElement('option');
+                    const option = targetWindow.document.createElement('option');
                     option.value = comment;
                     datalist.appendChild(option);
                 });
 
-                const buttonWrapper = document.createElement('div');
+                const buttonWrapper = targetWindow.document.createElement('div');
                 buttonWrapper.style.cssText = 'display: flex; gap: 10px; justify-content: flex-end;';
 
-                const cancelBtn = document.createElement('button');
+                const cancelBtn = targetWindow.document.createElement('button');
                 cancelBtn.textContent = 'Cancel';
                 cancelBtn.style.cssText = `
                     padding: 10px 20px;
@@ -1827,7 +1909,7 @@
                     resolve(null);
                 };
 
-                const okBtn = document.createElement('button');
+                const okBtn = targetWindow.document.createElement('button');
                 okBtn.textContent = 'Start Timer';
                 okBtn.style.cssText = `
                     padding: 10px 20px;
@@ -1882,7 +1964,7 @@
                 content.appendChild(buttonWrapper);
 
                 dialog.appendChild(content);
-                document.body.appendChild(dialog);
+                targetWindow.document.body.appendChild(dialog);
 
                 // Focus input
                 setTimeout(() => input.focus(), 100);
@@ -3023,11 +3105,11 @@
                 const lastBlock = blocks[blocks.length - 1];
                 const [lastStart, lastEnd] = lastBlock.split('-').map(s => s.trim());
                 
-                const resumeChoice = confirm(
+                const resumeChoice = await showConfirmDialog(
                     `Do you want to continue from where you stopped?\n\n` +
                     `Last time block: ${lastBlock}\n\n` +
-                    `Click "OK" to continue from ${lastEnd}\n` +
-                    `Click "Cancel" to start a new time block from now`
+                    `Click "Continue" to continue from ${lastEnd}\n` +
+                    `Click "Start New" to start a new time block from now`
                 );
                 
                 if (resumeChoice) {
@@ -3186,13 +3268,157 @@
         }
 
         // Toggle timer from PiP window
-        function toggleTimerFromPip() {
+        async function toggleTimerFromPip() {
             if (startTime !== null) {
                 // Timer is running - stop it
                 stopTimer();
             } else {
-                // Timer is not running - start it
-                resumeLastJob();
+                // Timer is not running - start it from PiP
+                await resumeLastJobFromPip();
+            }
+        }
+
+        // Resume last job from PiP window with prompts shown in PiP
+        async function resumeLastJobFromPip() {
+            // Get the PiP window reference
+            const targetWindow = (pipWindow && !pipWindow.closed) ? pipWindow : window;
+            
+            // Check if timer is currently running
+            if (startTime !== null) {
+                alert('Timer is already running!');
+                return;
+            }
+
+            // Ensure we're on the current week
+            if (weekOffset !== 0) {
+                weekOffset = 0;
+                loadData();
+                loadWeekDates();
+                updateSummary();
+                updateWeekView();
+            }
+
+            // Try to get last task info
+            let projectNameFilter = '';
+            let project = '';
+            let task = '';
+            let entryIndex = -1;
+
+            // First try lastActiveTask (most recently stopped timer)
+            if (lastActiveTask && lastActiveTask.projectNameFilter && lastActiveTask.project && lastActiveTask.task) {
+                projectNameFilter = lastActiveTask.projectNameFilter;
+                project = lastActiveTask.project;
+                task = lastActiveTask.task;
+                
+                // Find the entry index for this task
+                entryIndex = timeEntries.findIndex(e => 
+                    e.projectNameFilter === projectNameFilter &&
+                    e.project === project &&
+                    e.task === task
+                );
+            }
+            // If no lastActiveTask, try to get the most recent entry from timeEntries
+            else if (timeEntries.length > 0) {
+                entryIndex = timeEntries.length - 1;
+                const lastEntry = timeEntries[entryIndex];
+                projectNameFilter = lastEntry.projectNameFilter || '';
+                project = lastEntry.project || '';
+                task = lastEntry.task || '';
+            }
+
+            // Populate the form with the entry data
+            document.getElementById('projectNameFilter').value = projectNameFilter;
+            document.getElementById('projectName').value = project;
+            document.getElementById('taskName').value = task;
+
+            // Prompt for comment in PiP window
+            const userComment = await promptForComment('', projectNameFilter, project, task, targetWindow);
+            if (userComment === null) {
+                // User cancelled
+                return;
+            }
+            document.getElementById('comment').value = userComment;
+
+            // Update dropdowns to reflect the selection
+            updateDropdowns();
+
+            // Check if we should ask about continuing from last block
+            const currentDay = getCurrentWeekday();
+            let customStartTime = null;
+            isContinuingLastBlock = false;
+
+            if (entryIndex >= 0) {
+                const entry = timeEntries[entryIndex];
+                const clockTimeKey = `day${currentDay}_clocktime`;
+                const existingClockTime = entry[clockTimeKey] || '';
+                
+                if (existingClockTime) {
+                    // Get the last time block
+                    const blocks = existingClockTime.split(',').map(b => b.trim());
+                    const lastBlock = blocks[blocks.length - 1];
+                    const [lastStart, lastEnd] = lastBlock.split('-').map(s => s.trim());
+                    
+                    const resumeChoice = await showConfirmDialog(
+                        `Do you want to continue from where you stopped?\n\n` +
+                        `Last time block: ${lastBlock}\n\n` +
+                        `Click "Continue" to continue from ${lastEnd}\n` +
+                        `Click "Start New" to start a new time block from now`,
+                        targetWindow
+                    );
+                    
+                    if (resumeChoice) {
+                        // Parse the last end time
+                        const lastEndTime = parseClockTime(lastEnd);
+                        if (lastEndTime) {
+                            customStartTime = lastEndTime.getTime();
+                            isContinuingLastBlock = true;
+                        }
+                    } else {
+                        isContinuingLastBlock = false;
+                    }
+                }
+            }
+
+            // Start the timer
+            if (customStartTime !== null) {
+                // Set startTime first before anything else
+                startTime = customStartTime;
+                manualTimeOffset = 0;
+                
+                // Set up timer UI
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('projectNameFilter').disabled = true;
+                document.getElementById('projectName').disabled = true;
+                document.getElementById('taskName').disabled = true;
+                document.getElementById('comment').disabled = true;
+                document.getElementById('timerStatus').textContent = 'Timer running (Click time to edit)';
+                
+                // Update displays immediately
+                updateTimer();
+                
+                // Update week view immediately since startTime is now set
+                updateWeekView();
+                
+                // Set up timer interval
+                timerInterval = setInterval(updateTimer, 1000);
+                
+                // Set up mini window if active
+                if (miniWindowActive) {
+                    updateMiniWindowInfo();
+                }
+                
+                // Set up periodic week view refresh
+                if (!weekViewRefreshInterval) {
+                    weekViewRefreshInterval = setInterval(() => {
+                        if (startTime !== null) {
+                            updateWeekView();
+                        }
+                    }, 5000);
+                }
+            } else {
+                // Start timer normally from now
+                startTimer();
             }
         }
 
