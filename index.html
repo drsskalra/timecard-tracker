@@ -3134,11 +3134,17 @@
                 
                 const projectNameHTML = `
                     <div>
+                        <input type="text" 
+                               class="inline-edit-input" 
+                               id="inline-proj-name-input-${entryIndex}"
+                               value="${origProjectName.replace(/"/g, '&quot;')}"
+                               placeholder="Type new or select below"
+                               style="width: 100%; margin-bottom: 4px;">
                         <select class="inline-edit-input" 
                                 id="inline-proj-name-${entryIndex}"
-                                style="width: 100%;"
+                                style="width: 100%; font-size: 0.85em;"
                                 size="1">
-                            <option value="">Select Project Name...</option>
+                            <option value="">-- Or Select Existing --</option>
                             ${projectNameSelectOptions}
                         </select>
                     </div>
@@ -3148,20 +3154,32 @@
                 
                 // Add listener to filter project numbers and tasks
                 setTimeout(() => {
-                    const projNameInput = document.getElementById(`inline-proj-name-${entryIndex}`);
-                    if (projNameInput) {
-                        projNameInput.addEventListener('change', () => updateInlineEditLists(entryIndex));
+                    const projNameSelect = document.getElementById(`inline-proj-name-${entryIndex}`);
+                    const projNameInput = document.getElementById(`inline-proj-name-input-${entryIndex}`);
+                    
+                    if (projNameSelect && projNameInput) {
+                        // When select changes, update input
+                        projNameSelect.addEventListener('change', function() {
+                            if (this.value) {
+                                projNameInput.value = this.value;
+                            }
+                            updateInlineEditLists(entryIndex);
+                            this.size = 1;
+                        });
+                        
+                        // When input changes, clear select
+                        projNameInput.addEventListener('input', function() {
+                            projNameSelect.value = '';
+                        });
+                        
                         // Open dropdown on focus/click
-                        projNameInput.addEventListener('mousedown', function(e) {
+                        projNameSelect.addEventListener('mousedown', function(e) {
                             if (this.size === 1) {
                                 this.size = Math.min(projectNameList.length + 1, 10);
                                 e.preventDefault();
                             }
                         });
-                        projNameInput.addEventListener('blur', function() {
-                            this.size = 1;
-                        });
-                        projNameInput.addEventListener('change', function() {
+                        projNameSelect.addEventListener('blur', function() {
                             this.size = 1;
                         });
                     }
@@ -3175,11 +3193,17 @@
             
             const projectNumberHTML = `
                 <div>
+                    <input type="text" 
+                           class="inline-edit-input" 
+                           id="inline-proj-num-input-${entryIndex}"
+                           value="${origProjectNumber.replace(/"/g, '&quot;')}"
+                           placeholder="Type new or select below"
+                           style="width: 100%; margin-bottom: 4px;">
                     <select class="inline-edit-input" 
                             id="inline-proj-num-${entryIndex}"
-                            style="width: 100%;"
+                            style="width: 100%; font-size: 0.85em;"
                             size="1">
-                        <option value="">Select Project Number...</option>
+                        <option value="">-- Or Select Existing --</option>
                         ${projectNumberSelectOptions}
                     </select>
                 </div>
@@ -3189,18 +3213,30 @@
             
             // Open dropdown on focus/click
             setTimeout(() => {
-                const projNumInput = document.getElementById(`inline-proj-num-${entryIndex}`);
-                if (projNumInput) {
-                    projNumInput.addEventListener('mousedown', function(e) {
+                const projNumSelect = document.getElementById(`inline-proj-num-${entryIndex}`);
+                const projNumInput = document.getElementById(`inline-proj-num-input-${entryIndex}`);
+                
+                if (projNumSelect && projNumInput) {
+                    // When select changes, update input
+                    projNumSelect.addEventListener('change', function() {
+                        if (this.value) {
+                            projNumInput.value = this.value;
+                        }
+                        this.size = 1;
+                    });
+                    
+                    // When input changes, clear select
+                    projNumInput.addEventListener('input', function() {
+                        projNumSelect.value = '';
+                    });
+                    
+                    projNumSelect.addEventListener('mousedown', function(e) {
                         if (this.size === 1) {
                             this.size = Math.min(projectNumbers.length + 1, 10);
                             e.preventDefault();
                         }
                     });
-                    projNumInput.addEventListener('blur', function() {
-                        this.size = 1;
-                    });
-                    projNumInput.addEventListener('change', function() {
+                    projNumSelect.addEventListener('blur', function() {
                         this.size = 1;
                     });
                 }
@@ -3213,11 +3249,17 @@
             
             const taskHTML = `
                 <div>
+                    <input type="text" 
+                           class="inline-edit-input" 
+                           id="inline-task-input-${entryIndex}"
+                           value="${origTask.replace(/"/g, '&quot;')}"
+                           placeholder="Type new or select below"
+                           style="width: 100%; margin-bottom: 4px;">
                     <select class="inline-edit-input" 
                             id="inline-task-${entryIndex}"
-                            style="width: 100%;"
+                            style="width: 100%; font-size: 0.85em;"
                             size="1">
-                        <option value="">Select Task...</option>
+                        <option value="">-- Or Select Existing --</option>
                         ${taskSelectOptions}
                     </select>
                 </div>
@@ -3227,18 +3269,30 @@
             
             // Open dropdown on focus/click
             setTimeout(() => {
-                const taskInput = document.getElementById(`inline-task-${entryIndex}`);
-                if (taskInput) {
-                    taskInput.addEventListener('mousedown', function(e) {
+                const taskSelect = document.getElementById(`inline-task-${entryIndex}`);
+                const taskInput = document.getElementById(`inline-task-input-${entryIndex}`);
+                
+                if (taskSelect && taskInput) {
+                    // When select changes, update input
+                    taskSelect.addEventListener('change', function() {
+                        if (this.value) {
+                            taskInput.value = this.value;
+                        }
+                        this.size = 1;
+                    });
+                    
+                    // When input changes, clear select
+                    taskInput.addEventListener('input', function() {
+                        taskSelect.value = '';
+                    });
+                    
+                    taskSelect.addEventListener('mousedown', function(e) {
                         if (this.size === 1) {
                             this.size = Math.min(tasks.length + 1, 10);
                             e.preventDefault();
                         }
                     });
-                    taskInput.addEventListener('blur', function() {
-                        this.size = 1;
-                    });
-                    taskInput.addEventListener('change', function() {
+                    taskSelect.addEventListener('blur', function() {
                         this.size = 1;
                     });
                 }
@@ -3282,16 +3336,20 @@
             row.dataset.origDayTimes = JSON.stringify(origDayTimes);
 
             // Focus the first input
-            if (projNameCell && projNameCell.hasAttribute('rowspan')) {
-                document.getElementById(`inline-proj-name-${entryIndex}`).focus();
-            } else {
-                document.getElementById(`inline-proj-num-${entryIndex}`).focus();
-            }
+            setTimeout(() => {
+                if (projNameCell && projNameCell.hasAttribute('rowspan')) {
+                    const input = document.getElementById(`inline-proj-name-input-${entryIndex}`);
+                    if (input) input.focus();
+                } else {
+                    const input = document.getElementById(`inline-proj-num-input-${entryIndex}`);
+                    if (input) input.focus();
+                }
+            }, 100);
         }
 
         // Update inline edit select dropdowns based on selected project name
         function updateInlineEditLists(entryIndex) {
-            const projNameInput = document.getElementById(`inline-proj-name-${entryIndex}`);
+            const projNameInput = document.getElementById(`inline-proj-name-input-${entryIndex}`);
             if (!projNameInput) return;
 
             const selectedProjectName = projNameInput.value.trim();
@@ -3336,11 +3394,11 @@
                 return;
             }
 
-            const projNameInput = document.getElementById(`inline-proj-name-${entryIndex}`);
-            const projNumInput = document.getElementById(`inline-proj-num-${entryIndex}`);
-            const taskInput = document.getElementById(`inline-task-${entryIndex}`);
+            const projNameInput = document.getElementById(`inline-proj-name-input-${entryIndex}`);
+            const projNumInput = document.getElementById(`inline-proj-num-input-${entryIndex}`);
+            const taskInput = document.getElementById(`inline-task-input-${entryIndex}`);
 
-            // Get new values
+            // Get new values (from text inputs)
             const newProjectName = projNameInput ? projNameInput.value.trim() : entry.projectNameFilter;
             const newProjectNumber = projNumInput ? projNumInput.value.trim() : entry.project;
             const newTask = taskInput ? taskInput.value.trim() : entry.task;
