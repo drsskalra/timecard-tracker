@@ -3062,7 +3062,8 @@
             const cells = row.querySelectorAll('td');
             
             // Determine which cell indices to edit (accounting for potential rowspan)
-            let projNameCell, projNumCell, taskCell;
+            let projNameCell, projNumCell, taskCell, dayCells;
+            let cellOffset = 0;
             
             // Check if this row has the project name cell (not rowspanned)
             const firstContentCell = cells[1]; // After edit column
@@ -3070,16 +3071,34 @@
                 projNameCell = firstContentCell;
                 projNumCell = cells[2];
                 taskCell = cells[3];
+                cellOffset = 4; // edit + projName + projNum + task
             } else {
                 // This row doesn't have project name (it's part of a rowspan group)
                 projNumCell = cells[1];
                 taskCell = cells[2];
+                cellOffset = 3; // edit + projNum + task
             }
+            
+            // Get the 5 day columns (Mon-Fri)
+            dayCells = [
+                cells[cellOffset],     // Mon
+                cells[cellOffset + 1], // Tue
+                cells[cellOffset + 2], // Wed
+                cells[cellOffset + 3], // Thu
+                cells[cellOffset + 4]  // Fri
+            ];
 
             // Store original values
             const origProjectName = entry.projectNameFilter || '';
             const origProjectNumber = entry.project || '';
             const origTask = entry.task || '';
+            const origDayTimes = [
+                entry.day1_hr || '00:00:00',
+                entry.day2_hr || '00:00:00',
+                entry.day3_hr || '00:00:00',
+                entry.day4_hr || '00:00:00',
+                entry.day5_hr || '00:00:00'
+            ];
 
             // Build datalist options from history
             const projectNameOptions = Array.from(projectNameHistory).sort().map(item => `<option value="${item}">`).join('');
@@ -3225,6 +3244,27 @@
                 }
             }, 50);
 
+            // Replace day cells with time inputs
+            for (let i = 0; i < 5; i++) {
+                const dayCell = dayCells[i];
+                const dayNum = i + 1;
+                const timeValue = origDayTimes[i];
+                
+                const timeInputHTML = `
+                    <div>
+                        <input type="text" 
+                               class="inline-edit-input" 
+                               id="inline-day${dayNum}-time-${entryIndex}" 
+                               value="${timeValue}"
+                               placeholder="HH:MM:SS"
+                               pattern="[0-9]{1,2}:[0-9]{2}:[0-9]{2}"
+                               style="width: 100%; text-align: center; font-family: 'Courier New', monospace;">
+                    </div>
+                `;
+                dayCell.innerHTML = timeInputHTML;
+                dayCell.style.cursor = 'default';
+            }
+
             // Add save/cancel buttons to the edit column
             const editCell = cells[0];
             editCell.innerHTML = `
@@ -3239,6 +3279,7 @@
             row.dataset.origProjectName = origProjectName;
             row.dataset.origProjectNumber = origProjectNumber;
             row.dataset.origTask = origTask;
+            row.dataset.origDayTimes = JSON.stringify(origDayTimes);
 
             // Focus the first input
             if (projNameCell && projNameCell.hasAttribute('rowspan')) {
@@ -3303,6 +3344,41 @@
             const newProjectName = projNameInput ? projNameInput.value.trim() : entry.projectNameFilter;
             const newProjectNumber = projNumInput ? projNumInput.value.trim() : entry.project;
             const newTask = taskInput ? taskInput.value.trim() : entry.task;
+            
+            // Get day times
+            const newDayTimes = [];
+            for (let i = 1; i <= 5; i++) {
+                const dayInput = document.getElementById(`inline-day${i}-time-${entryIndex}`);
+                if (dayInput) {
+                    const timeValue = dayInput.value.trim();
+                    // Validate time format
+                    const timeRegex = /^([0-9]{1,2}):([0-9]{2}):([0-9]{2})$/;
+                    const match = timeValue.match(timeRegex);
+                    
+                    if (timeValue && !match) {
+                        showAlert(`Invalid time format for Day ${i}! Use HH:MM:SS (e.g., 08:30:00)`, 'error');
+                        return;
+                    }
+                    
+                    if (match) {
+                        const hours = parseInt(match[1]);
+                        const minutes = parseInt(match[2]);
+                        const seconds = parseInt(match[3]);
+                        
+                        if (minutes >= 60 || seconds >= 60) {
+                            showAlert(`Invalid time for Day ${i}! Minutes and seconds must be less than 60`, 'error');
+                            return;
+                        }
+                        
+                        // Format with leading zeros
+                        newDayTimes.push(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+                    } else {
+                        newDayTimes.push('00:00:00');
+                    }
+                } else {
+                    newDayTimes.push(entry[`day${i}_hr`] || '00:00:00');
+                }
+            }
 
             // Validate
             if (!newProjectName || !newProjectNumber || !newTask) {
@@ -3311,9 +3387,22 @@
             }
 
             // Check if anything changed
-            if (newProjectName === entry.projectNameFilter && 
-                newProjectNumber === entry.project && 
-                newTask === entry.task) {
+            let hasChanges = false;
+            if (newProjectName !== entry.projectNameFilter || 
+                newProjectNumber !== entry.project || 
+                newTask !== entry.task) {
+                hasChanges = true;
+            }
+            
+            // Check if any day times changed
+            for (let i = 0; i < 5; i++) {
+                if (newDayTimes[i] !== (entry[`day${i + 1}_hr`] || '00:00:00')) {
+                    hasChanges = true;
+                    break;
+                }
+            }
+            
+            if (!hasChanges) {
                 // No changes, just cancel
                 cancelInlineEdit(entryIndex);
                 return;
@@ -3323,6 +3412,11 @@
             entry.projectNameFilter = newProjectName;
             entry.project = newProjectNumber;
             entry.task = newTask;
+            
+            // Update day times
+            for (let i = 0; i < 5; i++) {
+                entry[`day${i + 1}_hr`] = newDayTimes[i];
+            }
 
             // Update history
             projectNameHistory.add(newProjectName);
