@@ -1357,6 +1357,7 @@
         let timerInterval = null;
         let startTime = null;
         let manualTimeOffset = 0; // Offset in seconds for manually set time
+        let isContinuingLastBlock = false; // Track if user chose to continue from last time block
         let timeEntries = [];
         const STORAGE_KEY = 'timecard_data';
         const ALL_WEEKS_KEY = 'timecard_all_weeks';
@@ -2136,13 +2137,29 @@
                 const totalSeconds = existingSeconds + elapsedSeconds;
                 entry[`day${currentDay}_hr`] = formatSecondsToHHMMSS(totalSeconds);
                 
-                // Append clock time range
+                // Check if we're continuing from the last block (user's explicit choice)
                 const existingClockTime = entry[`day${currentDay}_clocktime`] || '';
-                if (existingClockTime) {
-                    entry[`day${currentDay}_clocktime`] = `${existingClockTime}, ${clockTimeRange}`;
+                
+                if (isContinuingLastBlock && existingClockTime) {
+                    // Update the last block's end time instead of adding a new block
+                    const blocks = existingClockTime.split(',').map(b => b.trim());
+                    const lastBlock = blocks[blocks.length - 1];
+                    const [lastStart, lastEnd] = lastBlock.split('-').map(s => s.trim());
+                    
+                    // Replace the last block with updated end time
+                    blocks[blocks.length - 1] = `${lastStart} - ${toTime}`;
+                    entry[`day${currentDay}_clocktime`] = blocks.join(', ');
                 } else {
-                    entry[`day${currentDay}_clocktime`] = clockTimeRange;
+                    // Append new clock time range
+                    if (existingClockTime) {
+                        entry[`day${currentDay}_clocktime`] = `${existingClockTime}, ${clockTimeRange}`;
+                    } else {
+                        entry[`day${currentDay}_clocktime`] = clockTimeRange;
+                    }
                 }
+                
+                // Reset the flag after using it
+                isContinuingLastBlock = false;
                 
                 const existingComment = entry[`day${currentDay}_comment`] || '';
                 if (existingComment && comment) {
@@ -2998,6 +3015,8 @@
             const existingClockTime = entry[clockTimeKey] || '';
             
             let customStartTime = null;
+            isContinuingLastBlock = false; // Reset flag
+            
             if (existingClockTime) {
                 // Get the last time block
                 const blocks = existingClockTime.split(',').map(b => b.trim());
@@ -3016,8 +3035,11 @@
                     const lastEndTime = parseClockTime(lastEnd);
                     if (lastEndTime) {
                         customStartTime = lastEndTime.getTime();
+                        isContinuingLastBlock = true; // Set flag
                         showAlert(`Continuing from ${lastEnd}`, 'info');
                     }
+                } else {
+                    isContinuingLastBlock = false;
                 }
             }
 
@@ -6211,32 +6233,11 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                             e.isLastBlock
                         );
                         
-                        if (lastBlock) {
-                            // Parse the last block's end time and check if running timer continues from it
-                            const lastEndTime = parseClockTime(lastBlock.endTime);
-                            const timerStartTime = new Date(startTime);
-                            
-                            // If timer started within a few minutes of last block end, we're continuing
-                            const timeDiff = Math.abs(timerStartTime - lastEndTime) / (1000 * 60); // minutes
-                            
-                            if (timeDiff <= 5) {
-                                // Continue the existing block - update its end time and mark as running
-                                lastBlock.endTime = nowClock;
-                                lastBlock.running = true;
-                                lastBlock.comment = liveComment || lastBlock.comment || 'Currently running';
-                            } else {
-                                // Start time is different, add a new running block
-                                dayEntries.push({
-                                    projectName: runningProject,
-                                    project: runningProjectNum,
-                                    task: runningTask,
-                                    startTime: startClock,
-                                    endTime: nowClock,
-                                    comment: liveComment || 'Currently running',
-                                    dayIndex: dayIndex,
-                                    running: true
-                                });
-                            }
+                        if (lastBlock && isContinuingLastBlock) {
+                            // User chose to continue from last block - update its end time and mark as running
+                            lastBlock.endTime = nowClock;
+                            lastBlock.running = true;
+                            lastBlock.comment = liveComment || lastBlock.comment || 'Currently running';
                         } else {
                             // No matching last block, add new running block
                             dayEntries.push({
