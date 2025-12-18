@@ -1814,11 +1814,17 @@
         }
 
         async function startTimer() {
-            // Prevent starting timer if viewing a different week
+            // Ensure we're on the current week before starting timer
             if (weekOffset !== 0) {
-                const message = weekOffset < 0 ? 'a past week' : 'a future week';
-                showAlert(`Cannot start timer while viewing ${message}. Please navigate to the current week.`, 'error');
-                return;
+                const weekMessage = weekOffset < 0 ? 'a past week' : 'a future week';
+                showAlert(`Switching from ${weekMessage} to current week to start timer...`, 'info');
+                
+                // Switch to current week
+                weekOffset = 0;
+                loadData();
+                loadWeekDates();
+                updateSummary();
+                updateWeekView();
             }
             
             let projectNameFilter = document.getElementById('projectNameFilter').value.trim();
@@ -2897,8 +2903,11 @@
             // Update dropdowns to reflect the selection
             updateDropdowns();
 
-            // Ensure we're on the current week so startTimer isn't blocked by weekOffset
+            // Ensure we're on the current week so timer starts in current week
             if (weekOffset !== 0) {
+                const weekMessage = weekOffset < 0 ? 'past week' : 'future week';
+                showAlert(`Switching from ${weekMessage} to current week to resume timer...`, 'info');
+                
                 weekOffset = 0;
                 loadData();
                 loadWeekDates();
@@ -2965,6 +2974,15 @@
             if (startTime !== null) {
                 showAlert('Timer is already running!', 'info');
                 return;
+            }
+
+            // Ensure we're on the current week
+            if (weekOffset !== 0) {
+                weekOffset = 0;
+                loadData();
+                loadWeekDates();
+                updateSummary();
+                updateWeekView();
             }
 
             // Try to get last task info
