@@ -2572,15 +2572,15 @@
                     
                     // Show project name only on first row of each group
                     if (index === 0) {
-                        html += `<td rowspan="${entries.length}" style="cursor: pointer;" onclick="editField(${entryIndex}, 'projectNameFilter')" title="Click to edit project name">
+                        html += `<td rowspan="${entries.length}" style="cursor: pointer;" onclick="toggleInlineEdit(${entryIndex})" title="Click to edit this row">
                             <span>${entry.projectNameFilter || 'Uncategorized'}</span>
                         </td>`;
                     }
                     
-                    html += `<td style="cursor: pointer;" onclick="editField(${entryIndex}, 'project')" title="Click to edit project number">
+                    html += `<td style="cursor: pointer;" onclick="toggleInlineEdit(${entryIndex})" title="Click to edit this row">
                         <span>${entry.project}</span>
                     </td>`;
-                    html += `<td style="cursor: pointer;" onclick="editField(${entryIndex}, 'task')" title="Click to edit task">
+                    html += `<td style="cursor: pointer;" onclick="toggleInlineEdit(${entryIndex})" title="Click to edit this row">
                         <span>${entry.task}</span>
                     </td>`;
                     
