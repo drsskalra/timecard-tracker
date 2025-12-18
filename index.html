@@ -3117,7 +3117,8 @@
                     <div>
                         <select class="inline-edit-input" 
                                 id="inline-proj-name-${entryIndex}"
-                                style="width: 100%;">
+                                style="width: 100%;"
+                                size="1">
                             <option value="">Select Project Name...</option>
                             ${projectNameSelectOptions}
                         </select>
@@ -3127,8 +3128,25 @@
                 projNameCell.style.cursor = 'default';
                 
                 // Add listener to filter project numbers and tasks
-                const projNameInput = document.getElementById(`inline-proj-name-${entryIndex}`);
-                projNameInput.addEventListener('change', () => updateInlineEditLists(entryIndex));
+                setTimeout(() => {
+                    const projNameInput = document.getElementById(`inline-proj-name-${entryIndex}`);
+                    if (projNameInput) {
+                        projNameInput.addEventListener('change', () => updateInlineEditLists(entryIndex));
+                        // Open dropdown on focus/click
+                        projNameInput.addEventListener('mousedown', function(e) {
+                            if (this.size === 1) {
+                                this.size = Math.min(projectNameList.length + 1, 10);
+                                e.preventDefault();
+                            }
+                        });
+                        projNameInput.addEventListener('blur', function() {
+                            this.size = 1;
+                        });
+                        projNameInput.addEventListener('change', function() {
+                            this.size = 1;
+                        });
+                    }
+                }, 50);
             }
 
             // Replace project number cell with select dropdown
@@ -3140,7 +3158,8 @@
                 <div>
                     <select class="inline-edit-input" 
                             id="inline-proj-num-${entryIndex}"
-                            style="width: 100%;">
+                            style="width: 100%;"
+                            size="1">
                         <option value="">Select Project Number...</option>
                         ${projectNumberSelectOptions}
                     </select>
@@ -3148,6 +3167,25 @@
             `;
             projNumCell.innerHTML = projectNumberHTML;
             projNumCell.style.cursor = 'default';
+            
+            // Open dropdown on focus/click
+            setTimeout(() => {
+                const projNumInput = document.getElementById(`inline-proj-num-${entryIndex}`);
+                if (projNumInput) {
+                    projNumInput.addEventListener('mousedown', function(e) {
+                        if (this.size === 1) {
+                            this.size = Math.min(projectNumbers.length + 1, 10);
+                            e.preventDefault();
+                        }
+                    });
+                    projNumInput.addEventListener('blur', function() {
+                        this.size = 1;
+                    });
+                    projNumInput.addEventListener('change', function() {
+                        this.size = 1;
+                    });
+                }
+            }, 50);
 
             // Replace task cell with select dropdown
             let taskSelectOptions = tasks.map(t => 
@@ -3158,7 +3196,8 @@
                 <div>
                     <select class="inline-edit-input" 
                             id="inline-task-${entryIndex}"
-                            style="width: 100%;">
+                            style="width: 100%;"
+                            size="1">
                         <option value="">Select Task...</option>
                         ${taskSelectOptions}
                     </select>
@@ -3166,6 +3205,25 @@
             `;
             taskCell.innerHTML = taskHTML;
             taskCell.style.cursor = 'default';
+            
+            // Open dropdown on focus/click
+            setTimeout(() => {
+                const taskInput = document.getElementById(`inline-task-${entryIndex}`);
+                if (taskInput) {
+                    taskInput.addEventListener('mousedown', function(e) {
+                        if (this.size === 1) {
+                            this.size = Math.min(tasks.length + 1, 10);
+                            e.preventDefault();
+                        }
+                    });
+                    taskInput.addEventListener('blur', function() {
+                        this.size = 1;
+                    });
+                    taskInput.addEventListener('change', function() {
+                        this.size = 1;
+                    });
+                }
+            }, 50);
 
             // Add save/cancel buttons to the edit column
             const editCell = cells[0];
