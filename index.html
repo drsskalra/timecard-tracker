@@ -2595,7 +2595,7 @@
                         // Only apply green to header, not cells
                         html += `<td class="day-column">`;
                         if (seconds > 0) {
-                            html += `<div style="cursor: pointer;" onclick="editCell(${entryIndex}, ${i}, 'time')" title="Click to edit time">`;
+                            html += `<div>`;
                             html += `<span class="hours">${timeStr}</span>`;
                             html += `</div>`;
                             if (comment) {
@@ -2604,7 +2604,7 @@
                                 html += `</div>`;
                             }
                         } else {
-                            html += `<div style="cursor: pointer; color: #6c757d; padding: 8px;" onclick="editCell(${entryIndex}, ${i}, 'time')" title="Click to add time">-</div>`;
+                            html += `<div style="color: #6c757d; padding: 8px;">-</div>`;
                         }
                         html += `</td>`;
                     }
