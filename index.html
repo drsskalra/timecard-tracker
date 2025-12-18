@@ -2409,10 +2409,31 @@
         function updateTimerDisplay() {
             if (!startTime) return;
 
+            // Calculate total time for current project/task today (including current session)
+            let projectTotalSeconds = 0;
+            const currentProjectName = document.getElementById('projectNameFilter').value.trim();
+            const currentProjectNumber = document.getElementById('projectName').value.trim();
+            const currentTask = document.getElementById('taskName').value.trim();
+            const currentDay = getCurrentWeekday();
+            
+            // Add all previously logged time for this project/task today
+            const matchingEntries = timeEntries.filter(e => 
+                e.projectNameFilter === currentProjectName && 
+                e.project === currentProjectNumber &&
+                e.task === currentTask
+            );
+            matchingEntries.forEach(entry => {
+                projectTotalSeconds += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
+            });
+            
+            // Add current session elapsed time
             const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            const hours = Math.floor(elapsed / 3600);
-            const minutes = Math.floor((elapsed % 3600) / 60);
-            const seconds = elapsed % 60;
+            projectTotalSeconds += elapsed;
+            
+            // Format the total time
+            const hours = Math.floor(projectTotalSeconds / 3600);
+            const minutes = Math.floor((projectTotalSeconds % 3600) / 60);
+            const seconds = projectTotalSeconds % 60;
 
             const display = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
             document.getElementById('timerDisplay').textContent = display;
