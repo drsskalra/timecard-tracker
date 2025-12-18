@@ -6400,7 +6400,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 const runningClass = entry.running ? ' time-block-running' : '';
                 const runningStyle = entry.running ? 'box-shadow: 0 6px 18px rgba(0,0,0,0.45), 0 0 10px rgba(255,255,255,0.12); border: 2px dashed rgba(255,255,255,0.6);' : '';
                 
-                // For running timer, show just the hourglass icon
+                // For running timer, show hourglass with details
                 if (entry.running) {
                     html += `
                         <div class="time-block${runningClass}" 
@@ -6410,9 +6410,14 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                              data-end="${entry.endTime}"
                              data-day="${entry.dayIndex}"
                              data-comment="${(entry.comment || '').replace(/"/g, '&quot;')}"
-                             style="top: ${topPercent}%; height: ${heightPercent}%; left: ${leftPercent}%; width: ${widthPercent}%; background: ${colors[colorIndex]}; ${runningStyle} display: flex; align-items: center; justify-content: center; cursor: default;"
+                             style="top: ${topPercent}%; height: ${heightPercent}%; left: ${leftPercent}%; width: ${widthPercent}%; background: ${colors[colorIndex]}; ${runningStyle} cursor: default; position: relative;"
                              title="${entry.projectName} - ${entry.task}\nTimer running: ${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}">
-                            <div style="font-size: 3em; animation: pulse 2s ease-in-out infinite;">⏳</div>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 3em; animation: pulse 2s ease-in-out infinite; z-index: 10;">⏳</div>
+                            <div class="time-block-content" style="position: relative; z-index: 5; opacity: 0.85;">
+                                <div class="time-block-project">${entry.projectName}</div>
+                                <div class="time-block-task">${entry.task} (running)</div>
+                                <div class="time-block-duration">${entry.startTime} - ${entry.endTime}</div>
+                            </div>
                         </div>
                     `;
                 } else {
