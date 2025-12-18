@@ -1869,30 +1869,39 @@
                 title.style.cssText = 'margin: 0 0 clamp(5px, 1.5vw, 8px) 0; color: #366092; font-size: clamp(12px, 2.5vw, 14px); font-weight: 600;';
 
                 const inputWrapper = targetWindow.document.createElement('div');
-                inputWrapper.style.cssText = 'position: relative; margin-bottom: clamp(5px, 1.5vw, 8px); display: flex; align-items: center; gap: clamp(4px, 1vw, 6px);';
+                inputWrapper.style.cssText = 'position: relative; margin-bottom: clamp(5px, 1.5vw, 8px);';
+
+                const inputRow = targetWindow.document.createElement('div');
+                inputRow.style.cssText = 'display: flex; align-items: center; gap: clamp(4px, 1vw, 6px); margin-bottom: clamp(4px, 1vw, 6px);';
 
                 const input = targetWindow.document.createElement('input');
                 input.type = 'text';
                 input.value = defaultComment;
                 input.placeholder = 'Type or select...';
-                input.setAttribute('list', 'comment-history-datalist');
                 input.style.cssText = `
                     flex: 1;
-                    padding: clamp(5px, 1.5vw, 7px) clamp(5px, 1.5vw, 7px) clamp(5px, 1.5vw, 7px) clamp(5px, 1.5vw, 7px);
+                    padding: clamp(5px, 1.5vw, 7px);
                     border: 1px solid #366092;
                     border-radius: 4px;
                     font-size: clamp(11px, 2.5vw, 12px);
                     box-sizing: border-box;
                 `;
 
-                // Create datalist for autocomplete
-                const datalist = targetWindow.document.createElement('datalist');
-                datalist.id = 'comment-history-datalist';
-                comments.forEach(comment => {
-                    const option = targetWindow.document.createElement('option');
-                    option.value = comment;
-                    datalist.appendChild(option);
-                });
+                // Create dropdown toggle button
+                const dropdownBtn = targetWindow.document.createElement('button');
+                dropdownBtn.innerHTML = '▼';
+                dropdownBtn.style.cssText = `
+                    padding: clamp(4px, 1vw, 6px) clamp(6px, 1.5vw, 8px);
+                    background: #366092;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: clamp(10px, 2vw, 12px);
+                    line-height: 1;
+                    min-width: clamp(24px, 5vw, 28px);
+                    display: ${comments.length > 0 ? 'block' : 'none'};
+                `;
 
                 // Create clear button (X)
                 const clearBtn = targetWindow.document.createElement('button');
@@ -1909,6 +1918,45 @@
                     min-width: clamp(24px, 5vw, 28px);
                     display: ${defaultComment ? 'block' : 'none'};
                 `;
+
+                // Create dropdown list
+                const dropdownList = targetWindow.document.createElement('select');
+                dropdownList.size = Math.min(comments.length, 5);
+                dropdownList.style.cssText = `
+                    width: 100%;
+                    padding: clamp(4px, 1vw, 6px);
+                    border: 1px solid #366092;
+                    border-radius: 4px;
+                    font-size: clamp(11px, 2.5vw, 12px);
+                    background: white;
+                    cursor: pointer;
+                    display: none;
+                    max-height: 150px;
+                `;
+
+                comments.forEach(comment => {
+                    const option = targetWindow.document.createElement('option');
+                    option.value = comment;
+                    option.textContent = comment;
+                    dropdownList.appendChild(option);
+                });
+
+                // Toggle dropdown visibility
+                dropdownBtn.onclick = (e) => {
+                    e.preventDefault();
+                    dropdownList.style.display = dropdownList.style.display === 'none' ? 'block' : 'none';
+                    dropdownBtn.innerHTML = dropdownList.style.display === 'none' ? '▼' : '▲';
+                };
+
+                // Select from dropdown
+                dropdownList.onchange = () => {
+                    input.value = dropdownList.value;
+                    dropdownList.style.display = 'none';
+                    dropdownBtn.innerHTML = '▼';
+                    clearBtn.style.display = 'block';
+                    input.focus();
+                };
+
                 clearBtn.onclick = () => {
                     input.value = '';
                     clearBtn.style.display = 'none';
@@ -1973,9 +2021,14 @@
                 buttonWrapper.appendChild(cancelBtn);
                 buttonWrapper.appendChild(okBtn);
 
-                inputWrapper.appendChild(input);
-                inputWrapper.appendChild(clearBtn);
-                inputWrapper.appendChild(datalist);
+                inputRow.appendChild(input);
+                inputRow.appendChild(dropdownBtn);
+                inputRow.appendChild(clearBtn);
+                
+                inputWrapper.appendChild(inputRow);
+                if (comments.length > 0) {
+                    inputWrapper.appendChild(dropdownList);
+                }
 
                 content.appendChild(title);
                 content.appendChild(inputWrapper);
