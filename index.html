@@ -1761,11 +1761,39 @@
                     max-width: min(400px, 95vw);
                     width: auto;
                     max-height: 95vh;
+                    position: relative;
                 `;
+
+                // Add close button (X)
+                const closeBtn = targetWindow.document.createElement('button');
+                closeBtn.innerHTML = '✕';
+                closeBtn.style.cssText = `
+                    position: absolute;
+                    top: clamp(4px, 1vw, 6px);
+                    right: clamp(4px, 1vw, 6px);
+                    background: transparent;
+                    border: none;
+                    color: #666;
+                    font-size: clamp(16px, 3vw, 20px);
+                    cursor: pointer;
+                    padding: clamp(2px, 0.5vw, 4px);
+                    line-height: 1;
+                    width: clamp(20px, 4vw, 24px);
+                    height: clamp(20px, 4vw, 24px);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                `;
+                closeBtn.onmouseover = () => closeBtn.style.color = '#dc3545';
+                closeBtn.onmouseout = () => closeBtn.style.color = '#666';
+                closeBtn.onclick = () => {
+                    dialog.remove();
+                    resolve(null);
+                };
 
                 const title = targetWindow.document.createElement('h3');
                 title.textContent = 'Resume Timer';
-                title.style.cssText = 'margin: 0 0 clamp(6px, 1.5vw, 8px) 0; color: #366092; font-size: clamp(12px, 2.5vw, 14px); font-weight: 600; text-align: center;';
+                title.style.cssText = 'margin: 0 0 clamp(6px, 1.5vw, 8px) 0; color: #366092; font-size: clamp(12px, 2.5vw, 14px); font-weight: 600; text-align: center; padding-right: clamp(20px, 4vw, 24px);';
 
                 const buttonWrapper = targetWindow.document.createElement('div');
                 buttonWrapper.style.cssText = 'display: flex; gap: clamp(4px, 1.5vw, 6px); justify-content: center;';
@@ -1807,6 +1835,7 @@
                 buttonWrapper.appendChild(cancelBtn);
                 buttonWrapper.appendChild(okBtn);
 
+                content.appendChild(closeBtn);
                 content.appendChild(title);
                 content.appendChild(buttonWrapper);
 
