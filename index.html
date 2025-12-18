@@ -1755,34 +1755,36 @@
                 const content = targetWindow.document.createElement('div');
                 content.style.cssText = `
                     background: white;
-                    padding: 25px;
+                    padding: clamp(15px, 5vw, 25px);
                     border-radius: 8px;
                     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                    max-width: 500px;
+                    max-width: min(500px, 90vw);
                     width: 90%;
+                    max-height: 90vh;
+                    overflow-y: auto;
                 `;
 
                 const title = targetWindow.document.createElement('h3');
                 title.textContent = 'Resume Timer';
-                title.style.cssText = 'margin-top: 0; color: #366092;';
+                title.style.cssText = 'margin-top: 0; color: #366092; font-size: clamp(14px, 3vw, 18px);';
 
                 const messageEl = targetWindow.document.createElement('p');
                 messageEl.innerHTML = message.replace(/\n/g, '<br>');
-                messageEl.style.cssText = 'margin-bottom: 20px; white-space: pre-wrap;';
+                messageEl.style.cssText = 'margin-bottom: clamp(12px, 3vw, 20px); white-space: pre-wrap; font-size: clamp(12px, 2.5vw, 14px);';
 
                 const buttonWrapper = targetWindow.document.createElement('div');
-                buttonWrapper.style.cssText = 'display: flex; gap: 10px; justify-content: flex-end;';
+                buttonWrapper.style.cssText = 'display: flex; gap: clamp(6px, 2vw, 10px); justify-content: flex-end; flex-wrap: wrap;';
 
                 const cancelBtn = targetWindow.document.createElement('button');
                 cancelBtn.textContent = 'Start New';
                 cancelBtn.style.cssText = `
-                    padding: 10px 20px;
+                    padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 20px);
                     background: #6c757d;
                     color: white;
                     border: none;
                     border-radius: 4px;
                     cursor: pointer;
-                    font-size: 14px;
+                    font-size: clamp(12px, 2.5vw, 14px);
                 `;
                 cancelBtn.onclick = () => {
                     dialog.remove();
@@ -1792,13 +1794,13 @@
                 const okBtn = targetWindow.document.createElement('button');
                 okBtn.textContent = 'Continue';
                 okBtn.style.cssText = `
-                    padding: 10px 20px;
+                    padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 20px);
                     background: #366092;
                     color: white;
                     border: none;
                     border-radius: 4px;
                     cursor: pointer;
-                    font-size: 14px;
+                    font-size: clamp(12px, 2.5vw, 14px);
                 `;
                 okBtn.onclick = () => {
                     dialog.remove();
@@ -1850,23 +1852,25 @@
                 const content = targetWindow.document.createElement('div');
                 content.style.cssText = `
                     background: white;
-                    padding: 25px;
+                    padding: clamp(15px, 5vw, 25px);
                     border-radius: 8px;
                     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                    max-width: 500px;
+                    max-width: min(500px, 90vw);
                     width: 90%;
+                    max-height: 90vh;
+                    overflow-y: auto;
                 `;
 
                 const title = targetWindow.document.createElement('h3');
                 title.textContent = 'Comment Required';
-                title.style.cssText = 'margin-top: 0; color: #366092;';
+                title.style.cssText = 'margin-top: 0; color: #366092; font-size: clamp(14px, 3vw, 18px);';
 
                 const message = targetWindow.document.createElement('p');
                 message.textContent = 'Please provide a comment before starting the timer:';
-                message.style.cssText = 'margin-bottom: 15px;';
+                message.style.cssText = 'margin-bottom: clamp(10px, 2.5vw, 15px); font-size: clamp(12px, 2.5vw, 14px);';
 
                 const inputWrapper = targetWindow.document.createElement('div');
-                inputWrapper.style.cssText = 'position: relative; margin-bottom: 15px;';
+                inputWrapper.style.cssText = 'position: relative; margin-bottom: clamp(10px, 2.5vw, 15px);';
 
                 const input = targetWindow.document.createElement('input');
                 input.type = 'text';
@@ -1874,35 +1878,62 @@
                 input.placeholder = 'Type or select from history...';
                 input.style.cssText = `
                     width: 100%;
-                    padding: 10px;
+                    padding: clamp(8px, 2vw, 10px);
                     border: 2px solid #366092;
                     border-radius: 4px;
-                    font-size: 14px;
+                    font-size: clamp(12px, 2.5vw, 14px);
                     box-sizing: border-box;
                 `;
-                input.setAttribute('list', 'comment-datalist-prompt');
 
-                const datalist = targetWindow.document.createElement('datalist');
-                datalist.id = 'comment-datalist-prompt';
+                // Create custom dropdown for history
+                const dropdown = targetWindow.document.createElement('select');
+                dropdown.style.cssText = `
+                    width: 100%;
+                    padding: clamp(8px, 2vw, 10px);
+                    border: 2px solid #366092;
+                    border-radius: 4px;
+                    font-size: clamp(12px, 2.5vw, 14px);
+                    box-sizing: border-box;
+                    margin-bottom: clamp(8px, 2vw, 10px);
+                    background: white;
+                    cursor: pointer;
+                `;
+
+                // Add default option
+                const defaultOption = targetWindow.document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '-- Select from history --';
+                dropdown.appendChild(defaultOption);
+
+                // Add comment options
                 comments.forEach(comment => {
                     const option = targetWindow.document.createElement('option');
                     option.value = comment;
-                    datalist.appendChild(option);
+                    option.textContent = comment;
+                    dropdown.appendChild(option);
+                });
+
+                // Update input when dropdown selection changes
+                dropdown.addEventListener('change', function() {
+                    if (this.value) {
+                        input.value = this.value;
+                        input.focus();
+                    }
                 });
 
                 const buttonWrapper = targetWindow.document.createElement('div');
-                buttonWrapper.style.cssText = 'display: flex; gap: 10px; justify-content: flex-end;';
+                buttonWrapper.style.cssText = 'display: flex; gap: clamp(6px, 2vw, 10px); justify-content: flex-end; flex-wrap: wrap;';
 
                 const cancelBtn = targetWindow.document.createElement('button');
                 cancelBtn.textContent = 'Cancel';
                 cancelBtn.style.cssText = `
-                    padding: 10px 20px;
+                    padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 20px);
                     background: #6c757d;
                     color: white;
                     border: none;
                     border-radius: 4px;
                     cursor: pointer;
-                    font-size: 14px;
+                    font-size: clamp(12px, 2.5vw, 14px);
                 `;
                 cancelBtn.onclick = () => {
                     dialog.remove();
@@ -1912,13 +1943,13 @@
                 const okBtn = targetWindow.document.createElement('button');
                 okBtn.textContent = 'Start Timer';
                 okBtn.style.cssText = `
-                    padding: 10px 20px;
+                    padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 20px);
                     background: #366092;
                     color: white;
                     border: none;
                     border-radius: 4px;
                     cursor: pointer;
-                    font-size: 14px;
+                    font-size: clamp(12px, 2.5vw, 14px);
                 `;
                 okBtn.onclick = () => {
                     const value = input.value.trim();
@@ -1931,7 +1962,7 @@
                     resolve(value);
                 };
 
-                // Handle Enter key
+                // Handle Enter key on input
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         okBtn.click();
@@ -1940,23 +1971,14 @@
                     }
                 });
 
-                // Show all options on click
-                input.addEventListener('click', function() {
-                    const currentValue = this.value;
-                    this.value = '';
-                    this.focus();
-                    setTimeout(() => {
-                        if (!this.value) {
-                            this.value = currentValue;
-                        }
-                    }, 10);
-                });
-
                 buttonWrapper.appendChild(cancelBtn);
                 buttonWrapper.appendChild(okBtn);
 
+                // Only show dropdown if there are comments
+                if (comments.length > 0) {
+                    inputWrapper.appendChild(dropdown);
+                }
                 inputWrapper.appendChild(input);
-                inputWrapper.appendChild(datalist);
 
                 content.appendChild(title);
                 content.appendChild(message);
