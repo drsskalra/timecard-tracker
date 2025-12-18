@@ -3335,6 +3335,21 @@
             row.dataset.origTask = origTask;
             row.dataset.origDayTimes = JSON.stringify(origDayTimes);
 
+            // Add Escape key handler to exit edit mode
+            const escapeHandler = function(event) {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    cancelInlineEdit(entryIndex);
+                }
+            };
+            document.addEventListener('keydown', escapeHandler);
+            
+            // Store handler reference for cleanup when switching rows
+            if (!window.inlineEditHandlers) {
+                window.inlineEditHandlers = {};
+            }
+            window.inlineEditHandlers[entryIndex] = escapeHandler;
+
             // Focus the first input
             setTimeout(() => {
                 if (projNameCell && projNameCell.hasAttribute('rowspan')) {
@@ -3488,6 +3503,12 @@
             structuredHistory[newProjectName].projects.add(newProjectNumber);
             structuredHistory[newProjectName].tasks.add(newTask);
 
+            // Remove Escape key handler
+            if (window.inlineEditHandlers && window.inlineEditHandlers[entryIndex]) {
+                document.removeEventListener('keydown', window.inlineEditHandlers[entryIndex]);
+                delete window.inlineEditHandlers[entryIndex];
+            }
+
             // Save and refresh
             saveHistory();
             saveData();
@@ -3504,6 +3525,12 @@
             if (!row) return;
 
             row.classList.remove('edit-mode-active');
+            
+            // Remove Escape key handler
+            if (window.inlineEditHandlers && window.inlineEditHandlers[entryIndex]) {
+                document.removeEventListener('keydown', window.inlineEditHandlers[entryIndex]);
+                delete window.inlineEditHandlers[entryIndex];
+            }
             
             // Refresh the table to restore original state
             updateSummary();
