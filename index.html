@@ -2911,7 +2911,7 @@
             });
 
             // Add grand totals row
-            html += `<tr style="background: #f8f9fa; font-weight: bold; border-top: 3px solid #366092;">`;
+            html += `<tr style="background: var(--section-bg); font-weight: bold; border-top: 3px solid var(--header-bg);">`;
             html += `<td class="edit-column"></td>`; // Empty edit column for grand total row
             html += `<td colspan="3" style="text-align: right; padding-right: 15px;">Grand Total:</td>`;
             
@@ -2931,9 +2931,9 @@
             
             const grandTotal = formatSecondsToHHMMSS(grandTotalSeconds);
             const grandTotalHours = convertToDecimalHours(grandTotal);
-            html += `<td class="day-column" style="text-align: center; background: #366092; color: white;">`;
-            html += `<div class="hours" style="color: white;">${grandTotalHours} hrs</div>`;
-            html += `<div style="font-size: 0.85em; margin-top: 5px; color: white;">Total Week</div>`;
+            html += `<td class="day-column" style="text-align: center; background: var(--header-bg);">`;
+            html += `<div class="hours">${grandTotalHours} hrs</div>`;
+            html += `<div style="font-size: 0.85em; margin-top: 5px;">Total Week</div>`;
             html += `</td>`;
             html += `<td></td>`; // Empty action cell for grand total row
             html += `</tr>`;
