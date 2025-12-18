@@ -560,7 +560,6 @@
 
         .total-row {
             font-weight: bold;
-            background: #f8f9fa !important;
         }
 
         .current-day {
@@ -2911,7 +2910,7 @@
             });
 
             // Add grand totals row
-            html += `<tr style="background: var(--section-bg); font-weight: bold; border-top: 3px solid var(--header-bg);">`;
+            html += `<tr style="font-weight: bold; border-top: 3px solid var(--header-bg);">`;
             html += `<td class="edit-column"></td>`; // Empty edit column for grand total row
             html += `<td colspan="3" style="text-align: right; padding-right: 15px;">Grand Total:</td>`;
             
@@ -2931,7 +2930,7 @@
             
             const grandTotal = formatSecondsToHHMMSS(grandTotalSeconds);
             const grandTotalHours = convertToDecimalHours(grandTotal);
-            html += `<td class="day-column" style="text-align: center; background: var(--header-bg);">`;
+            html += `<td class="day-column" style="text-align: center;">`;
             html += `<div class="hours">${grandTotalHours} hrs</div>`;
             html += `<div style="font-size: 0.85em; margin-top: 5px;">Total Week</div>`;
             html += `</td>`;
