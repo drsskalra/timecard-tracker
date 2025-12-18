@@ -2997,7 +2997,7 @@
             const clockTimeKey = `day${currentDay}_clocktime`;
             const existingClockTime = entry[clockTimeKey] || '';
             
-            let continueFromLast = false;
+            let customStartTime = null;
             if (existingClockTime) {
                 // Get the last time block
                 const blocks = existingClockTime.split(',').map(b => b.trim());
@@ -3011,13 +3011,11 @@
                     `Click "Cancel" to start a new time block from now`
                 );
                 
-                continueFromLast = resumeChoice;
-                
-                if (continueFromLast) {
-                    // Parse the last end time and set startTime to that
+                if (resumeChoice) {
+                    // Parse the last end time
                     const lastEndTime = parseClockTime(lastEnd);
                     if (lastEndTime) {
-                        startTime = lastEndTime.getTime();
+                        customStartTime = lastEndTime.getTime();
                         showAlert(`Continuing from ${lastEnd}`, 'info');
                     }
                 }
@@ -3027,32 +3025,43 @@
             document.querySelector('.timer-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
             // Start the timer automatically
-            if (!continueFromLast) {
-                setTimeout(() => {
+            setTimeout(() => {
+                // If we have a custom start time, set it before starting
+                if (customStartTime !== null) {
+                    startTime = customStartTime;
+                    
+                    // Set up timer UI
+                    timerInterval = setInterval(updateTimer, 1000);
+                    document.getElementById('timerStatus').textContent = 'Timer running (Click time to edit)';
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('projectNameFilter').disabled = true;
+                    document.getElementById('projectName').disabled = true;
+                    document.getElementById('taskName').disabled = true;
+                    document.getElementById('comment').disabled = true;
+                    
+                    // Update displays
+                    updateTimer();
+                    updateWeekView();
+                    
+                    // Set up mini window if active
+                    if (miniWindowActive) {
+                        updateMiniWindowInfo();
+                    }
+                    
+                    // Set up periodic week view refresh
+                    if (!weekViewRefreshInterval) {
+                        weekViewRefreshInterval = setInterval(() => {
+                            if (startTime !== null) {
+                                updateWeekView();
+                            }
+                        }, 5000);
+                    }
+                } else {
+                    // Start timer normally from now
                     startTimer();
-                }, 500);
-            } else {
-                // Timer already started with custom start time
-                timerInterval = setInterval(updateTimer, 1000);
-                document.getElementById('timerStatus').textContent = 'Timer running (Click time to edit)';
-                document.getElementById('startBtn').disabled = true;
-                document.getElementById('stopBtn').disabled = false;
-                document.getElementById('projectNameFilter').disabled = true;
-                document.getElementById('projectName').disabled = true;
-                document.getElementById('taskName').disabled = true;
-                document.getElementById('comment').disabled = true;
-                updateTimer();
-                updateWeekView();
-                
-                // Set up periodic week view refresh
-                if (!weekViewRefreshInterval) {
-                    weekViewRefreshInterval = setInterval(() => {
-                        if (startTime !== null) {
-                            updateWeekView();
-                        }
-                    }, 5000);
                 }
-            }
+            }, 500);
         }
 
         // Find an entry by keys and resume it (used by week-view time-block record buttons)
@@ -6352,30 +6361,48 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
 
                 const runningClass = entry.running ? ' time-block-running' : '';
                 const runningStyle = entry.running ? 'box-shadow: 0 6px 18px rgba(0,0,0,0.45), 0 0 10px rgba(255,255,255,0.12); border: 2px dashed rgba(255,255,255,0.6);' : '';
-                html += `
-                    <div class="time-block${runningClass}" 
-                         draggable="true"
-                         data-project="${entry.projectName}"
-                         data-task="${entry.task}"
-                         data-start="${entry.startTime}"
-                         data-end="${entry.endTime}"
-                         data-day="${entry.dayIndex}"
-                         data-comment="${(entry.comment || '').replace(/"/g, '&quot;')}"
-                         style="top: ${topPercent}%; height: ${heightPercent}%; left: ${leftPercent}%; width: ${widthPercent}%; background: ${colors[colorIndex]}; ${runningStyle}"
-                         title="${entry.projectName} - ${entry.task}\n${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}\nClick to edit, drag to move"
-                         onmousedown="startDragTimeBlock(event, this)"
-                         ondragstart="return false;">
-                        <div class="resize-handle top" onmousedown="startResize(event, this.parentElement, 'top')"></div>
-                        <button class="time-block-delete" onclick="deleteTimeBlock(event, this.parentElement)" title="Delete this entry">×</button>
-                        <button class="time-block-record" onclick="resumeEntryByKeys('${(entry.projectName||'').replace(/'/g, "\\'")}', '${(entry.task||'').replace(/'/g, "\\'")}', '${entry.startTime}', '${entry.endTime}', ${entry.dayIndex})" title="Resume this block">▶</button>
-                        <div class="time-block-content" onclick="editTimeBlock(event, this.parentElement)">
-                            <div class="time-block-project">${entry.projectName}</div>
-                            <div class="time-block-task">${entry.task}${entry.running ? ' (running)' : ''}</div>
-                            <div class="time-block-duration">${entry.startTime} - ${entry.endTime}</div>
+                
+                // For running timer, show just the hourglass icon
+                if (entry.running) {
+                    html += `
+                        <div class="time-block${runningClass}" 
+                             data-project="${entry.projectName}"
+                             data-task="${entry.task}"
+                             data-start="${entry.startTime}"
+                             data-end="${entry.endTime}"
+                             data-day="${entry.dayIndex}"
+                             data-comment="${(entry.comment || '').replace(/"/g, '&quot;')}"
+                             style="top: ${topPercent}%; height: ${heightPercent}%; left: ${leftPercent}%; width: ${widthPercent}%; background: ${colors[colorIndex]}; ${runningStyle} display: flex; align-items: center; justify-content: center; cursor: default;"
+                             title="${entry.projectName} - ${entry.task}\nTimer running: ${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}">
+                            <div style="font-size: 3em; animation: pulse 2s ease-in-out infinite;">⏳</div>
                         </div>
-                        <div class="resize-handle bottom" onmousedown="startResize(event, this.parentElement, 'bottom')"></div>
-                    </div>
-                `;
+                    `;
+                } else {
+                    html += `
+                        <div class="time-block${runningClass}" 
+                             draggable="true"
+                             data-project="${entry.projectName}"
+                             data-task="${entry.task}"
+                             data-start="${entry.startTime}"
+                             data-end="${entry.endTime}"
+                             data-day="${entry.dayIndex}"
+                             data-comment="${(entry.comment || '').replace(/"/g, '&quot;')}"
+                             style="top: ${topPercent}%; height: ${heightPercent}%; left: ${leftPercent}%; width: ${widthPercent}%; background: ${colors[colorIndex]}; ${runningStyle}"
+                             title="${entry.projectName} - ${entry.task}\n${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}\nClick to edit, drag to move"
+                             onmousedown="startDragTimeBlock(event, this)"
+                             ondragstart="return false;">
+                            <div class="resize-handle top" onmousedown="startResize(event, this.parentElement, 'top')"></div>
+                            <button class="time-block-delete" onclick="deleteTimeBlock(event, this.parentElement)" title="Delete this entry">×</button>
+                            <button class="time-block-record" onclick="resumeEntryByKeys('${(entry.projectName||'').replace(/'/g, "\\'")}', '${(entry.task||'').replace(/'/g, "\\'")}', '${entry.startTime}', '${entry.endTime}', ${entry.dayIndex})" title="Resume this block">▶</button>
+                            <div class="time-block-content" onclick="editTimeBlock(event, this.parentElement)">
+                                <div class="time-block-project">${entry.projectName}</div>
+                                <div class="time-block-task">${entry.task}${entry.running ? ' (running)' : ''}</div>
+                                <div class="time-block-duration">${entry.startTime} - ${entry.endTime}</div>
+                            </div>
+                            <div class="resize-handle bottom" onmousedown="startResize(event, this.parentElement, 'bottom')"></div>
+                        </div>
+                    `;
+                }
             });
 
             return html;
