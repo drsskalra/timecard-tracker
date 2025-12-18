@@ -3160,6 +3160,21 @@
                         projNameInput.addEventListener('input', function() {
                             updateInlineEditLists(entryIndex);
                         });
+                        // Show all options on click by temporarily clearing and restoring value
+                        projNameInput.addEventListener('click', function() {
+                            const currentValue = this.value;
+                            this.value = '';
+                            this.focus();
+                            setTimeout(() => {
+                                if (!this.value) {
+                                    this.value = currentValue;
+                                }
+                            }, 10);
+                        });
+                        // Also show on focus
+                        projNameInput.addEventListener('focus', function() {
+                            this.select();
+                        });
                     }
                 }, 50);
             }
@@ -3186,6 +3201,26 @@
             `;
             projNumCell.innerHTML = projectNumberHTML;
             projNumCell.style.cursor = 'default';
+            
+            // Show all options on click
+            setTimeout(() => {
+                const projNumInput = document.getElementById(`inline-proj-num-input-${entryIndex}`);
+                if (projNumInput) {
+                    projNumInput.addEventListener('click', function() {
+                        const currentValue = this.value;
+                        this.value = '';
+                        this.focus();
+                        setTimeout(() => {
+                            if (!this.value) {
+                                this.value = currentValue;
+                            }
+                        }, 10);
+                    });
+                    projNumInput.addEventListener('focus', function() {
+                        this.select();
+                    });
+                }
+            }, 50);
 
             // Replace task cell with input + datalist
             let taskDatalistOptions = tasks.map(t => 
@@ -3209,6 +3244,26 @@
             `;
             taskCell.innerHTML = taskHTML;
             taskCell.style.cursor = 'default';
+            
+            // Show all options on click
+            setTimeout(() => {
+                const taskInput = document.getElementById(`inline-task-input-${entryIndex}`);
+                if (taskInput) {
+                    taskInput.addEventListener('click', function() {
+                        const currentValue = this.value;
+                        this.value = '';
+                        this.focus();
+                        setTimeout(() => {
+                            if (!this.value) {
+                                this.value = currentValue;
+                            }
+                        }, 10);
+                    });
+                    taskInput.addEventListener('focus', function() {
+                        this.select();
+                    });
+                }
+            }, 50);
 
             // Replace day cells with time inputs
             for (let i = 0; i < 5; i++) {
