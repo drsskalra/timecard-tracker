@@ -385,6 +385,36 @@
             border-color: #28a745;
             box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
         }
+        
+        .input-with-clear {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        
+        .input-clear-btn {
+            position: absolute;
+            right: 8px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .input-clear-btn:hover {
+            opacity: 1;
+            background: #c82333;
+        }
 
         .inline-edit-actions {
             display: flex;
@@ -3133,15 +3163,16 @@
                 ).join('');
                 
                 const projectNameHTML = `
-                    <div>
+                    <div class="input-with-clear">
                         <input type="text" 
                                class="inline-edit-input" 
                                id="inline-proj-name-input-${entryIndex}"
                                value="${origProjectName.replace(/"/g, '&quot;')}"
                                list="inline-proj-name-list-${entryIndex}"
                                placeholder="Type or select from dropdown"
-                               style="width: 100%;"
+                               style="width: 100%; padding-right: 32px;"
                                autocomplete="off">
+                        <button type="button" class="input-clear-btn" onclick="event.stopPropagation(); document.getElementById('inline-proj-name-input-${entryIndex}').value=''; document.getElementById('inline-proj-name-input-${entryIndex}').focus();" title="Clear field">✕</button>
                         <datalist id="inline-proj-name-list-${entryIndex}">
                             ${projectNameDatalistOptions}
                         </datalist>
@@ -3185,15 +3216,16 @@
             ).join('');
             
             const projectNumberHTML = `
-                <div>
+                <div class="input-with-clear">
                     <input type="text" 
                            class="inline-edit-input" 
                            id="inline-proj-num-input-${entryIndex}"
                            value="${origProjectNumber.replace(/"/g, '&quot;')}"
                            list="inline-proj-num-list-${entryIndex}"
                            placeholder="Type or select from dropdown"
-                           style="width: 100%;"
+                           style="width: 100%; padding-right: 32px;"
                            autocomplete="off">
+                    <button type="button" class="input-clear-btn" onclick="event.stopPropagation(); document.getElementById('inline-proj-num-input-${entryIndex}').value=''; document.getElementById('inline-proj-num-input-${entryIndex}').focus();" title="Clear field">✕</button>
                     <datalist id="inline-proj-num-list-${entryIndex}">
                         ${projectNumberDatalistOptions}
                     </datalist>
@@ -3228,15 +3260,16 @@
             ).join('');
             
             const taskHTML = `
-                <div>
+                <div class="input-with-clear">
                     <input type="text" 
                            class="inline-edit-input" 
                            id="inline-task-input-${entryIndex}"
                            value="${origTask.replace(/"/g, '&quot;')}"
                            list="inline-task-list-${entryIndex}"
                            placeholder="Type or select from dropdown"
-                           style="width: 100%;"
+                           style="width: 100%; padding-right: 32px;"
                            autocomplete="off">
+                    <button type="button" class="input-clear-btn" onclick="event.stopPropagation(); document.getElementById('inline-task-input-${entryIndex}').value=''; document.getElementById('inline-task-input-${entryIndex}').focus();" title="Clear field">✕</button>
                     <datalist id="inline-task-list-${entryIndex}">
                         ${taskDatalistOptions}
                     </datalist>
