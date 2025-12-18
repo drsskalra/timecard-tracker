@@ -2572,15 +2572,15 @@
                     
                     // Show project name only on first row of each group
                     if (index === 0) {
-                        html += `<td rowspan="${entries.length}" style="cursor: pointer;" onclick="toggleInlineEdit(${entryIndex})" title="Click to edit this row">
+                        html += `<td rowspan="${entries.length}">
                             <span>${entry.projectNameFilter || 'Uncategorized'}</span>
                         </td>`;
                     }
                     
-                    html += `<td style="cursor: pointer;" onclick="toggleInlineEdit(${entryIndex})" title="Click to edit this row">
+                    html += `<td>
                         <span>${entry.project}</span>
                     </td>`;
-                    html += `<td style="cursor: pointer;" onclick="toggleInlineEdit(${entryIndex})" title="Click to edit this row">
+                    html += `<td>
                         <span>${entry.task}</span>
                     </td>`;
                     
