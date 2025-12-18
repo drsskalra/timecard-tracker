@@ -2925,7 +2925,8 @@
                 const dayTotal = formatSecondsToHHMMSS(dayTotals[i]);
                 const dayHours = convertToDecimalHours(dayTotal);
                 const isCurrentDayCell = i + 1 === currentDay;
-                html += `<td class="day-column ${isCurrentDayCell ? 'current-day' : ''}" style="text-align: center; background: var(--header-bg); color: var(--header-text); padding: 15px;">`;
+                const bgColor = isCurrentDayCell ? '#28a745' : 'var(--header-bg)';
+                html += `<td class="day-column ${isCurrentDayCell ? 'current-day' : ''}" style="text-align: center; background: ${bgColor}; color: var(--header-text); padding: 15px;">`;
                 if (dayTotals[i] > 0) {
                     html += `<div class="hours" style="color: var(--header-text) !important;">${dayHours} hrs</div>`;
                 } else {
