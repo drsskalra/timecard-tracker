@@ -6171,7 +6171,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                     if (timeStr !== '00:00:00' && clockTime) {
                         // Parse clock times
                         const clockRanges = clockTime.split(',').map(range => range.trim());
-                        clockRanges.forEach(range => {
+                        clockRanges.forEach((range, rangeIndex) => {
                             const [startStr, endStr] = range.split('-').map(s => s.trim());
                             if (startStr && endStr) {
                                 dayEntries.push({
@@ -6181,22 +6181,48 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                                     startTime: startStr,
                                     endTime: endStr,
                                     comment: comment,
-                                    dayIndex: dayIndex
+                                    dayIndex: dayIndex,
+                                    isLastBlock: rangeIndex === clockRanges.length - 1
                                 });
                             }
                         });
-                        // If timer is running and this is the current day (only show active timer for current day)
-                        if (startTime !== null) {
-                            const todayIndex = getCurrentWeekday();
-                            if (dayIndex === todayIndex) {
-                                // Build a running block using current form values
-                                const runningProject = document.getElementById('projectNameFilter').value.trim() || (lastActiveTask && lastActiveTask.projectNameFilter) || 'Running Task';
-                                const runningProjectNum = document.getElementById('projectName').value.trim() || (lastActiveTask && lastActiveTask.project) || '';
-                                const runningTask = document.getElementById('taskName').value.trim() || (lastActiveTask && lastActiveTask.task) || '';
-                                const startClock = formatClockTime(new Date(startTime));
-                                const nowClock = formatClockTime(new Date());
-                                // Mark comment to indicate running
-                                const liveComment = (document.getElementById('comment') && document.getElementById('comment').value.trim()) || '';
+                    }
+                });
+
+                // If timer is running and this is the current day, handle it ONCE after all blocks are collected
+                if (startTime !== null) {
+                    const todayIndex = getCurrentWeekday();
+                    if (dayIndex === todayIndex) {
+                        const runningProject = document.getElementById('projectNameFilter').value.trim() || (lastActiveTask && lastActiveTask.projectNameFilter) || 'Running Task';
+                        const runningProjectNum = document.getElementById('projectName').value.trim() || (lastActiveTask && lastActiveTask.project) || '';
+                        const runningTask = document.getElementById('taskName').value.trim() || (lastActiveTask && lastActiveTask.task) || '';
+                        const startClock = formatClockTime(new Date(startTime));
+                        const nowClock = formatClockTime(new Date());
+                        const liveComment = (document.getElementById('comment') && document.getElementById('comment').value.trim()) || '';
+                        
+                        // Check if we're continuing from the last block of this entry
+                        const lastBlock = dayEntries.find(e => 
+                            e.projectName === runningProject && 
+                            e.task === runningTask && 
+                            e.dayIndex === dayIndex &&
+                            e.isLastBlock
+                        );
+                        
+                        if (lastBlock) {
+                            // Parse the last block's end time and check if running timer continues from it
+                            const lastEndTime = parseClockTime(lastBlock.endTime);
+                            const timerStartTime = new Date(startTime);
+                            
+                            // If timer started within a few minutes of last block end, we're continuing
+                            const timeDiff = Math.abs(timerStartTime - lastEndTime) / (1000 * 60); // minutes
+                            
+                            if (timeDiff <= 5) {
+                                // Continue the existing block - update its end time and mark as running
+                                lastBlock.endTime = nowClock;
+                                lastBlock.running = true;
+                                lastBlock.comment = liveComment || lastBlock.comment || 'Currently running';
+                            } else {
+                                // Start time is different, add a new running block
                                 dayEntries.push({
                                     projectName: runningProject,
                                     project: runningProjectNum,
@@ -6208,9 +6234,21 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                                     running: true
                                 });
                             }
+                        } else {
+                            // No matching last block, add new running block
+                            dayEntries.push({
+                                projectName: runningProject,
+                                project: runningProjectNum,
+                                task: runningTask,
+                                startTime: startClock,
+                                endTime: nowClock,
+                                comment: liveComment || 'Currently running',
+                                dayIndex: dayIndex,
+                                running: true
+                            });
                         }
                     }
-                });
+                }
 
                 // Calculate day total
                 let dayTotalSeconds = 0;
