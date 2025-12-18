@@ -3029,6 +3029,10 @@
                 // If we have a custom start time, set it before starting
                 if (customStartTime !== null) {
                     startTime = customStartTime;
+                    manualTimeOffset = 0;
+                    
+                    // Update displays immediately
+                    updateTimer();
                     
                     // Set up timer UI
                     timerInterval = setInterval(updateTimer, 1000);
@@ -3040,8 +3044,7 @@
                     document.getElementById('taskName').disabled = true;
                     document.getElementById('comment').disabled = true;
                     
-                    // Update displays
-                    updateTimer();
+                    // Update week view
                     updateWeekView();
                     
                     // Set up mini window if active
