@@ -3076,15 +3076,29 @@
                 taskCell = cells[2];
             }
 
-            // Build datalist options from history
-            const projectNameOptions = Array.from(projectNameHistory).sort().map(item => `<option value="${item}">`).join('');
-            const projectNumberOptions = Array.from(projectHistory).sort().map(item => `<option value="${item}">`).join('');
-            const taskOptions = Array.from(taskHistory).sort().map(item => `<option value="${item}">`).join('');
-
             // Store original values
             const origProjectName = entry.projectNameFilter || '';
             const origProjectNumber = entry.project || '';
             const origTask = entry.task || '';
+
+            // Build datalist options from history
+            const projectNameOptions = Array.from(projectNameHistory).sort().map(item => `<option value="${item}">`).join('');
+            
+            // Build filtered project numbers and tasks based on current project name
+            let projectNumberOptions = '';
+            let taskOptions = '';
+            
+            if (origProjectName && structuredHistory[origProjectName]) {
+                const projSet = structuredHistory[origProjectName].projects;
+                const taskSet = structuredHistory[origProjectName].tasks;
+                const projects = Array.from(projSet instanceof Set ? projSet : new Set(projSet)).sort();
+                const tasks = Array.from(taskSet instanceof Set ? taskSet : new Set(taskSet)).sort();
+                projectNumberOptions = projects.map(p => `<option value="${p}">`).join('');
+                taskOptions = tasks.map(t => `<option value="${t}">`).join('');
+            } else {
+                projectNumberOptions = Array.from(projectHistory).sort().map(item => `<option value="${item}">`).join('');
+                taskOptions = Array.from(taskHistory).sort().map(item => `<option value="${item}">`).join('');
+            }
 
             // Replace project name cell with input (if present)
             if (projNameCell && projNameCell.hasAttribute('rowspan')) {
@@ -3141,10 +3155,11 @@
             const editCell = cells[0];
             editCell.innerHTML = `
                 <div class="inline-edit-actions">
-                    <button class="inline-edit-btn save" onclick="saveInlineEdit(${entryIndex})" title="Save changes">✓</button>
-                    <button class="inline-edit-btn cancel" onclick="cancelInlineEdit(${entryIndex})" title="Cancel">✕</button>
+                    <button class="inline-edit-btn save" onclick="event.stopPropagation(); saveInlineEdit(${entryIndex});" title="Save changes">✓</button>
+                    <button class="inline-edit-btn cancel" onclick="event.stopPropagation(); cancelInlineEdit(${entryIndex});" title="Cancel">✕</button>
                 </div>
             `;
+            editCell.onclick = null;
 
             // Store original values for cancel
             row.dataset.origProjectName = origProjectName;
@@ -3189,11 +3204,11 @@
                 taskList.innerHTML = tasks.map(t => `<option value="${t}">`).join('');
             }
 
-            // Clear dependent fields when project name changes
+            // Clear dependent fields when project name changes (but not if they're empty already)
             const projNumInput = document.getElementById(`inline-proj-num-${entryIndex}`);
             const taskInput = document.getElementById(`inline-task-${entryIndex}`);
-            if (projNumInput) projNumInput.value = '';
-            if (taskInput) taskInput.value = '';
+            if (projNumInput && projNumInput.value) projNumInput.value = '';
+            if (taskInput && taskInput.value) taskInput.value = '';
         }
 
         // Save inline edit changes
