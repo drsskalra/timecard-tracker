@@ -2602,15 +2602,16 @@
                     
                     // Show project name only on first row of each group
                     if (index === 0) {
-                        html += `<td rowspan="${entries.length}">
-                            <span>${entry.projectNameFilter || 'Uncategorized'}</span>
+                        const projectName = entry.projectNameFilter || 'Uncategorized';
+                        html += `<td rowspan="${entries.length}" onclick="copyToClipboard('${projectName.replace(/'/g, "\\'")}', this)" style="cursor: pointer;" title="Click to copy">
+                            <span>${projectName}</span>
                         </td>`;
                     }
                     
-                    html += `<td>
+                    html += `<td onclick="copyToClipboard('${entry.project.replace(/'/g, "\\'")}', this)" style="cursor: pointer;" title="Click to copy">
                         <span>${entry.project}</span>
                     </td>`;
-                    html += `<td>
+                    html += `<td onclick="copyToClipboard('${entry.task.replace(/'/g, "\\'")}', this)" style="cursor: pointer;" title="Click to copy">
                         <span>${entry.task}</span>
                     </td>`;
                     
@@ -2625,11 +2626,11 @@
                         // Only apply green to header, not cells
                         html += `<td class="day-column">`;
                         if (seconds > 0) {
-                            html += `<div>`;
+                            html += `<div onclick="copyToClipboard('${timeStr}', this)" style="cursor: pointer;" title="Click to copy time">`;
                             html += `<span class="hours">${timeStr}</span>`;
                             html += `</div>`;
                             if (comment) {
-                                html += `<div style="cursor: pointer; margin-top: 5px;" onclick="editCell(${entryIndex}, ${i}, 'comment')" title="Click to edit comment">`;
+                                html += `<div style="cursor: pointer; margin-top: 5px;" onclick="event.stopPropagation(); copyToClipboard('${comment.replace(/'/g, "\\'")}', this)" title="Click to copy comment">`;
                                 html += `<span class="comment" data-comment-row="${rowId}">${comment}</span>`;
                                 html += `</div>`;
                             }
@@ -2641,7 +2642,7 @@
                     
                     const totalTime = formatSecondsToHHMMSS(totalSeconds);
                     const totalHours = convertToDecimalHours(totalTime);
-                    html += `<td class="day-column total-row"><span class="hours">${totalHours} hrs</span></td>`;
+                    html += `<td class="day-column total-row" onclick="copyToClipboard('${totalHours}', this)" style="cursor: pointer;" title="Click to copy total hours"><span class="hours">${totalHours} hrs</span></td>`;
                     
                     // Add action buttons
                     html += `<td style="text-align: center; white-space: nowrap;">`;
@@ -3060,6 +3061,58 @@
             } else if (userInput !== null) {
                 showAlert('Delete cancelled - you must type "Delete" exactly to confirm', 'error');
             }
+        }
+
+        // Copy text to clipboard (for table cell clicks)
+        function copyToClipboard(text, cellElement) {
+            // Don't copy if we're in edit mode
+            const row = cellElement.closest('tr');
+            if (row && row.classList.contains('edit-mode-active')) {
+                return;
+            }
+
+            // Copy to clipboard using modern API with fallback
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showCopyFeedback(cellElement);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    fallbackCopyToClipboard(text, cellElement);
+                });
+            } else {
+                fallbackCopyToClipboard(text, cellElement);
+            }
+        }
+
+        // Fallback copy method for older browsers
+        function fallbackCopyToClipboard(text, cellElement) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showCopyFeedback(cellElement);
+            } catch (err) {
+                console.error('Failed to copy:', err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // Show visual feedback when content is copied
+        function showCopyFeedback(element) {
+            const originalBg = element.style.backgroundColor;
+            element.style.backgroundColor = '#4CAF50';
+            element.style.transition = 'background-color 0.3s';
+            
+            setTimeout(() => {
+                element.style.backgroundColor = originalBg;
+                setTimeout(() => {
+                    element.style.transition = '';
+                }, 300);
+            }, 200);
         }
 
         // Toggle inline edit mode for a table row
