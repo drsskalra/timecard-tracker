@@ -1654,7 +1654,162 @@
         }
 
         // Start timer
-        function startTimer() {
+        // Prompt for comment with smart selection from history
+        function promptForComment(currentComment, projectNameFilter, projectNumber, task) {
+            return new Promise((resolve) => {
+                // Get comments from structured history for this project
+                let comments = [];
+                if (projectNameFilter && structuredHistory[projectNameFilter]) {
+                    comments = Array.from(structuredHistory[projectNameFilter].comments);
+                }
+                // If no project-specific comments, use global comment history
+                if (comments.length === 0) {
+                    comments = Array.from(commentHistory);
+                }
+                
+                // Sort comments alphabetically
+                comments.sort();
+
+                // Create modal dialog
+                const dialog = document.createElement('div');
+                dialog.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                `;
+
+                const content = document.createElement('div');
+                content.style.cssText = `
+                    background: white;
+                    padding: 25px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    max-width: 500px;
+                    width: 90%;
+                `;
+
+                const title = document.createElement('h3');
+                title.textContent = 'Comment Required';
+                title.style.cssText = 'margin-top: 0; color: #366092;';
+
+                const message = document.createElement('p');
+                message.textContent = 'Please provide a comment before starting the timer:';
+                message.style.cssText = 'margin-bottom: 15px;';
+
+                const inputWrapper = document.createElement('div');
+                inputWrapper.style.cssText = 'position: relative; margin-bottom: 15px;';
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentComment;
+                input.placeholder = 'Type or select from history...';
+                input.style.cssText = `
+                    width: 100%;
+                    padding: 10px;
+                    border: 2px solid #366092;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    box-sizing: border-box;
+                `;
+                input.setAttribute('list', 'comment-datalist-prompt');
+
+                const datalist = document.createElement('datalist');
+                datalist.id = 'comment-datalist-prompt';
+                comments.forEach(comment => {
+                    const option = document.createElement('option');
+                    option.value = comment;
+                    datalist.appendChild(option);
+                });
+
+                const buttonWrapper = document.createElement('div');
+                buttonWrapper.style.cssText = 'display: flex; gap: 10px; justify-content: flex-end;';
+
+                const cancelBtn = document.createElement('button');
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.style.cssText = `
+                    padding: 10px 20px;
+                    background: #6c757d;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                `;
+                cancelBtn.onclick = () => {
+                    dialog.remove();
+                    resolve(null);
+                };
+
+                const okBtn = document.createElement('button');
+                okBtn.textContent = 'Start Timer';
+                okBtn.style.cssText = `
+                    padding: 10px 20px;
+                    background: #366092;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                `;
+                okBtn.onclick = () => {
+                    const value = input.value.trim();
+                    if (!value) {
+                        input.style.borderColor = 'red';
+                        input.focus();
+                        return;
+                    }
+                    dialog.remove();
+                    resolve(value);
+                };
+
+                // Handle Enter key
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        okBtn.click();
+                    } else if (e.key === 'Escape') {
+                        cancelBtn.click();
+                    }
+                });
+
+                // Show all options on click
+                input.addEventListener('click', function() {
+                    const currentValue = this.value;
+                    this.value = '';
+                    this.focus();
+                    setTimeout(() => {
+                        if (!this.value) {
+                            this.value = currentValue;
+                        }
+                    }, 10);
+                });
+
+                buttonWrapper.appendChild(cancelBtn);
+                buttonWrapper.appendChild(okBtn);
+
+                inputWrapper.appendChild(input);
+                inputWrapper.appendChild(datalist);
+
+                content.appendChild(title);
+                content.appendChild(message);
+                content.appendChild(inputWrapper);
+                content.appendChild(buttonWrapper);
+
+                dialog.appendChild(content);
+                document.body.appendChild(dialog);
+
+                // Focus input
+                setTimeout(() => input.focus(), 100);
+            });
+        }
+
+        async function startTimer() {
             // Prevent starting timer if viewing a different week
             if (weekOffset !== 0) {
                 const message = weekOffset < 0 ? 'a past week' : 'a future week';
@@ -1711,6 +1866,18 @@
                         return;
                     }
                 }
+            }
+
+            // Check if comment is provided, if not prompt user
+            if (!comment) {
+                const userComment = await promptForComment('', projectNameFilter, project, task);
+                if (userComment === null) {
+                    // User cancelled
+                    return;
+                }
+                comment = userComment;
+                // Update the comment field
+                document.getElementById('comment').value = comment;
             }
 
             // Save to history
@@ -2695,7 +2862,7 @@
         }
 
         // Resume entry from summary table
-        function resumeEntry(entryIndex) {
+        async function resumeEntry(entryIndex) {
             // Check if timer is currently running
             if (startTime !== null) {
                 if (!confirm('A timer is already running. Do you want to stop it and start a new one?')) {
@@ -2714,7 +2881,14 @@
             document.getElementById('projectNameFilter').value = entry.projectNameFilter || '';
             document.getElementById('projectName').value = entry.project || '';
             document.getElementById('taskName').value = entry.task || '';
-            document.getElementById('comment').value = '';
+            
+            // Prompt for comment before resuming
+            const userComment = await promptForComment('', entry.projectNameFilter || '', entry.project || '', entry.task || '');
+            if (userComment === null) {
+                // User cancelled
+                return;
+            }
+            document.getElementById('comment').value = userComment;
 
             // Update dropdowns to reflect the selection
             updateDropdowns();
