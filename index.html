@@ -3283,12 +3283,17 @@
 
         // Toggle timer from PiP window
         async function toggleTimerFromPip() {
-            if (startTime !== null) {
-                // Timer is running - stop it
-                stopTimer();
-            } else {
-                // Timer is not running - start it from PiP
-                await resumeLastJobFromPip();
+            try {
+                if (startTime !== null) {
+                    // Timer is running - stop it
+                    stopTimer();
+                } else {
+                    // Timer is not running - start it from PiP
+                    await resumeLastJobFromPip();
+                }
+            } catch (error) {
+                console.error('Error in toggleTimerFromPip:', error);
+                alert('Error toggling timer: ' + error.message);
             }
         }
 
@@ -3394,45 +3399,40 @@
             }
 
             // Start the timer
-            if (customStartTime !== null) {
-                // Set startTime first before anything else
-                startTime = customStartTime;
-                manualTimeOffset = 0;
-                
-                // Set up timer UI
-                document.getElementById('startBtn').disabled = true;
-                document.getElementById('stopBtn').disabled = false;
-                document.getElementById('projectNameFilter').disabled = true;
-                document.getElementById('projectName').disabled = true;
-                document.getElementById('taskName').disabled = true;
-                document.getElementById('comment').disabled = true;
-                document.getElementById('timerStatus').textContent = 'Timer running (Click time to edit)';
-                
-                // Update displays immediately
-                updateTimer();
-                
-                // Update week view immediately since startTime is now set
-                updateWeekView();
-                
-                // Set up timer interval
-                timerInterval = setInterval(updateTimer, 1000);
-                
-                // Set up mini window if active
-                if (miniWindowActive) {
-                    updateMiniWindowInfo();
-                }
-                
-                // Set up periodic week view refresh
-                if (!weekViewRefreshInterval) {
-                    weekViewRefreshInterval = setInterval(() => {
-                        if (startTime !== null) {
-                            updateWeekView();
-                        }
-                    }, 5000);
-                }
-            } else {
-                // Start timer normally from now
-                startTimer();
+            // Set startTime (either custom or current time)
+            startTime = customStartTime !== null ? customStartTime : Date.now();
+            manualTimeOffset = 0;
+            
+            // Set up timer UI
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('projectNameFilter').disabled = true;
+            document.getElementById('projectName').disabled = true;
+            document.getElementById('taskName').disabled = true;
+            document.getElementById('comment').disabled = true;
+            document.getElementById('timerStatus').textContent = 'Timer running (Click time to edit)';
+            
+            // Update displays immediately
+            updateTimer();
+            
+            // Update week view immediately since startTime is now set
+            updateWeekView();
+            
+            // Set up timer interval
+            timerInterval = setInterval(updateTimer, 1000);
+            
+            // Set up mini window if active
+            if (miniWindowActive) {
+                updateMiniWindowInfo();
+            }
+            
+            // Set up periodic week view refresh
+            if (!weekViewRefreshInterval) {
+                weekViewRefreshInterval = setInterval(() => {
+                    if (startTime !== null) {
+                        updateWeekView();
+                    }
+                }, 5000);
             }
         }
 
