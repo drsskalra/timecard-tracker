@@ -3118,7 +3118,8 @@
                                id="inline-proj-name-${entryIndex}" 
                                value="${origProjectName.replace(/"/g, '&quot;')}"
                                list="inline-proj-name-list-${entryIndex}"
-                               placeholder="Project Name">
+                               placeholder="Project Name"
+                               onfocus="this.select()">
                         <datalist id="inline-proj-name-list-${entryIndex}">${projectNameOptions}</datalist>
                     </div>
                 `;
@@ -3128,6 +3129,14 @@
                 // Add listener to filter project numbers and tasks
                 const projNameInput = document.getElementById(`inline-proj-name-${entryIndex}`);
                 projNameInput.addEventListener('input', () => updateInlineEditLists(entryIndex));
+                // Show all options when clicking
+                projNameInput.addEventListener('click', function() {
+                    this.select();
+                    // Trigger dropdown by temporarily clearing and restoring
+                    const val = this.value;
+                    this.value = '';
+                    setTimeout(() => { this.value = val; this.select(); }, 1);
+                });
             }
 
             // Replace project number cell with input
@@ -3138,12 +3147,26 @@
                            id="inline-proj-num-${entryIndex}" 
                            value="${origProjectNumber.replace(/"/g, '&quot;')}"
                            list="inline-proj-num-list-${entryIndex}"
-                           placeholder="Project Number">
+                           placeholder="Project Number"
+                           onfocus="this.select()">
                     <datalist id="inline-proj-num-list-${entryIndex}">${projectNumberOptions}</datalist>
                 </div>
             `;
             projNumCell.innerHTML = projectNumberHTML;
             projNumCell.style.cursor = 'default';
+            
+            // Show all options when clicking
+            setTimeout(() => {
+                const projNumInput = document.getElementById(`inline-proj-num-${entryIndex}`);
+                if (projNumInput) {
+                    projNumInput.addEventListener('click', function() {
+                        this.select();
+                        const val = this.value;
+                        this.value = '';
+                        setTimeout(() => { this.value = val; this.select(); }, 1);
+                    });
+                }
+            }, 50);
 
             // Replace task cell with input
             const taskHTML = `
@@ -3153,12 +3176,26 @@
                            id="inline-task-${entryIndex}" 
                            value="${origTask.replace(/"/g, '&quot;')}"
                            list="inline-task-list-${entryIndex}"
-                           placeholder="Task">
+                           placeholder="Task"
+                           onfocus="this.select()">
                     <datalist id="inline-task-list-${entryIndex}">${taskOptions}</datalist>
                 </div>
             `;
             taskCell.innerHTML = taskHTML;
             taskCell.style.cursor = 'default';
+            
+            // Show all options when clicking
+            setTimeout(() => {
+                const taskInput = document.getElementById(`inline-task-${entryIndex}`);
+                if (taskInput) {
+                    taskInput.addEventListener('click', function() {
+                        this.select();
+                        const val = this.value;
+                        this.value = '';
+                        setTimeout(() => { this.value = val; this.select(); }, 1);
+                    });
+                }
+            }, 50);
 
             // Add save/cancel buttons to the edit column
             const editCell = cells[0];
