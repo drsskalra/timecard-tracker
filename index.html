@@ -3721,20 +3721,26 @@
             row.dataset.origTask = origTask;
             row.dataset.origDayTimes = JSON.stringify(origDayTimes);
 
-            // Add Escape key handler to exit edit mode
-            const escapeHandler = function(event) {
+            // Add keyboard handlers for inline edit mode
+            const keyboardHandler = function(event) {
+                // Escape to cancel
                 if (event.key === 'Escape') {
                     event.preventDefault();
                     cancelInlineEdit(entryIndex);
                 }
+                // Enter to save (with Ctrl/Cmd for compatibility)
+                else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                    event.preventDefault();
+                    saveInlineEdit(entryIndex);
+                }
             };
-            document.addEventListener('keydown', escapeHandler);
+            document.addEventListener('keydown', keyboardHandler);
             
             // Store handler reference for cleanup when switching rows
             if (!window.inlineEditHandlers) {
                 window.inlineEditHandlers = {};
             }
-            window.inlineEditHandlers[entryIndex] = escapeHandler;
+            window.inlineEditHandlers[entryIndex] = keyboardHandler;
 
             // Focus the first input
             setTimeout(() => {
