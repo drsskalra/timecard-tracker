@@ -3093,9 +3093,18 @@
                 const taskSet = structuredHistory[origProjectName].tasks;
                 const projects = Array.from(projSet instanceof Set ? projSet : new Set(projSet)).sort();
                 const tasks = Array.from(taskSet instanceof Set ? taskSet : new Set(taskSet)).sort();
+                
+                console.log('Filtered dropdowns for:', origProjectName);
+                console.log('Project numbers:', projects);
+                console.log('Tasks:', tasks);
+                
                 projectNumberOptions = projects.map(p => `<option value="${p}">`).join('');
                 taskOptions = tasks.map(t => `<option value="${t}">`).join('');
             } else {
+                console.log('No structured history found for:', origProjectName);
+                console.log('Using all history - projects:', Array.from(projectHistory));
+                console.log('Using all history - tasks:', Array.from(taskHistory));
+                
                 projectNumberOptions = Array.from(projectHistory).sort().map(item => `<option value="${item}">`).join('');
                 taskOptions = Array.from(taskHistory).sort().map(item => `<option value="${item}">`).join('');
             }
@@ -3476,6 +3485,11 @@
                             };
                         });
                     }
+                    
+                    console.log('Loaded structured history:', structuredHistory);
+                    console.log('Total project names:', projectNameHistory.size);
+                    console.log('Total projects:', projectHistory.size);
+                    console.log('Total tasks:', taskHistory.size);
                 } catch (e) {
                     console.error('Error loading history:', e);
                     projectNameHistory = new Set();
