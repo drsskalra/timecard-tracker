@@ -4297,12 +4297,16 @@
                                 style="width: 100%; margin-top: 4px; padding: 4px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.85em;"
                                 title="Add new time block for this day">+ Add Block</button>
                         ${timeBlocksHTML}
-                        <textarea 
-                            class="inline-edit-input" 
-                            id="inline-day${dayNum}-comment-${entryIndex}" 
-                            placeholder="Add comment..."
-                            style="width: 100%; margin-top: 8px; padding: 4px; font-size: 0.85em; min-height: 40px; resize: vertical; border: 1px solid #ddd; border-radius: 3px;"
-                            title="Comment for this day">${comment.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+                        <div style="position: relative; margin-top: 8px;">
+                            <textarea 
+                                class="inline-edit-input" 
+                                id="inline-day${dayNum}-comment-${entryIndex}" 
+                                placeholder="Type or select comment..."
+                                style="width: 100%; padding: 4px; font-size: 0.85em; min-height: 40px; resize: vertical; border: 1px solid #ddd; border-radius: 3px;"
+                                title="Comment for this day"
+                                autocomplete="off"
+                                data-day="${dayNum}">${comment.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+                        </div>
                     </div>
                 `;
                 dayCell.innerHTML = timeInputHTML;
@@ -4356,6 +4360,16 @@
             }
             window.inlineEditHandlers[entryIndex] = keyboardHandler;
 
+            // Setup comment autocomplete for each day
+            setTimeout(() => {
+                for (let i = 1; i <= 5; i++) {
+                    const commentTextarea = document.getElementById(`inline-day${i}-comment-${entryIndex}`);
+                    if (commentTextarea) {
+                        setupCommentAutocomplete(commentTextarea, entryIndex, entry.projectNameFilter || '');
+                    }
+                }
+            }, 50);
+
             // Focus the first input
             setTimeout(() => {
                 if (projNameCell && projNameCell.hasAttribute('rowspan')) {
@@ -4366,6 +4380,120 @@
                     if (input) input.focus();
                 }
             }, 100);
+        }
+
+        // Setup comment autocomplete dropdown for inline edit
+        function setupCommentAutocomplete(textarea, entryIndex, projectName) {
+            let dropdown = document.getElementById(`comment-dropdown-${entryIndex}-${textarea.dataset.day}`);
+            
+            // Create dropdown if it doesn't exist
+            if (!dropdown) {
+                dropdown = document.createElement('div');
+                dropdown.id = `comment-dropdown-${entryIndex}-${textarea.dataset.day}`;
+                dropdown.className = 'comment-dropdown';
+                dropdown.style.cssText = 'position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 1000; display: none;';
+                textarea.parentElement.appendChild(dropdown);
+            }
+
+            let selectedIndex = -1;
+
+            // Show dropdown on focus
+            textarea.addEventListener('focus', function() {
+                showCommentSuggestions(textarea, dropdown, projectName);
+            });
+
+            // Filter on input
+            textarea.addEventListener('input', function() {
+                showCommentSuggestions(textarea, dropdown, projectName);
+            });
+
+            // Hide dropdown on blur (with delay for clicks)
+            textarea.addEventListener('blur', function() {
+                setTimeout(() => {
+                    dropdown.style.display = 'none';
+                }, 200);
+            });
+
+            // Handle keyboard navigation
+            textarea.addEventListener('keydown', function(e) {
+                const items = dropdown.querySelectorAll('.comment-dropdown-item');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                    updateSelection(items, selectedIndex);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, -1);
+                    updateSelection(items, selectedIndex);
+                } else if (e.key === 'Enter' && selectedIndex >= 0 && dropdown.style.display !== 'none') {
+                    e.preventDefault();
+                    items[selectedIndex].click();
+                } else if (e.key === 'Escape') {
+                    dropdown.style.display = 'none';
+                    selectedIndex = -1;
+                }
+            });
+
+            function updateSelection(items, index) {
+                items.forEach((item, i) => {
+                    if (i === index) {
+                        item.style.background = '#e9ecef';
+                        item.scrollIntoView({ block: 'nearest' });
+                    } else {
+                        item.style.background = 'white';
+                    }
+                });
+            }
+
+            function showCommentSuggestions(textarea, dropdown, projectName) {
+                const currentValue = textarea.value.toLowerCase();
+                let suggestions = [];
+
+                // Get project-specific comments
+                if (projectName && structuredHistory[projectName]) {
+                    suggestions = Array.from(structuredHistory[projectName].comments);
+                } else {
+                    suggestions = Array.from(commentHistory);
+                }
+
+                // Filter by current input
+                if (currentValue) {
+                    suggestions = suggestions.filter(c => c.toLowerCase().includes(currentValue));
+                }
+
+                // Sort alphabetically
+                suggestions.sort((a, b) => a.localeCompare(b));
+
+                // Build dropdown HTML
+                if (suggestions.length > 0) {
+                    dropdown.innerHTML = '';
+                    suggestions.forEach(comment => {
+                        const item = document.createElement('div');
+                        item.className = 'comment-dropdown-item';
+                        item.textContent = comment;
+                        item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee;';
+                        
+                        item.addEventListener('mouseenter', function() {
+                            this.style.background = '#e9ecef';
+                        });
+                        item.addEventListener('mouseleave', function() {
+                            this.style.background = 'white';
+                        });
+                        item.addEventListener('click', function() {
+                            textarea.value = comment;
+                            dropdown.style.display = 'none';
+                            textarea.focus();
+                        });
+                        
+                        dropdown.appendChild(item);
+                    });
+                    dropdown.style.display = 'block';
+                    selectedIndex = -1;
+                } else {
+                    dropdown.style.display = 'none';
+                }
+            }
         }
 
         // Update inline edit datalists based on selected project name
@@ -4565,6 +4693,13 @@
             projectNameHistory.add(newProjectName);
             projectHistory.add(newProjectNumber);
             taskHistory.add(newTask);
+            
+            // Add comments to history
+            newComments.forEach(comment => {
+                if (comment) {
+                    commentHistory.add(comment);
+                }
+            });
 
             // Update structured history
             if (!structuredHistory[newProjectName]) {
@@ -4572,6 +4707,13 @@
             }
             structuredHistory[newProjectName].projects.add(newProjectNumber);
             structuredHistory[newProjectName].tasks.add(newTask);
+            
+            // Add comments to structured history
+            newComments.forEach(comment => {
+                if (comment) {
+                    structuredHistory[newProjectName].comments.add(comment);
+                }
+            });
 
             // Clear temporary time block data
             if (row) {
