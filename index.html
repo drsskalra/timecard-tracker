@@ -4297,6 +4297,12 @@
                                 style="width: 100%; margin-top: 4px; padding: 4px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.85em;"
                                 title="Add new time block for this day">+ Add Block</button>
                         ${timeBlocksHTML}
+                        <textarea 
+                            class="inline-edit-input" 
+                            id="inline-day${dayNum}-comment-${entryIndex}" 
+                            placeholder="Add comment..."
+                            style="width: 100%; margin-top: 8px; padding: 4px; font-size: 0.85em; min-height: 40px; resize: vertical; border: 1px solid #ddd; border-radius: 3px;"
+                            title="Comment for this day">${comment.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
                     </div>
                 `;
                 dayCell.innerHTML = timeInputHTML;
@@ -4318,6 +4324,16 @@
             row.dataset.origProjectNumber = origProjectNumber;
             row.dataset.origTask = origTask;
             row.dataset.origDayTimes = JSON.stringify(origDayTimes);
+            
+            // Store original comments for cancel
+            const origComments = [
+                entry.day1_comment || '',
+                entry.day2_comment || '',
+                entry.day3_comment || '',
+                entry.day4_comment || '',
+                entry.day5_comment || ''
+            ];
+            row.dataset.origComments = JSON.stringify(origComments);
 
             // Add keyboard handlers for inline edit mode
             const keyboardHandler = function(event) {
@@ -4496,6 +4512,13 @@
                 newDayTimes.push(formatSecondsToHHMMSS(totalSeconds));
             }
 
+            // Collect new comments for each day
+            const newComments = [];
+            for (let i = 1; i <= 5; i++) {
+                const commentTextarea = document.getElementById(`inline-day${i}-comment-${entryIndex}`);
+                newComments.push(commentTextarea ? commentTextarea.value.trim() : (entry[`day${i}_comment`] || ''));
+            }
+
             // Validate
             if (!newProjectName || !newProjectNumber || !newTask) {
                 showAlert('Project Name, Project Number, and Task are required!', 'error');
@@ -4510,10 +4533,11 @@
                 hasChanges = true;
             }
             
-            // Check if any day times or clock times changed
+            // Check if any day times, clock times, or comments changed
             for (let i = 0; i < 5; i++) {
                 if (newDayTimes[i] !== (entry[`day${i + 1}_hr`] || '00:00:00') ||
-                    newClockTimes[i] !== (entry[`day${i + 1}_clocktime`] || '')) {
+                    newClockTimes[i] !== (entry[`day${i + 1}_clocktime`] || '') ||
+                    newComments[i] !== (entry[`day${i + 1}_comment`] || '')) {
                     hasChanges = true;
                     break;
                 }
@@ -4530,10 +4554,11 @@
             entry.project = newProjectNumber;
             entry.task = newTask;
             
-            // Update day times and clock times
+            // Update day times, clock times, and comments
             for (let i = 0; i < 5; i++) {
                 entry[`day${i + 1}_hr`] = newDayTimes[i];
                 entry[`day${i + 1}_clocktime`] = newClockTimes[i];
+                entry[`day${i + 1}_comment`] = newComments[i];
             }
 
             // Update history
