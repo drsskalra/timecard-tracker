@@ -241,9 +241,10 @@
             background: var(--input-bg);
             border: 2px solid var(--input-focus);
             border-radius: 5px;
-            box-shadow: 0 4px 6px var(--shadow);
-            z-index: 1000;
+            box-shadow: 0 4px 12px var(--shadow);
+            z-index: 10000;
             display: none;
+            margin-top: 2px;
         }
 
         .comment-dropdown.show {
@@ -444,6 +445,15 @@
 
         .edit-mode-active {
             background: var(--hover-bg) !important;
+        }
+
+        .edit-mode-active td {
+            padding: 12px 8px !important;
+            vertical-align: top;
+        }
+
+        .edit-mode-active .inline-edit-input {
+            min-height: 32px;
         }
 
         .inline-edit-input {
@@ -4303,12 +4313,12 @@
                                    id="inline-day${dayNum}-comment-${entryIndex}"
                                    value="${comment.replace(/"/g, '&quot;')}"
                                    placeholder="Type or select comment..."
-                                   style="width: 100%; padding: 4px 28px 4px 4px; font-size: 0.85em; border: 1px solid #ddd; border-radius: 3px;"
+                                   style="width: 100%; padding: 8px 32px 8px 8px; font-size: 0.9em; border: 2px solid var(--input-border); border-radius: 4px; min-height: 36px;"
                                    title="Comment for this day"
                                    autocomplete="off"
                                    data-day="${dayNum}">
                             <button type="button" class="input-clear-btn" onclick="event.stopPropagation(); document.getElementById('inline-day${dayNum}-comment-${entryIndex}').value=''; document.getElementById('inline-day${dayNum}-comment-${entryIndex}').focus();" title="Clear comment">✕</button>
-                            <div id="inline-comment-dropdown-${entryIndex}-${dayNum}" class="comment-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; max-height: 150px; overflow-y: auto; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 4px; box-shadow: 0 2px 8px var(--shadow); z-index: 1000; display: none;"></div>
+                            <div id="inline-comment-dropdown-${entryIndex}-${dayNum}" class="comment-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; max-height: 180px; overflow-y: auto; background: var(--input-bg); border: 2px solid var(--input-focus); border-radius: 4px; box-shadow: 0 4px 12px var(--shadow); z-index: 10000; display: none; margin-top: 2px;"></div>
                         </div>
                     </div>
                 `;
