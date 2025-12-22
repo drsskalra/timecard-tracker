@@ -207,6 +207,14 @@
             color: var(--text-color);
         }
 
+        .form-group .input-with-clear {
+            width: 100%;
+        }
+
+        .form-group .input-with-clear input {
+            width: 100%;
+        }
+
         .form-group input:focus,
         .form-group textarea:focus {
             outline: none;
@@ -1136,8 +1144,11 @@
                             Project Name * 
                             <span class="history-count" id="projectNameCount"></span>
                         </label>
-                        <input type="text" id="projectNameFilter" placeholder="Enter or select project name" list="projectNameList" required autocomplete="off">
-                        <datalist id="projectNameList"></datalist>
+                        <div class="input-with-clear">
+                            <input type="text" id="projectNameFilter" placeholder="Enter or select project name" list="projectNameList" required autocomplete="off" style="padding-right: 32px;">
+                            <button type="button" class="input-clear-btn" onclick="document.getElementById('projectNameFilter').value=''; document.getElementById('projectName').value=''; document.getElementById('taskName').value=''; document.getElementById('comment').value=''; updateDropdowns(); document.getElementById('projectNameFilter').focus();" title="Clear field">✕</button>
+                            <datalist id="projectNameList"></datalist>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -1145,8 +1156,11 @@
                             Project Number * 
                             <span class="history-count" id="projectCount"></span>
                         </label>
-                        <input type="text" id="projectName" placeholder="Enter or select project number" list="projectList" required autocomplete="off">
-                        <datalist id="projectList"></datalist>
+                        <div class="input-with-clear">
+                            <input type="text" id="projectName" placeholder="Enter or select project number" list="projectList" required autocomplete="off" style="padding-right: 32px;">
+                            <button type="button" class="input-clear-btn" onclick="document.getElementById('projectName').value=''; document.getElementById('projectName').focus();" title="Clear field">✕</button>
+                            <datalist id="projectList"></datalist>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -1154,8 +1168,11 @@
                             Task Name * 
                             <span class="history-count" id="taskCount"></span>
                         </label>
-                        <input type="text" id="taskName" placeholder="Enter or select task name" list="taskList" required autocomplete="off">
-                        <datalist id="taskList"></datalist>
+                        <div class="input-with-clear">
+                            <input type="text" id="taskName" placeholder="Enter or select task name" list="taskList" required autocomplete="off" style="padding-right: 32px;">
+                            <button type="button" class="input-clear-btn" onclick="document.getElementById('taskName').value=''; document.getElementById('taskName').focus();" title="Clear field">✕</button>
+                            <datalist id="taskList"></datalist>
+                        </div>
                     </div>
 
                     <div class="form-group comment-suggestions">
@@ -4994,8 +5011,12 @@
 
         // Setup input listeners for dynamic filtering
         function setupInputListeners() {
+            const projectNameInput = document.getElementById('projectNameFilter');
+            const projectNumberInput = document.getElementById('projectName');
+            const taskNameInput = document.getElementById('taskName');
+
             // When project name filter changes, update other dropdowns and clear dependent fields
-            document.getElementById('projectNameFilter').addEventListener('input', function(e) {
+            projectNameInput.addEventListener('input', function(e) {
                 // Clear dependent fields when project name changes
                 document.getElementById('projectName').value = '';
                 document.getElementById('taskName').value = '';
@@ -5005,8 +5026,25 @@
                 updateDropdowns();
             });
 
+            // Show all options on click by temporarily clearing and restoring value
+            projectNameInput.addEventListener('click', function() {
+                const currentValue = this.value;
+                this.value = '';
+                this.focus();
+                setTimeout(() => {
+                    if (!this.value) {
+                        this.value = currentValue;
+                    }
+                }, 10);
+            });
+
+            // Select all on focus
+            projectNameInput.addEventListener('focus', function() {
+                this.select();
+            });
+
             // Auto-populate from existing entries when project is selected
-            document.getElementById('projectName').addEventListener('input', function(e) {
+            projectNumberInput.addEventListener('input', function(e) {
                 const selectedProjectName = document.getElementById('projectNameFilter').value.trim();
                 const selectedProject = e.target.value;
                 
@@ -5031,6 +5069,40 @@
                         });
                     }
                 }
+            });
+
+            // Show all options on click by temporarily clearing and restoring value
+            projectNumberInput.addEventListener('click', function() {
+                const currentValue = this.value;
+                this.value = '';
+                this.focus();
+                setTimeout(() => {
+                    if (!this.value) {
+                        this.value = currentValue;
+                    }
+                }, 10);
+            });
+
+            // Select all on focus
+            projectNumberInput.addEventListener('focus', function() {
+                this.select();
+            });
+
+            // Show all options on click by temporarily clearing and restoring value
+            taskNameInput.addEventListener('click', function() {
+                const currentValue = this.value;
+                this.value = '';
+                this.focus();
+                setTimeout(() => {
+                    if (!this.value) {
+                        this.value = currentValue;
+                    }
+                }, 10);
+            });
+
+            // Select all on focus
+            taskNameInput.addEventListener('focus', function() {
+                this.select();
             });
 
             // Setup comment dropdown
