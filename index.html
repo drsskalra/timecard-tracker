@@ -4297,15 +4297,18 @@
                                 style="width: 100%; margin-top: 4px; padding: 4px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.85em;"
                                 title="Add new time block for this day">+ Add Block</button>
                         ${timeBlocksHTML}
-                        <div style="position: relative; margin-top: 8px;">
-                            <textarea 
-                                class="inline-edit-input" 
-                                id="inline-day${dayNum}-comment-${entryIndex}" 
-                                placeholder="Type or select comment..."
-                                style="width: 100%; padding: 4px; font-size: 0.85em; min-height: 40px; resize: vertical; border: 1px solid #ddd; border-radius: 3px;"
-                                title="Comment for this day"
-                                autocomplete="off"
-                                data-day="${dayNum}">${comment.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+                        <div class="input-with-clear" style="margin-top: 8px; position: relative;">
+                            <input type="text" 
+                                   class="inline-edit-input" 
+                                   id="inline-day${dayNum}-comment-${entryIndex}"
+                                   value="${comment.replace(/"/g, '&quot;')}"
+                                   placeholder="Type or select comment..."
+                                   style="width: 100%; padding: 4px 28px 4px 4px; font-size: 0.85em; border: 1px solid #ddd; border-radius: 3px;"
+                                   title="Comment for this day"
+                                   autocomplete="off"
+                                   data-day="${dayNum}">
+                            <button type="button" class="input-clear-btn" onclick="event.stopPropagation(); document.getElementById('inline-day${dayNum}-comment-${entryIndex}').value=''; document.getElementById('inline-day${dayNum}-comment-${entryIndex}').focus();" title="Clear comment">✕</button>
+                            <div id="inline-comment-dropdown-${entryIndex}-${dayNum}" class="comment-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; max-height: 150px; overflow-y: auto; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 4px; box-shadow: 0 2px 8px var(--shadow); z-index: 1000; display: none;"></div>
                         </div>
                     </div>
                 `;
@@ -4363,9 +4366,9 @@
             // Setup comment autocomplete for each day
             setTimeout(() => {
                 for (let i = 1; i <= 5; i++) {
-                    const commentTextarea = document.getElementById(`inline-day${i}-comment-${entryIndex}`);
-                    if (commentTextarea) {
-                        setupCommentAutocomplete(commentTextarea, entryIndex, entry.projectNameFilter || '');
+                    const commentInput = document.getElementById(`inline-day${i}-comment-${entryIndex}`);
+                    if (commentInput) {
+                        setupCommentAutocomplete(commentInput, entryIndex, entry.projectNameFilter || '');
                     }
                 }
             }, 50);
@@ -4383,40 +4386,38 @@
         }
 
         // Setup comment autocomplete dropdown for inline edit
-        function setupCommentAutocomplete(textarea, entryIndex, projectName) {
-            let dropdown = document.getElementById(`comment-dropdown-${entryIndex}-${textarea.dataset.day}`);
-            
-            // Create dropdown if it doesn't exist
-            if (!dropdown) {
-                dropdown = document.createElement('div');
-                dropdown.id = `comment-dropdown-${entryIndex}-${textarea.dataset.day}`;
-                dropdown.className = 'comment-dropdown';
-                dropdown.style.cssText = 'position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 1000; display: none;';
-                textarea.parentElement.appendChild(dropdown);
-            }
+        function setupCommentAutocomplete(input, entryIndex, projectName) {
+            const dropdown = document.getElementById(`inline-comment-dropdown-${entryIndex}-${input.dataset.day}`);
+            if (!dropdown) return;
 
             let selectedIndex = -1;
 
             // Show dropdown on focus
-            textarea.addEventListener('focus', function() {
-                showCommentSuggestions(textarea, dropdown, projectName);
+            input.addEventListener('focus', function() {
+                showCommentSuggestions();
+            });
+
+            // Show dropdown on click (for better UX)
+            input.addEventListener('click', function() {
+                showCommentSuggestions();
             });
 
             // Filter on input
-            textarea.addEventListener('input', function() {
-                showCommentSuggestions(textarea, dropdown, projectName);
+            input.addEventListener('input', function() {
+                selectedIndex = -1;
+                showCommentSuggestions();
             });
 
             // Hide dropdown on blur (with delay for clicks)
-            textarea.addEventListener('blur', function() {
+            input.addEventListener('blur', function() {
                 setTimeout(() => {
                     dropdown.style.display = 'none';
                 }, 200);
             });
 
             // Handle keyboard navigation
-            textarea.addEventListener('keydown', function(e) {
-                const items = dropdown.querySelectorAll('.comment-dropdown-item');
+            input.addEventListener('keydown', function(e) {
+                const items = dropdown.querySelectorAll('.comment-option');
                 
                 if (e.key === 'ArrowDown') {
                     e.preventDefault();
@@ -4438,21 +4439,28 @@
             function updateSelection(items, index) {
                 items.forEach((item, i) => {
                     if (i === index) {
-                        item.style.background = '#e9ecef';
+                        item.classList.add('selected');
+                        item.style.background = 'var(--hover-bg)';
                         item.scrollIntoView({ block: 'nearest' });
                     } else {
-                        item.style.background = 'white';
+                        item.classList.remove('selected');
+                        item.style.background = '';
                     }
                 });
             }
 
-            function showCommentSuggestions(textarea, dropdown, projectName) {
-                const currentValue = textarea.value.toLowerCase();
+            function showCommentSuggestions() {
+                const currentValue = input.value.toLowerCase();
                 let suggestions = [];
 
-                // Get project-specific comments
-                if (projectName && structuredHistory[projectName]) {
-                    suggestions = Array.from(structuredHistory[projectName].comments);
+                // Get the current project name from the row
+                const projNameInput = document.getElementById(`inline-proj-name-input-${entryIndex}`);
+                const currentProjectName = projNameInput ? projNameInput.value.trim() : projectName;
+
+                // Get project-specific comments or all comments
+                if (currentProjectName && structuredHistory[currentProjectName]) {
+                    const commentSet = structuredHistory[currentProjectName].comments;
+                    suggestions = Array.from(commentSet instanceof Set ? commentSet : new Set(commentSet));
                 } else {
                     suggestions = Array.from(commentHistory);
                 }
@@ -4470,20 +4478,22 @@
                     dropdown.innerHTML = '';
                     suggestions.forEach(comment => {
                         const item = document.createElement('div');
-                        item.className = 'comment-dropdown-item';
+                        item.className = 'comment-option';
                         item.textContent = comment;
-                        item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee;';
+                        item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-light); color: var(--text-color);';
                         
                         item.addEventListener('mouseenter', function() {
-                            this.style.background = '#e9ecef';
+                            this.style.background = 'var(--hover-bg)';
                         });
                         item.addEventListener('mouseleave', function() {
-                            this.style.background = 'white';
+                            if (!this.classList.contains('selected')) {
+                                this.style.background = '';
+                            }
                         });
                         item.addEventListener('click', function() {
-                            textarea.value = comment;
+                            input.value = comment;
                             dropdown.style.display = 'none';
-                            textarea.focus();
+                            input.focus();
                         });
                         
                         dropdown.appendChild(item);
