@@ -3946,6 +3946,31 @@
                 showAlert('Entry not found!', 'error');
                 return;
             }
+            
+            // Pre-populate form fields with entry's values before opening editor
+            if (entry.projectNameFilter) {
+                document.getElementById('projectNameFilter').value = entry.projectNameFilter;
+                updateDropdowns(); // Update filtered dropdowns
+            }
+            if (entry.project) {
+                document.getElementById('projectName').value = entry.project;
+            }
+            if (entry.task) {
+                document.getElementById('taskName').value = entry.task;
+            }
+            
+            // Find the most recent comment from this entry
+            let lastComment = '';
+            for (let i = 5; i >= 1; i--) {
+                const dayComment = entry[`day${i}_comment`];
+                if (dayComment && dayComment.trim()) {
+                    lastComment = dayComment.trim();
+                    break;
+                }
+            }
+            if (lastComment) {
+                document.getElementById('comment').value = lastComment;
+            }
 
             // Reuse the table edit modal which prompts for Project Name first
             editField(entryIndex, 'projectNameFilter');
@@ -5366,21 +5391,127 @@
                 comments.length > 0 ? `(${comments.length} saved)` : '';
         }
 
+        /**
+         * Auto-populate form fields with last used values for a specific project
+         */
+        function autoPopulateLastUsedValues(projectName) {
+            if (!projectName || !structuredHistory[projectName]) {
+                return;
+            }
+            
+            // Find the most recent entry for this project
+            let mostRecentEntry = null;
+            let mostRecentTimestamp = 0;
+            
+            // Search through all entries to find the most recent one for this project
+            timeEntries.forEach(entry => {
+                if (entry.projectNameFilter === projectName) {
+                    // Check if entry has any time entries (use day1 as indicator)
+                    const hasData = entry.day1_hours || entry.day2_hours || entry.day3_hours || 
+                                   entry.day4_hours || entry.day5_hours;
+                    
+                    if (hasData) {
+                        // Use the entry's index as a simple timestamp proxy
+                        const entryTimestamp = timeEntries.indexOf(entry);
+                        if (entryTimestamp > mostRecentTimestamp) {
+                            mostRecentTimestamp = entryTimestamp;
+                            mostRecentEntry = entry;
+                        }
+                    }
+                }
+            });
+            
+            // If no entry found in current week, check historical weeks
+            if (!mostRecentEntry) {
+                const allWeeks = getAllWeeks();
+                const weekKeys = Object.keys(allWeeks).sort().reverse(); // Most recent first
+                
+                for (const weekKey of weekKeys) {
+                    const weekData = allWeeks[weekKey];
+                    if (weekData && weekData.entries) {
+                        const matchingEntries = weekData.entries.filter(e => 
+                            e.projectNameFilter === projectName
+                        );
+                        
+                        if (matchingEntries.length > 0) {
+                            mostRecentEntry = matchingEntries[matchingEntries.length - 1];
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // If we found a recent entry, use its values
+            if (mostRecentEntry) {
+                const projectInput = document.getElementById('projectName');
+                const taskInput = document.getElementById('taskName');
+                const commentInput = document.getElementById('comment');
+                
+                // Only auto-fill if fields are currently empty
+                if (!projectInput.value && mostRecentEntry.project) {
+                    projectInput.value = mostRecentEntry.project;
+                }
+                
+                if (!taskInput.value && mostRecentEntry.task) {
+                    taskInput.value = mostRecentEntry.task;
+                }
+                
+                // For comment, find the most recent non-empty comment from any day
+                if (!commentInput.value) {
+                    let lastComment = '';
+                    for (let i = 5; i >= 1; i--) {
+                        const dayComment = mostRecentEntry[`day${i}_comment`];
+                        if (dayComment && dayComment.trim()) {
+                            lastComment = dayComment.trim();
+                            break;
+                        }
+                    }
+                    if (lastComment) {
+                        commentInput.value = lastComment;
+                    }
+                }
+                
+                console.log('Auto-populated values for project:', projectName, mostRecentEntry);
+            } else {
+                // No history found, but we have structured history - use first available values
+                const history = structuredHistory[projectName];
+                const projectInput = document.getElementById('projectName');
+                const taskInput = document.getElementById('taskName');
+                
+                if (!projectInput.value && history.projects.size > 0) {
+                    const projects = Array.from(history.projects);
+                    projectInput.value = projects[projects.length - 1]; // Use last added
+                }
+                
+                if (!taskInput.value && history.tasks.size > 0) {
+                    const tasks = Array.from(history.tasks);
+                    taskInput.value = tasks[tasks.length - 1]; // Use last added
+                }
+            }
+        }
+
         // Setup input listeners for dynamic filtering
         function setupInputListeners() {
             const projectNameInput = document.getElementById('projectNameFilter');
             const projectNumberInput = document.getElementById('projectName');
             const taskNameInput = document.getElementById('taskName');
 
-            // When project name filter changes, update other dropdowns and clear dependent fields
+            // When project name filter changes, update other dropdowns and auto-populate last used values
             projectNameInput.addEventListener('input', function(e) {
-                // Clear dependent fields when project name changes
-                document.getElementById('projectName').value = '';
-                document.getElementById('taskName').value = '';
-                document.getElementById('comment').value = '';
+                const selectedProjectName = this.value.trim();
                 
                 // Update dropdowns with filtered data
                 updateDropdowns();
+                
+                // Auto-populate with last used values for this project
+                if (selectedProjectName && structuredHistory[selectedProjectName]) {
+                    autoPopulateLastUsedValues(selectedProjectName);
+                } else {
+                    // Clear dependent fields when project name changes to something not in history
+                    document.getElementById('projectName').value = '';
+                    document.getElementById('taskName').value = '';
+                    document.getElementById('comment').value = '';
+                }
             });
 
             // Show all options on click by temporarily clearing and restoring value
@@ -5400,10 +5531,10 @@
                 this.select();
             });
 
-            // Auto-populate from existing entries when project is selected
+            // Auto-populate task and comment when project number is selected
             projectNumberInput.addEventListener('input', function(e) {
                 const selectedProjectName = document.getElementById('projectNameFilter').value.trim();
-                const selectedProject = e.target.value;
+                const selectedProject = e.target.value.trim();
                 
                 if (selectedProjectName && selectedProject) {
                     // Find matching entries for this project name + project combination
@@ -5413,6 +5544,27 @@
                     );
                     
                     if (matchingEntries.length > 0) {
+                        // Get the most recent entry
+                        const lastEntry = matchingEntries[matchingEntries.length - 1];
+                        
+                        // Auto-populate task and comment from last entry
+                        if (lastEntry.task) {
+                            document.getElementById('taskName').value = lastEntry.task;
+                        }
+                        
+                        // Find the most recent comment from any day
+                        let lastComment = '';
+                        for (let i = 5; i >= 1; i--) {
+                            const comment = lastEntry[`day${i}_comment`];
+                            if (comment && comment.trim()) {
+                                lastComment = comment.trim();
+                                break;
+                            }
+                        }
+                        if (lastComment) {
+                            document.getElementById('comment').value = lastComment;
+                        }
+                        
                         // Get unique tasks for this combination
                         const projectTasks = new Set(matchingEntries.map(entry => entry.task));
                         
@@ -5443,6 +5595,40 @@
             // Select all on focus
             projectNumberInput.addEventListener('focus', function() {
                 this.select();
+            });
+
+            // Auto-populate comment when task is selected
+            taskNameInput.addEventListener('input', function(e) {
+                const selectedProjectName = document.getElementById('projectNameFilter').value.trim();
+                const selectedProject = document.getElementById('projectName').value.trim();
+                const selectedTask = e.target.value.trim();
+                
+                if (selectedProjectName && selectedProject && selectedTask) {
+                    // Find matching entries for this complete combination
+                    const matchingEntries = timeEntries.filter(entry => 
+                        entry.projectNameFilter === selectedProjectName && 
+                        entry.project === selectedProject &&
+                        entry.task === selectedTask
+                    );
+                    
+                    if (matchingEntries.length > 0) {
+                        // Get the most recent entry
+                        const lastEntry = matchingEntries[matchingEntries.length - 1];
+                        
+                        // Find the most recent comment from any day
+                        let lastComment = '';
+                        for (let i = 5; i >= 1; i--) {
+                            const comment = lastEntry[`day${i}_comment`];
+                            if (comment && comment.trim()) {
+                                lastComment = comment.trim();
+                                break;
+                            }
+                        }
+                        if (lastComment) {
+                            document.getElementById('comment').value = lastComment;
+                        }
+                    }
+                }
             });
 
             // Show all options on click by temporarily clearing and restoring value
