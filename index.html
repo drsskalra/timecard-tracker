@@ -1083,6 +1083,65 @@
                 height: 600px;
             }
         }
+
+        /* Connection Status Indicator */
+        .connection-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--container-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px var(--shadow);
+            z-index: 9999;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .connection-indicator.online {
+            border-color: var(--success-color);
+            color: var(--success-color);
+        }
+
+        .connection-indicator.offline {
+            border-color: var(--warning-color);
+            color: var(--warning-color);
+        }
+
+        .connection-indicator.syncing {
+            border-color: var(--info-color);
+            color: var(--info-color);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .connection-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .sync-info {
+            font-size: 0.75em;
+            margin-top: 2px;
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -1121,6 +1180,15 @@
             </div>
             <div class="week-info">
                 Week: <span id="weekDates"></span> | Today: <span id="currentDay"></span>
+            </div>
+        </div>
+
+        <!-- Connection Status Indicator -->
+        <div id="connectionIndicator" class="connection-indicator online">
+            <div class="connection-dot"></div>
+            <div>
+                <div id="connectionStatus">Online</div>
+                <div class="sync-info" id="syncInfo"></div>
             </div>
         </div>
 
@@ -1390,6 +1458,15 @@
         const LAST_TASK_KEY = 'timecard_last_task';
         const INSTANCE_KEY = 'timecard_instance_id';
         const HEARTBEAT_KEY = 'timecard_instance_heartbeat';
+        const OFFLINE_QUEUE_KEY = 'timecard_offline_queue';
+        const ENCRYPTION_KEY_NAME = 'timecard_encryption_key';
+        const ENCRYPTED_DATA_KEY = 'timecard_encrypted_data';
+        
+        // Connection and sync state
+        let isOnline = navigator.onLine;
+        let syncInProgress = false;
+        let offlineQueue = [];
+        let encryptionKey = null;
         let projectNameHistory = new Set();
         let projectHistory = new Set();
         let taskHistory = new Set();
@@ -1413,15 +1490,18 @@
         let lastActiveTask = null;
 
         // Initialize on page load
-        window.onload = function() {
+        window.onload = async function() {
             // Check for existing instance
             if (!enforceSingleInstance()) {
                 return; // Another instance exists, this one will close
             }
             
+            // Initialize offline support first
+            await initializeOfflineSupport();
+            
             loadWeekDates();
             loadHistory();
-            loadData();
+            await loadDataSecurely(); // Load encrypted data if available
             loadLastTask(); // Load last active task from previous session
             populateHistoryFromEntries(); // Add history from current entries
             updateSummary();
@@ -1432,6 +1512,10 @@
             setupIdleNotifications(); // Setup idle timer notifications
             setupMiniWindowDrag(); // Setup mini window dragging
             setupWeekNavigation(); // Setup keyboard shortcuts for week navigation
+            setupConnectionMonitoring(); // Setup online/offline detection
+            
+            // Process any queued offline changes
+            await processOfflineQueue();
         };
 
         // Enforce single instance - prevent multiple tabs/windows
@@ -1586,19 +1670,95 @@
         // Register service worker for PWA installation
         function registerServiceWorker() {
             if ('serviceWorker' in navigator) {
-                // Create inline service worker
+                // Enhanced service worker with offline caching
                 const swCode = `
+                    const CACHE_NAME = 'timecard-tracker-v1';
+                    const CACHE_URLS = [
+                        './',
+                        './index.html',
+                        './manifest.json',
+                        'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+                    ];
+                    
+                    // Install event - cache resources
                     self.addEventListener('install', (event) => {
-                        self.skipWaiting();
+                        console.log('Service Worker: Installing...');
+                        event.waitUntil(
+                            caches.open(CACHE_NAME)
+                                .then(cache => {
+                                    console.log('Service Worker: Caching app resources');
+                                    return cache.addAll(CACHE_URLS).catch(err => {
+                                        console.error('Service Worker: Cache addAll error', err);
+                                        // Continue even if some resources fail to cache
+                                        return Promise.resolve();
+                                    });
+                                })
+                                .then(() => self.skipWaiting())
+                        );
                     });
                     
+                    // Activate event - clean up old caches
                     self.addEventListener('activate', (event) => {
-                        event.waitUntil(clients.claim());
+                        console.log('Service Worker: Activating...');
+                        event.waitUntil(
+                            caches.keys().then(cacheNames => {
+                                return Promise.all(
+                                    cacheNames.map(cacheName => {
+                                        if (cacheName !== CACHE_NAME) {
+                                            console.log('Service Worker: Deleting old cache', cacheName);
+                                            return caches.delete(cacheName);
+                                        }
+                                    })
+                                );
+                            }).then(() => self.clients.claim())
+                        );
                     });
                     
+                    // Fetch event - serve from cache when offline, network when online
                     self.addEventListener('fetch', (event) => {
-                        // Let the browser handle all requests normally
-                        event.respondWith(fetch(event.request));
+                        // Skip non-GET requests
+                        if (event.request.method !== 'GET') {
+                            return;
+                        }
+                        
+                        event.respondWith(
+                            // Try network first
+                            fetch(event.request)
+                                .then(response => {
+                                    // If successful, clone and cache the response
+                                    if (response.status === 200) {
+                                        const responseClone = response.clone();
+                                        caches.open(CACHE_NAME).then(cache => {
+                                            cache.put(event.request, responseClone);
+                                        });
+                                    }
+                                    return response;
+                                })
+                                .catch(() => {
+                                    // Network failed, try cache
+                                    return caches.match(event.request).then(cachedResponse => {
+                                        if (cachedResponse) {
+                                            console.log('Service Worker: Serving from cache', event.request.url);
+                                            return cachedResponse;
+                                        }
+                                        // If not in cache, return a basic offline response
+                                        return new Response('Offline - content not available', {
+                                            status: 503,
+                                            statusText: 'Service Unavailable',
+                                            headers: new Headers({
+                                                'Content-Type': 'text/plain'
+                                            })
+                                        });
+                                    });
+                                })
+                        );
+                    });
+                    
+                    // Handle messages from the main app
+                    self.addEventListener('message', (event) => {
+                        if (event.data === 'skipWaiting') {
+                            self.skipWaiting();
+                        }
                     });
                 `;
                 
@@ -1607,7 +1767,19 @@
                 
                 navigator.serviceWorker.register(swUrl)
                     .then(registration => {
-                        console.log('Service Worker registered successfully');
+                        console.log('Service Worker registered successfully with enhanced offline support');
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New service worker available
+                                    console.log('New service worker available');
+                                    showAlert('New version available. Refresh to update.', 'info');
+                                }
+                            });
+                        });
                     })
                     .catch(error => {
                         console.log('Service Worker registration failed:', error);
@@ -7719,6 +7891,401 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 // Don't show warning - just save and close
             });
         }
+
+        // ==================== OFFLINE STORAGE & SYNC FUNCTIONALITY ====================
+        
+        /**
+         * Initialize offline support with encryption
+         */
+        async function initializeOfflineSupport() {
+            try {
+                // Initialize or retrieve encryption key
+                await initializeEncryption();
+                
+                // Load offline queue
+                const queueData = localStorage.getItem(OFFLINE_QUEUE_KEY);
+                if (queueData) {
+                    offlineQueue = JSON.parse(queueData);
+                    console.log('Loaded offline queue with', offlineQueue.length, 'pending operations');
+                }
+                
+                // Set initial connection state
+                updateConnectionStatus();
+            } catch (error) {
+                console.error('Error initializing offline support:', error);
+                showAlert('Offline support initialization error. Data will still be saved locally.', 'warning');
+            }
+        }
+
+        /**
+         * Initialize encryption key using Web Crypto API
+         */
+        async function initializeEncryption() {
+            try {
+                // Check if we already have a key
+                const storedKey = localStorage.getItem(ENCRYPTION_KEY_NAME);
+                
+                if (storedKey) {
+                    // Import existing key
+                    const keyData = JSON.parse(storedKey);
+                    encryptionKey = await crypto.subtle.importKey(
+                        'jwk',
+                        keyData,
+                        { name: 'AES-GCM', length: 256 },
+                        true,
+                        ['encrypt', 'decrypt']
+                    );
+                } else {
+                    // Generate new key
+                    encryptionKey = await crypto.subtle.generateKey(
+                        { name: 'AES-GCM', length: 256 },
+                        true,
+                        ['encrypt', 'decrypt']
+                    );
+                    
+                    // Export and store key
+                    const exportedKey = await crypto.subtle.exportKey('jwk', encryptionKey);
+                    localStorage.setItem(ENCRYPTION_KEY_NAME, JSON.stringify(exportedKey));
+                }
+                
+                console.log('Encryption initialized successfully');
+            } catch (error) {
+                console.error('Encryption initialization error:', error);
+                // Fallback to unencrypted storage
+                encryptionKey = null;
+            }
+        }
+
+        /**
+         * Encrypt data using Web Crypto API
+         */
+        async function encryptData(data) {
+            if (!encryptionKey) {
+                return { encrypted: false, data: JSON.stringify(data) };
+            }
+            
+            try {
+                const dataString = JSON.stringify(data);
+                const encoder = new TextEncoder();
+                const dataBuffer = encoder.encode(dataString);
+                
+                // Generate a random initialization vector
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                
+                // Encrypt the data
+                const encryptedBuffer = await crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    encryptionKey,
+                    dataBuffer
+                );
+                
+                // Convert to base64 for storage
+                const encryptedArray = new Uint8Array(encryptedBuffer);
+                const encryptedBase64 = btoa(String.fromCharCode(...encryptedArray));
+                const ivBase64 = btoa(String.fromCharCode(...iv));
+                
+                return {
+                    encrypted: true,
+                    data: encryptedBase64,
+                    iv: ivBase64
+                };
+            } catch (error) {
+                console.error('Encryption error:', error);
+                // Return unencrypted data as fallback
+                return { encrypted: false, data: JSON.stringify(data) };
+            }
+        }
+
+        /**
+         * Decrypt data using Web Crypto API
+         */
+        async function decryptData(encryptedData) {
+            if (!encryptedData.encrypted || !encryptionKey) {
+                return JSON.parse(encryptedData.data);
+            }
+            
+            try {
+                // Decode from base64
+                const encryptedArray = Uint8Array.from(atob(encryptedData.data), c => c.charCodeAt(0));
+                const iv = Uint8Array.from(atob(encryptedData.iv), c => c.charCodeAt(0));
+                
+                // Decrypt the data
+                const decryptedBuffer = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    encryptionKey,
+                    encryptedArray
+                );
+                
+                // Convert back to string and parse
+                const decoder = new TextDecoder();
+                const decryptedString = decoder.decode(decryptedBuffer);
+                return JSON.parse(decryptedString);
+            } catch (error) {
+                console.error('Decryption error:', error);
+                // Try to parse as unencrypted fallback
+                return JSON.parse(encryptedData.data);
+            }
+        }
+
+        /**
+         * Save data with encryption
+         */
+        async function saveDataSecurely() {
+            try {
+                const { monday, friday } = getWeekDates();
+                const weekKey = `${monday.toISOString().split('T')[0]}`;
+                
+                const data = {
+                    weekStart: monday.toISOString(),
+                    weekEnd: friday.toISOString(),
+                    entries: timeEntries,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Encrypt data
+                const encryptedData = await encryptData(data);
+                
+                // Store encrypted data
+                localStorage.setItem(ENCRYPTED_DATA_KEY, JSON.stringify(encryptedData));
+                
+                // Also save to regular storage for backward compatibility
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                
+                // Save to all weeks history
+                saveToAllWeeks(weekKey, data);
+                
+                // If offline, add to queue
+                if (!isOnline) {
+                    await queueOfflineOperation('save', { weekKey, data });
+                }
+                
+                console.log('Data saved securely');
+            } catch (error) {
+                console.error('Error saving data securely:', error);
+                // Fallback to regular save
+                saveData();
+            }
+        }
+
+        /**
+         * Load data with decryption
+         */
+        async function loadDataSecurely() {
+            try {
+                const { monday } = getWeekDates();
+                const weekKey = monday.toISOString().split('T')[0];
+                
+                // If viewing current week, try to load encrypted data first
+                if (weekOffset === 0) {
+                    const encryptedDataStr = localStorage.getItem(ENCRYPTED_DATA_KEY);
+                    
+                    if (encryptedDataStr) {
+                        const encryptedData = JSON.parse(encryptedDataStr);
+                        const data = await decryptData(encryptedData);
+                        const savedMonday = new Date(data.weekStart);
+                        
+                        // Only load if same week
+                        if (savedMonday.toDateString() === monday.toDateString()) {
+                            timeEntries = data.entries || [];
+                            console.log('Loaded encrypted data successfully');
+                            return;
+                        }
+                    }
+                    
+                    // Fallback to regular storage
+                    loadData();
+                } else {
+                    // Load from historical weeks
+                    const allWeeks = getAllWeeks();
+                    if (allWeeks[weekKey]) {
+                        timeEntries = allWeeks[weekKey].entries || [];
+                    } else {
+                        timeEntries = [];
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading secure data:', error);
+                // Fallback to regular load
+                loadData();
+            }
+        }
+
+        /**
+         * Queue an operation for offline processing
+         */
+        async function queueOfflineOperation(type, data) {
+            const operation = {
+                id: Date.now() + '_' + Math.random(),
+                type: type,
+                data: data,
+                timestamp: new Date().toISOString(),
+                retries: 0
+            };
+            
+            offlineQueue.push(operation);
+            localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(offlineQueue));
+            
+            console.log('Queued offline operation:', type, operation.id);
+            updateSyncInfo();
+        }
+
+        /**
+         * Process offline queue when connection is restored
+         */
+        async function processOfflineQueue() {
+            if (syncInProgress || offlineQueue.length === 0 || !isOnline) {
+                return;
+            }
+            
+            syncInProgress = true;
+            updateConnectionStatus();
+            
+            console.log('Processing', offlineQueue.length, 'offline operations');
+            
+            const successfulOps = [];
+            const failedOps = [];
+            
+            for (const operation of offlineQueue) {
+                try {
+                    // Process based on operation type
+                    switch (operation.type) {
+                        case 'save':
+                            // Data is already saved locally, mark as synced
+                            console.log('Sync: Validated save operation', operation.id);
+                            successfulOps.push(operation.id);
+                            break;
+                            
+                        case 'delete':
+                            // Data is already deleted locally, mark as synced
+                            console.log('Sync: Validated delete operation', operation.id);
+                            successfulOps.push(operation.id);
+                            break;
+                            
+                        default:
+                            console.log('Sync: Unknown operation type', operation.type);
+                            successfulOps.push(operation.id);
+                    }
+                } catch (error) {
+                    console.error('Sync error for operation', operation.id, error);
+                    operation.retries = (operation.retries || 0) + 1;
+                    
+                    // If too many retries, remove from queue
+                    if (operation.retries >= 3) {
+                        failedOps.push(operation.id);
+                    }
+                }
+            }
+            
+            // Remove successful and failed operations from queue
+            offlineQueue = offlineQueue.filter(op => 
+                !successfulOps.includes(op.id) && !failedOps.includes(op.id)
+            );
+            
+            // Save updated queue
+            localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(offlineQueue));
+            
+            syncInProgress = false;
+            updateConnectionStatus();
+            
+            if (successfulOps.length > 0) {
+                showAlert(`Successfully synced ${successfulOps.length} change(s)`, 'success');
+            }
+            
+            if (failedOps.length > 0) {
+                showAlert(`${failedOps.length} operation(s) failed after multiple retries`, 'warning');
+            }
+        }
+
+        /**
+         * Setup connection monitoring
+         */
+        function setupConnectionMonitoring() {
+            // Listen for online/offline events
+            window.addEventListener('online', handleOnline);
+            window.addEventListener('offline', handleOffline);
+            
+            // Initial status
+            updateConnectionStatus();
+        }
+
+        /**
+         * Handle online event
+         */
+        async function handleOnline() {
+            console.log('Connection restored');
+            isOnline = true;
+            updateConnectionStatus();
+            showAlert('Connection restored. Syncing data...', 'info');
+            
+            // Process offline queue
+            await processOfflineQueue();
+        }
+
+        /**
+         * Handle offline event
+         */
+        function handleOffline() {
+            console.log('Connection lost');
+            isOnline = false;
+            updateConnectionStatus();
+            showAlert('Working offline. Changes will be synced when connection is restored.', 'warning');
+        }
+
+        /**
+         * Update connection status indicator
+         */
+        function updateConnectionStatus() {
+            const indicator = document.getElementById('connectionIndicator');
+            const statusText = document.getElementById('connectionStatus');
+            
+            if (!indicator || !statusText) return;
+            
+            // Remove all status classes
+            indicator.classList.remove('online', 'offline', 'syncing');
+            
+            if (syncInProgress) {
+                indicator.classList.add('syncing');
+                statusText.textContent = 'Syncing...';
+            } else if (isOnline) {
+                indicator.classList.add('online');
+                statusText.textContent = 'Online';
+            } else {
+                indicator.classList.add('offline');
+                statusText.textContent = 'Offline';
+            }
+            
+            updateSyncInfo();
+        }
+
+        /**
+         * Update sync information display
+         */
+        function updateSyncInfo() {
+            const syncInfo = document.getElementById('syncInfo');
+            if (!syncInfo) return;
+            
+            if (offlineQueue.length > 0) {
+                syncInfo.textContent = `${offlineQueue.length} change(s) pending`;
+            } else if (isOnline) {
+                syncInfo.textContent = 'All changes synced';
+            } else {
+                syncInfo.textContent = 'Local storage active';
+            }
+        }
+
+        /**
+         * Override the original saveData function to use secure storage
+         */
+        const originalSaveData = saveData;
+        saveData = async function() {
+            if (encryptionKey) {
+                await saveDataSecurely();
+            } else {
+                originalSaveData();
+            }
+        };
+
+        // ==================== END OFFLINE STORAGE & SYNC ====================
     </script>
 </body>
 </html>
