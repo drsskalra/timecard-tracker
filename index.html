@@ -3389,8 +3389,18 @@
             document.getElementById('projectName').value = entry.project || '';
             document.getElementById('taskName').value = entry.task || '';
             
-            // Prompt for comment before resuming
-            const userComment = await promptForComment('', entry.projectNameFilter || '', entry.project || '', entry.task || '');
+            // Find the most recent comment from this entry
+            let lastComment = '';
+            for (let i = 5; i >= 1; i--) {
+                const dayComment = entry[`day${i}_comment`];
+                if (dayComment && dayComment.trim()) {
+                    lastComment = dayComment.trim();
+                    break;
+                }
+            }
+            
+            // Prompt for comment before resuming, with the last comment as default
+            const userComment = await promptForComment(lastComment, entry.projectNameFilter || '', entry.project || '', entry.task || '');
             if (userComment === null) {
                 // User cancelled
                 return;
