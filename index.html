@@ -8721,31 +8721,48 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
          * Intelligently merge history data (projects, tasks, comments)
          */
         function intelligentMergeHistory(localHistory, cloudHistory) {
-            const local = localHistory ? JSON.parse(localHistory) : { projects: {}, tasks: [], comments: [] };
-            const cloud = cloudHistory ? JSON.parse(cloudHistory) : { projects: {}, tasks: [], comments: [] };
-
-            const merged = {
-                projects: {},
-                tasks: [],
-                comments: []
+            const local = localHistory ? JSON.parse(localHistory) : { 
+                projectNames: [], 
+                projects: [], 
+                tasks: [], 
+                comments: [], 
+                structured: {} 
+            };
+            const cloud = cloudHistory ? JSON.parse(cloudHistory) : { 
+                projectNames: [], 
+                projects: [], 
+                tasks: [], 
+                comments: [], 
+                structured: {} 
             };
 
-            // Merge projects (combine all unique projects)
-            const allProjects = { ...cloud.projects, ...local.projects };
-            for (const [projectName, projectData] of Object.entries(allProjects)) {
-                const localProj = local.projects[projectName] || { numbers: new Set(), tasks: new Set(), comments: new Set() };
-                const cloudProj = cloud.projects[projectName] || { numbers: new Set(), tasks: new Set(), comments: new Set() };
+            const merged = {
+                projectNames: [],
+                projects: [],
+                tasks: [],
+                comments: [],
+                structured: {}
+            };
+
+            // Merge top-level arrays (unique items only)
+            merged.projectNames = [...new Set([...(local.projectNames || []), ...(cloud.projectNames || [])])];
+            merged.projects = [...new Set([...(local.projects || []), ...(cloud.projects || [])])];
+            merged.tasks = [...new Set([...(local.tasks || []), ...(cloud.tasks || [])])];
+            merged.comments = [...new Set([...(local.comments || []), ...(cloud.comments || [])])];
+
+            // Merge structured history (combine all unique items per project)
+            const allProjectNames = new Set([...Object.keys(local.structured || {}), ...Object.keys(cloud.structured || {})]);
+            
+            for (const projectName of allProjectNames) {
+                const localProj = (local.structured || {})[projectName] || { projects: [], tasks: [], comments: [] };
+                const cloudProj = (cloud.structured || {})[projectName] || { projects: [], tasks: [], comments: [] };
                 
-                merged.projects[projectName] = {
-                    numbers: [...new Set([...Array.from(localProj.numbers || []), ...Array.from(cloudProj.numbers || [])])],
-                    tasks: [...new Set([...Array.from(localProj.tasks || []), ...Array.from(cloudProj.tasks || [])])],
-                    comments: [...new Set([...Array.from(localProj.comments || []), ...Array.from(cloudProj.comments || [])])]
+                merged.structured[projectName] = {
+                    projects: [...new Set([...(localProj.projects || []), ...(cloudProj.projects || [])])],
+                    tasks: [...new Set([...(localProj.tasks || []), ...(cloudProj.tasks || [])])],
+                    comments: [...new Set([...(localProj.comments || []), ...(cloudProj.comments || [])])]
                 };
             }
-
-            // Merge tasks and comments (unique items only)
-            merged.tasks = [...new Set([...local.tasks, ...cloud.tasks])];
-            merged.comments = [...new Set([...local.comments, ...cloud.comments])];
 
             return JSON.stringify(merged);
         }
@@ -8863,6 +8880,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             updateSummary();
             updateWeekView();
             loadLastTask();
+            updateDropdowns(); // Update autocomplete options with synced history
         }
 
         /**
