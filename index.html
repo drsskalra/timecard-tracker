@@ -1485,7 +1485,7 @@
         let encryptionKey = null;
         let msalInstance = null;
         let oneDriveAccount = null;
-        let autoSyncEnabled = false;
+        let autoSyncEnabled = true; // Enable auto-sync by default
         let lastSyncTime = null;
         let syncStatus = 'disconnected'; // disconnected, syncing, synced, error
         let projectNameHistory = new Set();
@@ -8540,7 +8540,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             if (settings) {
                 try {
                     const parsed = JSON.parse(settings);
-                    autoSyncEnabled = parsed.autoSync || false;
+                    autoSyncEnabled = parsed.autoSync !== undefined ? parsed.autoSync : true; // Default to true if not set
                     lastSyncTime = parsed.lastSync ? new Date(parsed.lastSync) : null;
                     if (parsed.account) {
                         oneDriveAccount = parsed.account;
@@ -8935,6 +8935,18 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
          */
         window.addEventListener('load', function() {
             initializeMSAL();
+            
+            // Auto-sync from OneDrive on page load if connected
+            setTimeout(async () => {
+                if (oneDriveAccount && autoSyncEnabled) {
+                    try {
+                        await syncFromOneDrive();
+                        console.log('Auto-synced from OneDrive on page load');
+                    } catch (error) {
+                        console.log('Auto-sync on load skipped:', error.message);
+                    }
+                }
+            }, 2000); // Wait 2 seconds after page load
         });
 
         // ==================== END ONEDRIVE CLOUD SYNC ====================
