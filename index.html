@@ -8022,8 +8022,9 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                              style="top: ${topPercent}%; height: ${heightPercent}%; left: ${leftPercent}%; width: ${widthPercent}%; background: ${colors[colorIndex]}; ${runningStyle}"
                              title="${entry.projectName} - ${entry.task}\n${entry.startTime} - ${entry.endTime}\n${entry.comment || 'No comment'}\nClick to edit, drag to move"
                              onmousedown="startDragTimeBlock(event, this)"
+                             ontouchstart="startDragTimeBlock(event, this)"
                              ondragstart="return false;">
-                            <div class="resize-handle top" onmousedown="startResize(event, this.parentElement, 'top')"></div>
+                            <div class="resize-handle top" onmousedown="startResize(event, this.parentElement, 'top')" ontouchstart="startResize(event, this.parentElement, 'top')"></div>
                             <button class="time-block-delete" onclick="deleteTimeBlock(event, this.parentElement)" title="Delete this entry">×</button>
                             <button class="time-block-record" onclick="resumeEntryByKeys('${(entry.projectName||'').replace(/'/g, "\\'")}', '${(entry.task||'').replace(/'/g, "\\'")}', '${entry.startTime}', '${entry.endTime}', ${entry.dayIndex})" title="Resume this block">▶</button>
                             <div class="time-block-content" onclick="editTimeBlock(event, this.parentElement)">
@@ -8031,7 +8032,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                                 <div class="time-block-task">${entry.task}${entry.running ? ' (running)' : ''}</div>
                                 <div class="time-block-duration">${entry.startTime} - ${entry.endTime}</div>
                             </div>
-                            <div class="resize-handle bottom" onmousedown="startResize(event, this.parentElement, 'bottom')"></div>
+                            <div class="resize-handle bottom" onmousedown="startResize(event, this.parentElement, 'bottom')" ontouchstart="startResize(event, this.parentElement, 'bottom')"></div>
                         </div>
                     `;
                 }
@@ -8070,23 +8071,37 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         function startDragTimeBlock(e, block) {
             e.preventDefault();
             draggedBlock = block;
-            dragStartY = e.clientY;
+            
+            // Support both mouse and touch events
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            dragStartY = clientY;
             dragStartTop = parseFloat(block.style.top);
             isBlockDragging = false;
 
             block.classList.add('dragging');
 
+            // Add both mouse and touch event listeners
             document.addEventListener('mousemove', dragTimeBlock);
             document.addEventListener('mouseup', stopDragTimeBlock);
+            document.addEventListener('touchmove', dragTimeBlock, { passive: false });
+            document.addEventListener('touchend', stopDragTimeBlock);
         }
 
         function dragTimeBlock(e) {
             if (!draggedBlock) return;
             
+            // Prevent default for touch events to avoid scrolling
+            if (e.touches) {
+                e.preventDefault();
+            }
+            
             isBlockDragging = true;
             const timeline = draggedBlock.parentElement;
             const timelineRect = timeline.getBoundingClientRect();
-            const deltaY = e.clientY - dragStartY;
+            
+            // Support both mouse and touch events
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const deltaY = clientY - dragStartY;
             const deltaPercent = (deltaY / timelineRect.height) * 100;
             let newTop = dragStartTop + deltaPercent;
 
@@ -8114,8 +8129,11 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         function stopDragTimeBlock(e) {
             if (!draggedBlock) return;
 
+            // Remove both mouse and touch event listeners
             document.removeEventListener('mousemove', dragTimeBlock);
             document.removeEventListener('mouseup', stopDragTimeBlock);
+            document.removeEventListener('touchmove', dragTimeBlock);
+            document.removeEventListener('touchend', stopDragTimeBlock);
 
             if (isBlockDragging) {
                 // Calculate new time based on position
@@ -8219,22 +8237,36 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             
             resizingBlock = block;
             resizeDirection = direction;
-            resizeStartY = e.clientY;
+            
+            // Support both mouse and touch events
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            resizeStartY = clientY;
             resizeStartTop = parseFloat(block.style.top);
             resizeStartHeight = parseFloat(block.style.height);
 
             block.classList.add('dragging');
 
+            // Add both mouse and touch event listeners
             document.addEventListener('mousemove', resizeTimeBlock);
             document.addEventListener('mouseup', stopResize);
+            document.addEventListener('touchmove', resizeTimeBlock, { passive: false });
+            document.addEventListener('touchend', stopResize);
         }
 
         function resizeTimeBlock(e) {
             if (!resizingBlock) return;
+            
+            // Prevent default for touch events to avoid scrolling
+            if (e.touches) {
+                e.preventDefault();
+            }
 
             const timeline = resizingBlock.parentElement;
             const timelineRect = timeline.getBoundingClientRect();
-            const deltaY = e.clientY - resizeStartY;
+            
+            // Support both mouse and touch events
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const deltaY = clientY - resizeStartY;
             const deltaPercent = (deltaY / timelineRect.height) * 100;
 
             const startHour = parseInt(document.getElementById('startHourSelect')?.value || 8);
@@ -8287,8 +8319,11 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         function stopResize(e) {
             if (!resizingBlock) return;
 
+            // Remove both mouse and touch event listeners
             document.removeEventListener('mousemove', resizeTimeBlock);
             document.removeEventListener('mouseup', stopResize);
+            document.removeEventListener('touchmove', resizeTimeBlock);
+            document.removeEventListener('touchend', stopResize);
 
             // Calculate new times
             const startHour = parseInt(document.getElementById('startHourSelect')?.value || 8);
