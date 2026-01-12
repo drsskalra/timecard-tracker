@@ -1376,9 +1376,6 @@
                 <button class="btn btn-primary" onclick="document.getElementById('importFile').click()">
                     📥 Import Data from Previous Export
                 </button>
-                    <button class="btn btn-primary" onclick="document.getElementById('importIcs').click()">
-                        📅 Import from Outlook (.ics)
-                    </button>
                 <button class="btn btn-warning" onclick="openHistoryEditor()">
                     ✏️ Edit History
                 </button>
@@ -1387,9 +1384,6 @@
                 </button>
                 <button class="btn btn-primary" id="syncNowBtn" onclick="syncNow()" style="display: none;">
                     🔄 Sync Now
-                </button>
-                <button class="btn btn-info" id="detectMergeBtn" onclick="detectAndMergeHistoricalData()" style="display: none;">
-                    🔍 Detect & Merge Local Data
                 </button>
             </div>
             
@@ -1400,7 +1394,6 @@
 
             <!-- Hidden file input for import -->
             <input type="file" id="importFile" accept=".xlsx,.xls" style="display: none;" onchange="importFromExcel(event)">
-            <input type="file" id="importIcs" accept=".ics,text/calendar" style="display: none;" onchange="importFromICS(event)">
 
             <!-- Copyright Footer -->
             <div style="text-align: center; margin-top: 30px; padding: 20px; color: #6c757d; font-size: 0.9em; border-top: 1px solid #dee2e6;">
@@ -6044,158 +6037,6 @@
         }
 
         // Import from Outlook .ics file
-        function importFromICS(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const icsText = e.target.result;
-                    const events = parseICS(icsText);
-                    if (!events || events.length === 0) {
-                        showAlert('No events found in the .ics file', 'error');
-                        return;
-                    }
-
-                    // Map events into current week's days
-                    const { monday } = getWeekDates();
-                    let importedCount = 0;
-
-                    events.forEach(ev => {
-                        // We only handle events that overlap Mon-Fri of the current week
-                        const evStart = new Date(ev.dtstart);
-                        const evEnd = new Date(ev.dtend || ev.dtstart);
-
-                        // For recurring events RRULE, we ignore recurrence expansion for now
-                        // Only include single-instance events
-                        for (let dayOffset = 0; dayOffset < 5; dayOffset++) {
-                            const dayDate = new Date(monday);
-                            dayDate.setDate(monday.getDate() + dayOffset);
-
-                            // If event occurs on this day (start before end of day and end after start of day)
-                            const dayStart = new Date(dayDate);
-                            dayStart.setHours(0,0,0,0);
-                            const dayEnd = new Date(dayDate);
-                            dayEnd.setHours(23,59,59,999);
-
-                            if (evEnd <= dayStart || evStart >= dayEnd) continue;
-
-                            // Compute clipped start and end times within the day
-                            const clipStart = evStart < dayStart ? dayStart : evStart;
-                            const clipEnd = evEnd > dayEnd ? dayEnd : evEnd;
-
-                            // Format times as 'H:MM AM/PM'
-                            const startStr = formatClockTime(clipStart);
-                            const endStr = formatClockTime(clipEnd);
-
-                            // Heuristic: split summary into Project - Task if possible
-                            let projectName = ev.summary || 'Calendar Event';
-                            let projectNumber = '';
-                            let task = '';
-                            if (projectName.includes(' - ')) {
-                                const parts = projectName.split(' - ');
-                                projectName = parts[0].trim();
-                                task = parts.slice(1).join(' - ').trim();
-                            } else {
-                                task = projectName;
-                            }
-
-                            // Create or find entry
-                            let entry = timeEntries.find(e => e.projectNameFilter === projectName && e.task === task);
-                            if (!entry) {
-                                entry = { projectNameFilter: projectName, project: projectNumber, task: task };
-                                for (let i = 1; i <= 5; i++) {
-                                    entry[`day${i}_hr`] = '00:00:00';
-                                    entry[`day${i}_comment`] = '';
-                                    entry[`day${i}_clocktime`] = '';
-                                }
-                                timeEntries.push(entry);
-                            }
-
-                            const dayIndex = dayOffset + 1; // Monday=1
-                            const clockKey = `day${dayIndex}_clocktime`;
-                            const existing = entry[clockKey] || '';
-                            const range = `${startStr} - ${endStr}`;
-                            entry[clockKey] = existing ? `${existing}, ${range}` : range;
-
-                            // Recalculate day total
-                            const clockRanges = entry[clockKey].split(',').map(r => r.trim()).filter(r => r);
-                            let totalSeconds = 0;
-                            clockRanges.forEach(rangeItem => {
-                                const [s,e] = rangeItem.split('-').map(x => x.trim());
-                                if (s && e) {
-                                    totalSeconds += (parseTimeToMinutes(e) - parseTimeToMinutes(s)) * 60;
-                                }
-                            });
-                            entry[`day${dayIndex}_hr`] = formatSecondsToHHMMSS(totalSeconds);
-                            importedCount++;
-                        }
-                    });
-
-                    if (importedCount > 0) {
-                        saveData();
-                        updateSummary();
-                        updateWeekView();
-                        showAlert(`Imported ${importedCount} events from calendar`, 'success');
-                    } else {
-                        showAlert('No events imported for the current week', 'info');
-                    }
-
-                } catch (err) {
-                    console.error('ICS import error', err);
-                    showAlert('Error importing .ics file', 'error');
-                }
-            };
-            reader.readAsText(file);
-            event.target.value = '';
-        }
-
-        // Very small ICS parser to extract VEVENT dtstart/dtend/summary (no RRULE or complex parsing)
-        function parseICS(icsText) {
-            const lines = icsText.split(/\r?\n/);
-            const events = [];
-            let current = null;
-
-            lines.forEach(line => {
-                if (line.startsWith('BEGIN:VEVENT')) {
-                    current = {};
-                } else if (line.startsWith('END:VEVENT')) {
-                    if (current) events.push(current);
-                    current = null;
-                } else if (current) {
-                    const idx = line.indexOf(':');
-                    if (idx > -1) {
-                        const key = line.substring(0, idx).split(';')[0];
-                        const val = line.substring(idx+1).trim();
-                        if (key === 'DTSTART') current.dtstart = val;
-                        else if (key === 'DTEND') current.dtend = val;
-                        else if (key === 'SUMMARY') current.summary = val;
-                    }
-                }
-            });
-
-            // Normalize dates
-            return events.map(ev => {
-                const normalize = (v) => {
-                    // Handle basic formats like 20251121T090000Z or 20251121T090000
-                    if (!v) return null;
-                    const m = v.match(/(\d{4})(\d{2})(\d{2})T?(\d{2})(\d{2})(\d{2})Z?/);
-                    if (m) {
-                        return new Date(Date.UTC(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]), parseInt(m[6])));
-                    }
-                    // Fallback parse
-                    const d = new Date(v);
-                    return isNaN(d.getTime()) ? null : d;
-                };
-                return {
-                    dtstart: normalize(ev.dtstart),
-                    dtend: normalize(ev.dtend),
-                    summary: ev.summary || ''
-                };
-            }).filter(e => e.dtstart);
-        }
-
         // Import all weeks from multi-sheet Excel file
         function importAllWeeksFromExcel(workbook) {
             try {
@@ -8982,32 +8823,20 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 }
             }
 
-            // Ask user for confirmation
-            const message = `Found both local and cloud historical data!\n\n` +
-                           `Local data: ${localAllWeeks ? JSON.parse(localAllWeeks) ? Object.keys(JSON.parse(localAllWeeks)).length + ' weeks' : '0 weeks' : '0 weeks'}\n` +
-                           `Cloud data: ${cloudData.allWeeks ? JSON.parse(cloudData.allWeeks) ? Object.keys(JSON.parse(cloudData.allWeeks)).length + ' weeks' : '0 weeks' : '0 weeks'}\n\n` +
-                           `Merge all historical data? This will combine and preserve data from both sources.`;
+            // Automatically merge data
+            const localWeekCount = localAllWeeks ? Object.keys(JSON.parse(localAllWeeks)).length : 0;
+            const cloudWeekCount = cloudData.allWeeks ? Object.keys(JSON.parse(cloudData.allWeeks)).length : 0;
             
-            if (confirm(message)) {
-                console.log('User approved merge, applying merged data...');
-                applyCloudData(mergedData);
-                
-                // Upload merged data back to cloud
-                console.log('Uploading merged data to OneDrive...');
-                await syncToOneDrive();
-                
-                showAlert('Successfully merged local and cloud historical data!', 'success');
-            } else {
-                console.log('User cancelled merge');
-                // Ask which to keep
-                if (confirm('Keep local data? (Cancel to use cloud data)')) {
-                    await syncToOneDrive();
-                    showAlert('Uploaded local data to OneDrive', 'info');
-                } else {
-                    applyCloudData(cloudData);
-                    showAlert('Loaded cloud data', 'info');
-                }
-            }
+            console.log(`Auto-merging: Local ${localWeekCount} weeks + Cloud ${cloudWeekCount} weeks`);
+            console.log('Applying merged data...');
+            applyCloudData(mergedData);
+            
+            // Upload merged data back to cloud
+            console.log('Uploading merged data to OneDrive...');
+            await syncToOneDrive();
+            
+            const finalWeekCount = mergedData.allWeeks ? Object.keys(JSON.parse(mergedData.allWeeks)).length : 0;
+            console.log(`Merge complete: ${finalWeekCount} total weeks synchronized`);
         }
 
         /**
@@ -9040,157 +8869,6 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
          * Detect local historical data and merge with OneDrive
          * This function specifically looks for local data and merges it intelligently
          */
-        async function detectAndMergeHistoricalData() {
-            if (!oneDriveAccount) {
-                showAlert('Please connect to OneDrive first', 'warning');
-                return;
-            }
-
-            if (syncInProgress) {
-                showAlert('Sync already in progress', 'info');
-                return;
-            }
-
-            try {
-                syncInProgress = true;
-                syncStatus = 'syncing';
-                updateSyncUI();
-
-                // Step 1: Detect local historical data
-                const localCurrentWeek = localStorage.getItem(STORAGE_KEY);
-                const localAllWeeks = localStorage.getItem(ALL_WEEKS_KEY);
-                const localHistory = localStorage.getItem(HISTORY_KEY);
-                const localLastTask = localStorage.getItem(LAST_TASK_KEY);
-
-                const localWeekCount = localAllWeeks ? Object.keys(JSON.parse(localAllWeeks)).length : 0;
-                const localHistoryProjects = localHistory ? Object.keys(JSON.parse(localHistory).projects || {}).length : 0;
-
-                console.log('=== Local Historical Data Detection ===');
-                console.log('Current Week Data:', !!localCurrentWeek);
-                console.log('Historical Weeks:', localWeekCount);
-                console.log('History Projects:', localHistoryProjects);
-                console.log('Last Task:', !!localLastTask);
-
-                if (!localCurrentWeek && !localAllWeeks && !localHistory) {
-                    showAlert('No local historical data found to merge', 'info');
-                    syncInProgress = false;
-                    updateSyncUI();
-                    return;
-                }
-
-                // Step 2: Fetch cloud data
-                showAlert('Fetching cloud data...', 'info');
-                const token = await getAccessToken();
-                const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
-                
-                let cloudData = null;
-                try {
-                    const response = await fetch(downloadUrl, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-
-                    if (response.status === 404) {
-                        console.log('No cloud data exists yet');
-                        cloudData = null;
-                    } else if (response.ok) {
-                        cloudData = await response.json();
-                    } else {
-                        throw new Error(`Download failed: ${response.statusText}`);
-                    }
-                } catch (error) {
-                    console.error('Error fetching cloud data:', error);
-                }
-
-                const cloudWeekCount = cloudData && cloudData.allWeeks ? Object.keys(JSON.parse(cloudData.allWeeks)).length : 0;
-                const cloudHistoryProjects = cloudData && cloudData.history ? Object.keys(JSON.parse(cloudData.history).projects || {}).length : 0;
-
-                console.log('=== Cloud Historical Data Detection ===');
-                console.log('Current Week Data:', !!(cloudData && cloudData.currentWeek));
-                console.log('Historical Weeks:', cloudWeekCount);
-                console.log('History Projects:', cloudHistoryProjects);
-
-                // Step 3: Show merge summary
-                const summaryMessage = `📊 Historical Data Detection Summary\n\n` +
-                                      `LOCAL DATA:\n` +
-                                      `  • Current Week: ${localCurrentWeek ? '✓' : '✗'}\n` +
-                                      `  • Historical Weeks: ${localWeekCount}\n` +
-                                      `  • Projects in History: ${localHistoryProjects}\n\n` +
-                                      `CLOUD DATA:\n` +
-                                      `  • Current Week: ${cloudData && cloudData.currentWeek ? '✓' : '✗'}\n` +
-                                      `  • Historical Weeks: ${cloudWeekCount}\n` +
-                                      `  • Projects in History: ${cloudHistoryProjects}\n\n` +
-                                      `Proceed with intelligent merge?`;
-
-                if (!confirm(summaryMessage)) {
-                    showAlert('Merge cancelled by user', 'info');
-                    syncInProgress = false;
-                    updateSyncUI();
-                    return;
-                }
-
-                // Step 4: Perform intelligent merge
-                showAlert('Merging historical data...', 'info');
-                
-                if (!cloudData) {
-                    // No cloud data, just upload local
-                    console.log('No cloud data found, uploading all local data');
-                    await syncToOneDrive();
-                    showAlert(`Successfully uploaded ${localWeekCount} weeks to OneDrive!`, 'success');
-                } else {
-                    // Merge local and cloud data
-                    const mergedData = {
-                        currentWeek: localCurrentWeek || cloudData.currentWeek,
-                        allWeeks: intelligentMergeHistoricalData(localAllWeeks, cloudData.allWeeks),
-                        history: intelligentMergeHistory(localHistory, cloudData.history),
-                        lastTask: localLastTask || cloudData.lastTask,
-                        timestamp: new Date().toISOString()
-                    };
-
-                    // Compare timestamps for current week
-                    if (localCurrentWeek && cloudData.currentWeek) {
-                        try {
-                            const localData = JSON.parse(localCurrentWeek);
-                            const cloudDataParsed = JSON.parse(cloudData.currentWeek);
-                            const localTimestamp = localData.timestamp ? new Date(localData.timestamp) : new Date(0);
-                            const cloudTimestamp = cloudDataParsed.timestamp ? new Date(cloudDataParsed.timestamp) : new Date(0);
-                            
-                            if (cloudTimestamp > localTimestamp) {
-                                mergedData.currentWeek = cloudData.currentWeek;
-                                console.log('Using cloud current week (newer)');
-                            } else {
-                                console.log('Using local current week (newer or same)');
-                            }
-                        } catch (e) {
-                            console.error('Error comparing timestamps:', e);
-                        }
-                    }
-
-                    // Apply merged data
-                    applyCloudData(mergedData);
-                    
-                    // Upload merged data back to cloud
-                    await syncToOneDrive();
-                    
-                    const finalWeekCount = mergedData.allWeeks ? Object.keys(JSON.parse(mergedData.allWeeks)).length : 0;
-                    showAlert(`✅ Successfully merged historical data!\n${finalWeekCount} total weeks now in sync.`, 'success');
-                }
-
-                syncStatus = 'synced';
-                lastSyncTime = new Date();
-                saveSyncSettings();
-                
-            } catch (error) {
-                console.error('Merge error:', error);
-                syncStatus = 'error';
-                showAlert('Merge failed: ' + error.message, 'danger');
-            } finally {
-                syncInProgress = false;
-                updateSyncUI();
-            }
-        }
-
         /**
          * Sync now - bidirectional sync
          */
@@ -9245,7 +8923,6 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         function updateSyncUI() {
             const syncBtn = document.getElementById('oneDriveSyncBtn');
             const syncNowBtn = document.getElementById('syncNowBtn');
-            const detectMergeBtn = document.getElementById('detectMergeBtn');
             const statusDiv = document.getElementById('syncStatus');
             const statusText = document.getElementById('syncStatusText');
 
@@ -9255,7 +8932,6 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 syncBtn.textContent = '☁️ Disconnect OneDrive';
                 syncBtn.className = 'btn btn-secondary';
                 syncNowBtn.style.display = 'inline-block';
-                detectMergeBtn.style.display = 'inline-block';
                 statusDiv.style.display = 'block';
 
                 if (syncStatus === 'syncing') {
@@ -9276,7 +8952,6 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 syncBtn.textContent = '☁️ Connect OneDrive';
                 syncBtn.className = 'btn btn-success';
                 syncNowBtn.style.display = 'none';
-                detectMergeBtn.style.display = 'none';
                 statusDiv.style.display = 'none';
             }
         }
