@@ -8156,10 +8156,16 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 const oldStartTime = draggedBlock.dataset.start;
                 const oldEndTime = draggedBlock.dataset.end;
 
-                // Update the entry in timeEntries
-                updateTimeEntry(projectName, task, oldStartTime, oldEndTime, newStartTime, newEndTime);
-
-                showAlert(`Time updated: ${oldStartTime} - ${oldEndTime} → ${newStartTime} - ${newEndTime}`, 'success');
+                // Ask for confirmation before saving
+                if (confirm(`Update time block?\n\n${projectName} - ${task}\n\nOld time: ${oldStartTime} - ${oldEndTime}\nNew time: ${newStartTime} - ${newEndTime}`)) {
+                    // Update the entry in timeEntries
+                    updateTimeEntry(projectName, task, oldStartTime, oldEndTime, newStartTime, newEndTime);
+                    showAlert(`Time updated: ${oldStartTime} - ${oldEndTime} → ${newStartTime} - ${newEndTime}`, 'success');
+                } else {
+                    // Revert to original position
+                    draggedBlock.style.top = dragStartTop + '%';
+                    updateWeekView();
+                }
             }
 
             draggedBlock.classList.remove('dragging');
@@ -8344,11 +8350,21 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             const task = resizingBlock.dataset.task;
             const oldStartTime = resizingBlock.dataset.start;
             const oldEndTime = resizingBlock.dataset.end;
+            
+            // Store original dimensions for revert
+            const originalTop = resizeStartTop;
+            const originalHeight = resizeStartHeight;
 
-            // Update the entry
-            updateTimeEntry(projectName, task, oldStartTime, oldEndTime, newStartTime, newEndTime);
-
-            showAlert(`Time resized: ${oldStartTime} - ${oldEndTime} → ${newStartTime} - ${newEndTime}`, 'success');
+            // Ask for confirmation before saving
+            if (confirm(`Update time block?\n\n${projectName} - ${task}\n\nOld time: ${oldStartTime} - ${oldEndTime}\nNew time: ${newStartTime} - ${newEndTime}`)) {
+                // Update the entry
+                updateTimeEntry(projectName, task, oldStartTime, oldEndTime, newStartTime, newEndTime);
+                showAlert(`Time resized: ${oldStartTime} - ${oldEndTime} → ${newStartTime} - ${newEndTime}`, 'success');
+            } else {
+                // Revert to original size
+                resizingBlock.style.top = originalTop + '%';
+                resizingBlock.style.height = originalHeight + '%';
+            }
 
             resizingBlock.classList.remove('dragging');
             resizingBlock = null;
