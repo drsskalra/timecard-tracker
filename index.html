@@ -1058,7 +1058,147 @@
             padding: 8px 16px;
         }
 
+        /* Mobile Card View Styles */
+        .mobile-card-view {
+            display: none;
+        }
+
+        .timecard-card {
+            background: var(--section-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .timecard-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .timecard-card-title {
+            flex: 1;
+        }
+
+        .timecard-card-title h3 {
+            margin: 0 0 5px 0;
+            color: var(--button-bg);
+            font-size: 1.1em;
+        }
+
+        .timecard-card-title p {
+            margin: 3px 0;
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+
+        .timecard-card-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .timecard-card-actions .action-btn {
+            font-size: 1.5em;
+            padding: 8px;
+            min-width: 44px;
+            min-height: 44px;
+        }
+
+        .timecard-card-days {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .timecard-card-day {
+            background: var(--container-bg);
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .timecard-card-day.has-time {
+            border-color: var(--success-color);
+            background: rgba(40, 167, 69, 0.05);
+        }
+
+        .timecard-card-day.current-day {
+            border-color: var(--button-bg);
+            background: rgba(54, 96, 146, 0.1);
+            border-width: 2px;
+        }
+
+        .timecard-card-day-label {
+            font-weight: 600;
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .timecard-card-day-time {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--button-bg);
+            margin-bottom: 5px;
+        }
+
+        .timecard-card-day-comment {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin-top: 5px;
+            word-wrap: break-word;
+        }
+
+        .timecard-card-total {
+            background: var(--header-bg);
+            color: var(--header-text);
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .timecard-card-edit-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .timecard-card-edit-btn:active {
+            transform: scale(0.98);
+        }
+
         @media (max-width: 768px) {
+            /* Hide table, show card view on mobile */
+            .timecard-table {
+                display: none !important;
+            }
+
+            .mobile-card-view {
+                display: block;
+            }
+
             /* Main container adjustments */
             .main-content {
                 padding: 15px;
@@ -1143,29 +1283,19 @@
                 margin-bottom: 10px;
             }
 
-            /* Table responsive - horizontal scroll */
-            .timecard-table-container {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                margin: 0 -15px;
-                padding: 0 15px;
+            /* Card view optimizations for mobile */
+            .timecard-card-days {
+                grid-template-columns: 1fr;
             }
 
-            .timecard-table {
-                font-size: 0.75em;
-                min-width: 800px; /* Ensures horizontal scroll */
+            .timecard-card-header {
+                flex-direction: column;
+                gap: 10px;
             }
 
-            .timecard-table th,
-            .timecard-table td {
-                padding: 6px 4px;
-            }
-
-            /* Time input cells smaller on mobile */
-            .time-input {
-                width: 55px;
-                font-size: 0.85em;
-                padding: 4px;
+            .timecard-card-actions {
+                width: 100%;
+                justify-content: flex-end;
             }
 
             /* View toggle buttons */
@@ -3640,6 +3770,123 @@
 
             html += `</tbody></table>`;
             container.innerHTML = html;
+
+            // Generate mobile card view
+            generateMobileCardView(groupedEntries, days, dayTotals, grandTotalSeconds, currentDay);
+        }
+
+        // Generate mobile-optimized card view
+        function generateMobileCardView(groupedEntries, days, dayTotals, grandTotalSeconds, currentDay) {
+            const container = document.getElementById('summaryContainer');
+            
+            // Create or get mobile card container
+            let mobileContainer = document.getElementById('mobileCardView');
+            if (!mobileContainer) {
+                mobileContainer = document.createElement('div');
+                mobileContainer.id = 'mobileCardView';
+                mobileContainer.className = 'mobile-card-view';
+                container.appendChild(mobileContainer);
+            }
+
+            let cardsHtml = '';
+
+            // Create cards for each entry
+            Object.keys(groupedEntries).sort().forEach(projName => {
+                const entries = groupedEntries[projName];
+
+                entries.forEach((entry, index) => {
+                    const entryIndex = timeEntries.indexOf(entry);
+                    let totalSeconds = 0;
+
+                    cardsHtml += `<div class="timecard-card">`;
+                    
+                    // Card header with project info and actions
+                    cardsHtml += `<div class="timecard-card-header">`;
+                    cardsHtml += `<div class="timecard-card-title">`;
+                    cardsHtml += `<h3>${entry.projectNameFilter || 'Uncategorized'}</h3>`;
+                    cardsHtml += `<p><strong>Project:</strong> ${entry.project}</p>`;
+                    cardsHtml += `<p><strong>Task:</strong> ${entry.task}</p>`;
+                    cardsHtml += `</div>`;
+                    
+                    // Action buttons
+                    cardsHtml += `<div class="timecard-card-actions">`;
+                    cardsHtml += `<button class="action-btn" onclick="resumeEntry(${entryIndex})" title="Resume timing this task">▶️</button>`;
+                    cardsHtml += `<button class="action-btn" style="filter: hue-rotate(310deg) saturate(2);" onclick="deleteEntry(${entryIndex})" title="Delete this entry">🗑️</button>`;
+                    cardsHtml += `</div>`;
+                    cardsHtml += `</div>`;
+
+                    // Days grid
+                    cardsHtml += `<div class="timecard-card-days">`;
+                    for (let i = 1; i <= 5; i++) {
+                        const timeStr = entry[`day${i}_hr`] || '00:00:00';
+                        const seconds = parseHHMMSSToSeconds(timeStr);
+                        const comment = entry[`day${i}_comment`] || '';
+                        totalSeconds += seconds;
+                        
+                        const hasTime = seconds > 0;
+                        const isCurrentDay = i === currentDay;
+                        const dayClass = `timecard-card-day ${hasTime ? 'has-time' : ''} ${isCurrentDay ? 'current-day' : ''}`;
+                        
+                        cardsHtml += `<div class="${dayClass}">`;
+                        cardsHtml += `<div class="timecard-card-day-label">${days[i - 1]}</div>`;
+                        
+                        if (hasTime) {
+                            cardsHtml += `<div class="timecard-card-day-time" onclick="copyToClipboard('${timeStr}', this)" style="cursor: pointer;" title="Tap to copy">${timeStr}</div>`;
+                            if (comment) {
+                                cardsHtml += `<div class="timecard-card-day-comment" onclick="copyToClipboard('${comment.replace(/'/g, "\\'")}', this)" style="cursor: pointer;" title="Tap to copy">${comment}</div>`;
+                            }
+                        } else {
+                            cardsHtml += `<div class="timecard-card-day-time" style="color: #999;">-</div>`;
+                        }
+                        
+                        cardsHtml += `</div>`;
+                    }
+                    cardsHtml += `</div>`;
+
+                    // Card total
+                    const totalTime = formatSecondsToHHMMSS(totalSeconds);
+                    const totalHours = convertToDecimalHours(totalTime);
+                    cardsHtml += `<div class="timecard-card-total">Total: ${totalHours} hrs</div>`;
+                    
+                    // Edit button
+                    cardsHtml += `<button class="timecard-card-edit-btn" onclick="toggleInlineEdit(${entryIndex})">`;
+                    cardsHtml += `<span style="font-size: 1.2em;">✏️</span> Edit Entry`;
+                    cardsHtml += `</button>`;
+                    
+                    cardsHtml += `</div>`;
+                });
+            });
+
+            // Add grand total card
+            const grandTotal = formatSecondsToHHMMSS(grandTotalSeconds);
+            const grandTotalHours = convertToDecimalHours(grandTotal);
+            
+            cardsHtml += `<div class="timecard-card" style="background: var(--header-bg); color: var(--header-text);">`;
+            cardsHtml += `<div class="timecard-card-header" style="border-color: rgba(255,255,255,0.3);">`;
+            cardsHtml += `<div class="timecard-card-title">`;
+            cardsHtml += `<h3 style="color: var(--header-text);">📊 Week Summary</h3>`;
+            cardsHtml += `</div>`;
+            cardsHtml += `</div>`;
+            
+            cardsHtml += `<div class="timecard-card-days">`;
+            for (let i = 0; i < 5; i++) {
+                const dayTotal = formatSecondsToHHMMSS(dayTotals[i]);
+                const dayHours = convertToDecimalHours(dayTotal);
+                const isCurrentDay = i + 1 === currentDay;
+                
+                cardsHtml += `<div class="timecard-card-day ${isCurrentDay ? 'current-day' : ''}" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3);">`;
+                cardsHtml += `<div class="timecard-card-day-label" style="color: var(--header-text);">${days[i]}</div>`;
+                cardsHtml += `<div class="timecard-card-day-time" style="color: var(--header-text);">${dayTotals[i] > 0 ? dayHours + ' hrs' : '-'}</div>`;
+                cardsHtml += `</div>`;
+            }
+            cardsHtml += `</div>`;
+            
+            cardsHtml += `<div class="timecard-card-total" style="font-size: 1.3em; background: rgba(255,255,255,0.15);">`;
+            cardsHtml += `Grand Total: ${grandTotalHours} hrs`;
+            cardsHtml += `</div>`;
+            cardsHtml += `</div>`;
+
+            mobileContainer.innerHTML = cardsHtml;
         }
 
         // Resume entry from summary table
