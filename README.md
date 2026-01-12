@@ -36,6 +36,12 @@ A professional time tracking Progressive Web App (PWA) for managing project time
 - 💾 Download/restore history as JSON backup
 - ✏️ Advanced history editor with project-based organization
 - 🗑️ Delete confirmation for safety (requires typing "Delete")
+- ☁️ **OneDrive Cloud Sync** - Sync data across all your devices
+  - Automatic backup to your personal Microsoft cloud
+  - Real-time synchronization across devices
+  - Offline-first architecture
+  - Secure authentication with Microsoft Account
+  - See [ONEDRIVE_SETUP.md](ONEDRIVE_SETUP.md) for setup instructions
 
 ### Smart Features
 - 🎯 Intelligent autocomplete for projects, tasks, and comments
@@ -57,13 +63,14 @@ A professional time tracking Progressive Web App (PWA) for managing project time
 
 ### Getting Started
 1. Visit the website: [https://drsskalra.github.io/timecard-tracker/](https://drsskalra.github.io/timecard-tracker/)
-2. Enter your project information:
+2. **(Optional) Set up OneDrive Sync**: Follow the [OneDrive Setup Guide](ONEDRIVE_SETUP.md) to enable cloud sync across devices
+3. Enter your project information:
    - Project Name (e.g., "Client A - Website Redesign")
    - Project Number (e.g., "2024-001")
    - Task Name (e.g., "Frontend Development")
-3. Click "Start Timer" to begin tracking time
-4. Click "Stop Timer" when finished with the task
-5. Your entry is automatically saved with clock times
+4. Click "Start Timer" to begin tracking time
+5. Click "Stop Timer" when finished with the task
+6. Your entry is automatically saved with clock times
 
 ### Working with Views
 - **Table View** (default): See all entries in a traditional table format
@@ -90,6 +97,17 @@ A professional time tracking Progressive Web App (PWA) for managing project time
   - **Multi-week files**: Automatically detects and restores all historical weeks
   - Fully restores week view timeline with clock times
   - Updates autocomplete history with all imported projects, tasks, and comments
+
+### Cloud Sync with OneDrive
+- **Connect OneDrive**: Click "☁️ Connect OneDrive" button at the bottom
+  - Sign in with your Microsoft account
+  - Grant permissions for app folder access
+  - See [ONEDRIVE_SETUP.md](ONEDRIVE_SETUP.md) for detailed setup
+- **Sync Now**: Manually sync data with cloud
+- **Auto Sync**: Data automatically syncs after changes
+- **Multi-Device Access**: Use same Microsoft account on all devices to access your data
+- **Offline Support**: App works offline, syncs when connection restored
+- **Conflict Resolution**: Prompts you to choose when cloud and local data differ
 
 ## Installation as PWA
 
@@ -120,7 +138,7 @@ A professional time tracking Progressive Web App (PWA) for managing project time
 
 ## Data Privacy
 
-All data is stored locally in your browser. No information is sent to any server. Your timecard data never leaves your device unless you explicitly export it.
+All data is stored locally in your browser's localStorage. When using OneDrive sync, data is stored in your personal OneDrive app folder that only you and this application can access. No information is sent to any third-party servers. Your timecard data remains private and under your control.
 
 ## Troubleshooting
 
@@ -128,6 +146,9 @@ All data is stored locally in your browser. No information is sent to any server
 - **Data not saving**: Check browser localStorage is enabled
 - **Import issues**: Ensure Excel file was exported from this application
 - **Week view not showing blocks**: Entries need clock time data (start/stop timer to capture)
+- **OneDrive sync not working**: See [ONEDRIVE_SETUP.md](ONEDRIVE_SETUP.md) troubleshooting section
+- **Sync failed**: Check internet connection and try "Sync Now" button
+- **Data not syncing across devices**: Ensure using same Microsoft account on all devices
 
 ## Contributing
 
