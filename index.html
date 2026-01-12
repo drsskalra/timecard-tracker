@@ -5943,6 +5943,7 @@
 
         // Populate history from current timecard entries
         function populateHistoryFromEntries() {
+            // Process current week entries
             timeEntries.forEach(entry => {
                 if (entry.projectNameFilter) projectNameHistory.add(entry.projectNameFilter);
                 if (entry.project) projectHistory.add(entry.project);
@@ -5975,6 +5976,48 @@
                     }
                 }
             });
+            
+            // Process ALL historical weeks
+            const allWeeks = getAllWeeks();
+            Object.keys(allWeeks).forEach(weekKey => {
+                const weekData = allWeeks[weekKey];
+                if (weekData && weekData.entries && Array.isArray(weekData.entries)) {
+                    weekData.entries.forEach(entry => {
+                        if (entry.projectNameFilter) projectNameHistory.add(entry.projectNameFilter);
+                        if (entry.project) projectHistory.add(entry.project);
+                        if (entry.task) taskHistory.add(entry.task);
+                        
+                        // Build structured history
+                        const projName = entry.projectNameFilter || 'Uncategorized';
+                        if (!structuredHistory[projName]) {
+                            structuredHistory[projName] = {
+                                projects: new Set(),
+                                tasks: new Set(),
+                                comments: new Set()
+                            };
+                        }
+                        if (entry.project) structuredHistory[projName].projects.add(entry.project);
+                        if (entry.task) structuredHistory[projName].tasks.add(entry.task);
+                        
+                        // Add all non-empty comments from all days
+                        for (let i = 1; i <= 5; i++) {
+                            const comment = entry[`day${i}_comment`];
+                            if (comment && comment.trim()) {
+                                // Split by semicolon in case multiple comments were concatenated
+                                comment.split(';').forEach(c => {
+                                    const trimmed = c.trim();
+                                    if (trimmed) {
+                                        commentHistory.add(trimmed);
+                                        structuredHistory[projName].comments.add(trimmed);
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+            
+            console.log('History populated from all weeks - Total projects:', projectNameHistory.size, 'Total tasks:', taskHistory.size, 'Total comments:', commentHistory.size);
             saveHistory();
         }
 
