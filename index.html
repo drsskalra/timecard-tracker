@@ -8513,8 +8513,8 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             const msalConfig = {
                 auth: {
                     clientId: 'daa9245c-cf13-41bc-ad1f-ece114571e14', // Replace with your Azure AD app client ID
-                    authority: 'https://login.microsoftonline.com/organizations', // Changed from /common to /organizations for work accounts
-                    redirectUri: window.location.origin
+                    authority: 'https://login.microsoftonline.com/common', // Use /common for both personal and work accounts
+                    redirectUri: 'https://drsskalra.github.io/timecard-tracker/'
                 },
                 cache: {
                     cacheLocation: 'localStorage',
