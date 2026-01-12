@@ -3790,72 +3790,109 @@
 
             let cardsHtml = '';
 
-            // Create cards for each entry
-            Object.keys(groupedEntries).sort().forEach(projName => {
-                const entries = groupedEntries[projName];
-
-                entries.forEach((entry, index) => {
-                    const entryIndex = timeEntries.indexOf(entry);
-                    let totalSeconds = 0;
-
-                    cardsHtml += `<div class="timecard-card">`;
-                    
-                    // Card header with project info and actions
-                    cardsHtml += `<div class="timecard-card-header">`;
-                    cardsHtml += `<div class="timecard-card-title">`;
-                    cardsHtml += `<h3>${entry.projectNameFilter || 'Uncategorized'}</h3>`;
-                    cardsHtml += `<p><strong>Project:</strong> ${entry.project}</p>`;
-                    cardsHtml += `<p><strong>Task:</strong> ${entry.task}</p>`;
-                    cardsHtml += `</div>`;
-                    
-                    // Action buttons
-                    cardsHtml += `<div class="timecard-card-actions">`;
-                    cardsHtml += `<button class="action-btn" onclick="resumeEntry(${entryIndex})" title="Resume timing this task">▶️</button>`;
-                    cardsHtml += `<button class="action-btn" style="filter: hue-rotate(310deg) saturate(2);" onclick="deleteEntry(${entryIndex})" title="Delete this entry">🗑️</button>`;
-                    cardsHtml += `</div>`;
-                    cardsHtml += `</div>`;
-
-                    // Days grid
-                    cardsHtml += `<div class="timecard-card-days">`;
-                    for (let i = 1; i <= 5; i++) {
-                        const timeStr = entry[`day${i}_hr`] || '00:00:00';
+            // Create cards for each day (Monday through Friday)
+            for (let dayIndex = 0; dayIndex < 5; dayIndex++) {
+                const dayNum = dayIndex + 1;
+                const dayName = days[dayIndex];
+                const isCurrentDay = dayNum === currentDay;
+                const dayTotalSeconds = dayTotals[dayIndex];
+                
+                // Collect all entries for this day
+                const dayEntries = [];
+                Object.keys(groupedEntries).sort().forEach(projName => {
+                    const entries = groupedEntries[projName];
+                    entries.forEach(entry => {
+                        const entryIndex = timeEntries.indexOf(entry);
+                        const timeStr = entry[`day${dayNum}_hr`] || '00:00:00';
                         const seconds = parseHHMMSSToSeconds(timeStr);
-                        const comment = entry[`day${i}_comment`] || '';
-                        totalSeconds += seconds;
                         
-                        const hasTime = seconds > 0;
-                        const isCurrentDay = i === currentDay;
-                        const dayClass = `timecard-card-day ${hasTime ? 'has-time' : ''} ${isCurrentDay ? 'current-day' : ''}`;
+                        if (seconds > 0) {
+                            dayEntries.push({
+                                entry: entry,
+                                entryIndex: entryIndex,
+                                timeStr: timeStr,
+                                seconds: seconds,
+                                comment: entry[`day${dayNum}_comment`] || '',
+                                clockTime: entry[`day${dayNum}_clocktime`] || ''
+                            });
+                        }
+                    });
+                });
+
+                // Create day card
+                const cardClass = `timecard-card ${isCurrentDay ? 'current-day' : ''}`;
+                cardsHtml += `<div class="${cardClass}" style="${isCurrentDay ? 'border-color: var(--button-bg); border-width: 3px;' : ''}">`;
+                
+                // Card header with day info
+                cardsHtml += `<div class="timecard-card-header">`;
+                cardsHtml += `<div class="timecard-card-title">`;
+                cardsHtml += `<h3 style="display: flex; align-items: center; gap: 8px;">`;
+                if (isCurrentDay) {
+                    cardsHtml += `<span style="background: var(--button-bg); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.7em;">TODAY</span>`;
+                }
+                cardsHtml += `${dayName}</h3>`;
+                const dayTotalHours = convertToDecimalHours(formatSecondsToHHMMSS(dayTotalSeconds));
+                cardsHtml += `<p style="font-size: 1.1em; font-weight: 600; color: var(--button-bg);">Total: ${dayTotalHours} hrs</p>`;
+                cardsHtml += `</div>`;
+                cardsHtml += `</div>`;
+
+                // Show entries for this day
+                if (dayEntries.length > 0) {
+                    cardsHtml += `<div style="display: flex; flex-direction: column; gap: 12px;">`;
+                    
+                    dayEntries.forEach(item => {
+                        cardsHtml += `<div style="background: var(--container-bg); border: 1px solid var(--border-light); border-radius: 6px; padding: 12px;">`;
                         
-                        cardsHtml += `<div class="${dayClass}">`;
-                        cardsHtml += `<div class="timecard-card-day-label">${days[i - 1]}</div>`;
+                        // Project info and time
+                        cardsHtml += `<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">`;
+                        cardsHtml += `<div style="flex: 1;">`;
+                        cardsHtml += `<div style="font-weight: 600; color: var(--text-color); margin-bottom: 4px;">${item.entry.projectNameFilter || 'Uncategorized'}</div>`;
+                        cardsHtml += `<div style="font-size: 0.85em; color: var(--text-secondary);">Project: ${item.entry.project}</div>`;
+                        cardsHtml += `<div style="font-size: 0.85em; color: var(--text-secondary);">Task: ${item.entry.task}</div>`;
+                        cardsHtml += `</div>`;
                         
-                        if (hasTime) {
-                            cardsHtml += `<div class="timecard-card-day-time" onclick="copyToClipboard('${timeStr}', this)" style="cursor: pointer;" title="Tap to copy">${timeStr}</div>`;
-                            if (comment) {
-                                cardsHtml += `<div class="timecard-card-day-comment" onclick="copyToClipboard('${comment.replace(/'/g, "\\'")}', this)" style="cursor: pointer;" title="Tap to copy">${comment}</div>`;
-                            }
-                        } else {
-                            cardsHtml += `<div class="timecard-card-day-time" style="color: #999;">-</div>`;
+                        // Time display
+                        cardsHtml += `<div style="text-align: right;">`;
+                        cardsHtml += `<div style="font-size: 1.3em; font-weight: 600; color: var(--button-bg);" onclick="copyToClipboard('${item.timeStr}', this)" title="Tap to copy">${item.timeStr}</div>`;
+                        const hours = convertToDecimalHours(item.timeStr);
+                        cardsHtml += `<div style="font-size: 0.85em; color: var(--text-secondary);">${hours} hrs</div>`;
+                        cardsHtml += `</div>`;
+                        cardsHtml += `</div>`;
+                        
+                        // Comment if exists
+                        if (item.comment) {
+                            cardsHtml += `<div style="font-size: 0.85em; color: var(--text-secondary); font-style: italic; padding: 8px; background: var(--section-bg); border-radius: 4px; margin-bottom: 8px;" onclick="copyToClipboard('${item.comment.replace(/'/g, "\\'")}', this)" title="Tap to copy">`;
+                            cardsHtml += `💬 ${item.comment}`;
+                            cardsHtml += `</div>`;
                         }
                         
+                        // Clock time if exists
+                        if (item.clockTime) {
+                            cardsHtml += `<div style="font-size: 0.8em; color: var(--text-secondary); margin-bottom: 8px;">`;
+                            cardsHtml += `🕐 ${item.clockTime}`;
+                            cardsHtml += `</div>`;
+                        }
+                        
+                        // Action buttons
+                        cardsHtml += `<div style="display: flex; gap: 8px; justify-content: flex-end;">`;
+                        cardsHtml += `<button class="action-btn" onclick="resumeEntry(${item.entryIndex})" title="Resume this task" style="font-size: 1.2em; padding: 8px 12px;">▶️ Resume</button>`;
+                        cardsHtml += `<button class="action-btn" onclick="toggleInlineEdit(${item.entryIndex})" title="Edit entry" style="font-size: 1.2em; padding: 8px 12px;">✏️ Edit</button>`;
+                        cardsHtml += `<button class="action-btn" style="filter: hue-rotate(310deg) saturate(2); font-size: 1.2em; padding: 8px 12px;" onclick="deleteEntry(${item.entryIndex})" title="Delete entry">🗑️</button>`;
                         cardsHtml += `</div>`;
-                    }
-                    cardsHtml += `</div>`;
-
-                    // Card total
-                    const totalTime = formatSecondsToHHMMSS(totalSeconds);
-                    const totalHours = convertToDecimalHours(totalTime);
-                    cardsHtml += `<div class="timecard-card-total">Total: ${totalHours} hrs</div>`;
-                    
-                    // Edit button
-                    cardsHtml += `<button class="timecard-card-edit-btn" onclick="toggleInlineEdit(${entryIndex})">`;
-                    cardsHtml += `<span style="font-size: 1.2em;">✏️</span> Edit Entry`;
-                    cardsHtml += `</button>`;
+                        
+                        cardsHtml += `</div>`;
+                    });
                     
                     cardsHtml += `</div>`;
-                });
-            });
+                } else {
+                    // No entries for this day
+                    cardsHtml += `<div style="text-align: center; padding: 20px; color: var(--text-secondary); font-style: italic;">`;
+                    cardsHtml += `No time entries for this day`;
+                    cardsHtml += `</div>`;
+                }
+                
+                cardsHtml += `</div>`;
+            }
 
             // Add grand total card
             const grandTotal = formatSecondsToHHMMSS(grandTotalSeconds);
@@ -3864,7 +3901,7 @@
             cardsHtml += `<div class="timecard-card" style="background: var(--header-bg); color: var(--header-text);">`;
             cardsHtml += `<div class="timecard-card-header" style="border-color: rgba(255,255,255,0.3);">`;
             cardsHtml += `<div class="timecard-card-title">`;
-            cardsHtml += `<h3 style="color: var(--header-text);">📊 Week Summary</h3>`;
+            cardsHtml += `<h3 style="color: var(--header-text);">📊 Weekly Summary</h3>`;
             cardsHtml += `</div>`;
             cardsHtml += `</div>`;
             
