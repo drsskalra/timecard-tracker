@@ -6305,22 +6305,29 @@
 
         // Export all weeks to Excel with separate tabs
         function exportAllWeeksToExcel() {
-            const allWeeks = getAllWeeks();
-            const weekKeys = Object.keys(allWeeks).sort();
-            
-            if (weekKeys.length === 0) {
-                showAlert('No historical data to export!', 'error');
-                return;
-            }
+            try {
+                // Check if XLSX library is loaded
+                if (typeof XLSX === 'undefined') {
+                    showAlert('Excel library not loaded. Please refresh the page and try again.', 'error');
+                    return;
+                }
+                
+                const allWeeks = getAllWeeks();
+                const weekKeys = Object.keys(allWeeks).sort();
+                
+                if (weekKeys.length === 0) {
+                    showAlert('No historical data to export!', 'error');
+                    return;
+                }
 
-            const wb = XLSX.utils.book_new();
-            const formatDate = (date) => {
-                const d = new Date(date);
-                return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}-${d.getFullYear()}`;
-            };
+                const wb = XLSX.utils.book_new();
+                const formatDate = (date) => {
+                    const d = new Date(date);
+                    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}-${d.getFullYear()}`;
+                };
 
-            // Process each week
-            weekKeys.forEach(weekKey => {
+                // Process each week
+                weekKeys.forEach(weekKey => {
                 const weekData = allWeeks[weekKey];
                 const entries = weekData.entries || [];
                 
@@ -6447,14 +6454,18 @@
                 // Create sheet name from week dates
                 const sheetName = `Week ${formatDate(monday)}`;
                 XLSX.utils.book_append_sheet(wb, ws, sheetName);
-            });
+                });
 
-            // Save workbook
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            const filename = `timecard_all_weeks_${timestamp}.xlsx`;
-            XLSX.writeFile(wb, filename);
-            
-            showAlert(`Exported ${weekKeys.length} week(s) to ${filename}`, 'success');
+                // Save workbook
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                const filename = `timecard_all_weeks_${timestamp}.xlsx`;
+                XLSX.writeFile(wb, filename);
+                
+                showAlert(`Exported ${weekKeys.length} week(s) to ${filename}`, 'success');
+            } catch (error) {
+                console.error('Export all weeks error:', error);
+                showAlert('Failed to export: ' + error.message, 'error');
+            }
         }
 
         // Export to Excel
