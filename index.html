@@ -1382,6 +1382,17 @@
                 <button class="btn btn-warning" onclick="openHistoryEditor()">
                     ✏️ Edit History
                 </button>
+                <button class="btn btn-success" id="oneDriveSyncBtn" onclick="toggleOneDriveSync()">
+                    ☁️ Connect OneDrive
+                </button>
+                <button class="btn btn-primary" id="syncNowBtn" onclick="syncNow()" style="display: none;">
+                    🔄 Sync Now
+                </button>
+            </div>
+            
+            <!-- Sync Status Indicator -->
+            <div id="syncStatus" style="text-align: center; margin-top: 15px; padding: 10px; border-radius: 5px; display: none;">
+                <span id="syncStatusText"></span>
             </div>
 
             <!-- Hidden file input for import -->
@@ -1437,6 +1448,8 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Microsoft Authentication Library for OneDrive sync -->
+    <script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js"></script>
     <script>
         /**
          * Time Card Tracker - JavaScript
@@ -1461,12 +1474,20 @@
         const OFFLINE_QUEUE_KEY = 'timecard_offline_queue';
         const ENCRYPTION_KEY_NAME = 'timecard_encryption_key';
         const ENCRYPTED_DATA_KEY = 'timecard_encrypted_data';
+        const ONEDRIVE_FOLDER_NAME = 'TimecardTracker';
+        const ONEDRIVE_DATA_FILE = 'timecard_data.json';
+        const SYNC_SETTINGS_KEY = 'timecard_sync_settings';
         
         // Connection and sync state
         let isOnline = navigator.onLine;
         let syncInProgress = false;
         let offlineQueue = [];
         let encryptionKey = null;
+        let msalInstance = null;
+        let oneDriveAccount = null;
+        let autoSyncEnabled = false;
+        let lastSyncTime = null;
+        let syncStatus = 'disconnected'; // disconnected, syncing, synced, error
         let projectNameHistory = new Set();
         let projectHistory = new Set();
         let taskHistory = new Set();
@@ -8482,6 +8503,441 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         };
 
         // ==================== END OFFLINE STORAGE & SYNC ====================
+
+        // ==================== ONEDRIVE CLOUD SYNC ====================
+
+        /**
+         * Initialize Microsoft Authentication Library for OneDrive
+         */
+        function initializeMSAL() {
+            const msalConfig = {
+                auth: {
+                    clientId: 'daa9245c-cf13-41bc-ad1f-ece114571e14', // Replace with your Azure AD app client ID
+                    authority: 'https://login.microsoftonline.com/organizations', // Changed from /common to /organizations for work accounts
+                    redirectUri: window.location.origin
+                },
+                cache: {
+                    cacheLocation: 'localStorage',
+                    storeAuthStateInCookie: false
+                }
+            };
+
+            try {
+                msalInstance = new msal.PublicClientApplication(msalConfig);
+                loadSyncSettings();
+                updateSyncUI();
+            } catch (error) {
+                console.error('Failed to initialize MSAL:', error);
+                showAlert('OneDrive sync initialization failed. Please check configuration.', 'danger');
+            }
+        }
+
+        /**
+         * Load sync settings from localStorage
+         */
+        function loadSyncSettings() {
+            const settings = localStorage.getItem(SYNC_SETTINGS_KEY);
+            if (settings) {
+                try {
+                    const parsed = JSON.parse(settings);
+                    autoSyncEnabled = parsed.autoSync || false;
+                    lastSyncTime = parsed.lastSync ? new Date(parsed.lastSync) : null;
+                    if (parsed.account) {
+                        oneDriveAccount = parsed.account;
+                        syncStatus = 'synced';
+                    }
+                } catch (e) {
+                    console.error('Error loading sync settings:', e);
+                }
+            }
+        }
+
+        /**
+         * Save sync settings to localStorage
+         */
+        function saveSyncSettings() {
+            const settings = {
+                autoSync: autoSyncEnabled,
+                lastSync: lastSyncTime ? lastSyncTime.toISOString() : null,
+                account: oneDriveAccount
+            };
+            localStorage.setItem(SYNC_SETTINGS_KEY, JSON.stringify(settings));
+        }
+
+        /**
+         * Toggle OneDrive sync connection
+         */
+        async function toggleOneDriveSync() {
+            if (!msalInstance) {
+                showAlert('OneDrive sync not configured. Please set up Azure AD app registration.', 'warning');
+                window.open('https://aka.ms/msal-js-config', '_blank');
+                return;
+            }
+
+            if (oneDriveAccount) {
+                // Disconnect
+                if (confirm('Disconnect from OneDrive? Your local data will be preserved.')) {
+                    await disconnectOneDrive();
+                }
+            } else {
+                // Connect
+                await connectOneDrive();
+            }
+        }
+
+        /**
+         * Connect to OneDrive
+         */
+        async function connectOneDrive() {
+            try {
+                syncStatus = 'syncing';
+                updateSyncUI();
+
+                const loginRequest = {
+                    scopes: ['User.Read', 'Files.ReadWrite.AppFolder']
+                };
+
+                const response = await msalInstance.loginPopup(loginRequest);
+                oneDriveAccount = response.account;
+                
+                // Create app folder if it doesn't exist
+                await ensureOneDriveFolder();
+                
+                syncStatus = 'synced';
+                saveSyncSettings();
+                updateSyncUI();
+                
+                showAlert('Successfully connected to OneDrive!', 'success');
+                
+                // Perform initial sync
+                await syncNow();
+            } catch (error) {
+                console.error('OneDrive connection error:', error);
+                syncStatus = 'error';
+                updateSyncUI();
+                showAlert('Failed to connect to OneDrive: ' + error.message, 'danger');
+            }
+        }
+
+        /**
+         * Disconnect from OneDrive
+         */
+        async function disconnectOneDrive() {
+            try {
+                if (msalInstance && oneDriveAccount) {
+                    await msalInstance.logout({
+                        account: oneDriveAccount
+                    });
+                }
+                
+                oneDriveAccount = null;
+                autoSyncEnabled = false;
+                lastSyncTime = null;
+                syncStatus = 'disconnected';
+                
+                saveSyncSettings();
+                updateSyncUI();
+                
+                showAlert('Disconnected from OneDrive', 'info');
+            } catch (error) {
+                console.error('Error disconnecting:', error);
+                showAlert('Error disconnecting: ' + error.message, 'danger');
+            }
+        }
+
+        /**
+         * Ensure OneDrive folder exists
+         */
+        async function ensureOneDriveFolder() {
+            const token = await getAccessToken();
+            
+            // Check if folder exists
+            const checkUrl = 'https://graph.microsoft.com/v1.0/me/drive/special/approot';
+            
+            try {
+                const response = await fetch(checkUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    return; // Folder exists
+                }
+            } catch (error) {
+                console.log('App folder will be created automatically');
+            }
+        }
+
+        /**
+         * Get access token for Microsoft Graph API
+         */
+        async function getAccessToken() {
+            if (!msalInstance || !oneDriveAccount) {
+                throw new Error('Not connected to OneDrive');
+            }
+
+            const silentRequest = {
+                scopes: ['Files.ReadWrite.AppFolder'],
+                account: oneDriveAccount
+            };
+
+            try {
+                const response = await msalInstance.acquireTokenSilent(silentRequest);
+                return response.accessToken;
+            } catch (error) {
+                // Silent token acquisition failed, try interactive
+                const response = await msalInstance.acquireTokenPopup(silentRequest);
+                return response.accessToken;
+            }
+        }
+
+        /**
+         * Sync data to OneDrive
+         */
+        async function syncToOneDrive() {
+            if (!oneDriveAccount) {
+                throw new Error('Not connected to OneDrive');
+            }
+
+            const token = await getAccessToken();
+            
+            // Prepare data to sync
+            const syncData = {
+                currentWeek: localStorage.getItem(STORAGE_KEY),
+                allWeeks: localStorage.getItem(ALL_WEEKS_KEY),
+                history: localStorage.getItem(HISTORY_KEY),
+                lastTask: localStorage.getItem(LAST_TASK_KEY),
+                timestamp: new Date().toISOString()
+            };
+
+            const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+            
+            const response = await fetch(uploadUrl, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(syncData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.statusText}`);
+            }
+
+            lastSyncTime = new Date();
+            saveSyncSettings();
+        }
+
+        /**
+         * Sync data from OneDrive
+         */
+        async function syncFromOneDrive() {
+            if (!oneDriveAccount) {
+                throw new Error('Not connected to OneDrive');
+            }
+
+            const token = await getAccessToken();
+            const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+            
+            try {
+                const response = await fetch(downloadUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.status === 404) {
+                    // No cloud data exists yet, upload current data
+                    await syncToOneDrive();
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Download failed: ${response.statusText}`);
+                }
+
+                const cloudData = await response.json();
+                
+                // Check timestamps and merge if needed
+                await mergeCloudData(cloudData);
+                
+                lastSyncTime = new Date();
+                saveSyncSettings();
+            } catch (error) {
+                console.error('Error syncing from OneDrive:', error);
+                throw error;
+            }
+        }
+
+        /**
+         * Merge cloud data with local data
+         */
+        async function mergeCloudData(cloudData) {
+            const localTimestamp = localStorage.getItem(STORAGE_KEY) ? 
+                JSON.parse(localStorage.getItem(STORAGE_KEY)).timestamp : null;
+            const cloudTimestamp = cloudData.timestamp;
+
+            if (!localTimestamp || !cloudTimestamp) {
+                // If no timestamps, use cloud data
+                applyCloudData(cloudData);
+                return;
+            }
+
+            const localDate = new Date(localTimestamp);
+            const cloudDate = new Date(cloudTimestamp);
+
+            if (cloudDate > localDate) {
+                // Cloud data is newer
+                if (confirm('Cloud data is newer. Do you want to use it? (Cancel to keep local data)')) {
+                    applyCloudData(cloudData);
+                } else {
+                    // Keep local, upload to cloud
+                    await syncToOneDrive();
+                }
+            } else {
+                // Local data is newer or same, upload to cloud
+                await syncToOneDrive();
+            }
+        }
+
+        /**
+         * Apply cloud data to local storage
+         */
+        function applyCloudData(cloudData) {
+            if (cloudData.currentWeek) {
+                localStorage.setItem(STORAGE_KEY, cloudData.currentWeek);
+            }
+            if (cloudData.allWeeks) {
+                localStorage.setItem(ALL_WEEKS_KEY, cloudData.allWeeks);
+            }
+            if (cloudData.history) {
+                localStorage.setItem(HISTORY_KEY, cloudData.history);
+            }
+            if (cloudData.lastTask) {
+                localStorage.setItem(LAST_TASK_KEY, cloudData.lastTask);
+            }
+
+            // Reload the data
+            loadData();
+            loadHistory();
+            loadWeekDates();
+            updateSummary();
+            updateWeekView();
+            loadLastTask();
+        }
+
+        /**
+         * Sync now - bidirectional sync
+         */
+        async function syncNow() {
+            if (!oneDriveAccount) {
+                showAlert('Please connect to OneDrive first', 'warning');
+                return;
+            }
+
+            if (syncInProgress) {
+                showAlert('Sync already in progress', 'info');
+                return;
+            }
+
+            try {
+                syncInProgress = true;
+                syncStatus = 'syncing';
+                updateSyncUI();
+
+                // Sync from cloud first, then to cloud
+                await syncFromOneDrive();
+
+                syncStatus = 'synced';
+                showAlert('Data synced successfully!', 'success');
+            } catch (error) {
+                console.error('Sync error:', error);
+                syncStatus = 'error';
+                showAlert('Sync failed: ' + error.message, 'danger');
+            } finally {
+                syncInProgress = false;
+                updateSyncUI();
+            }
+        }
+
+        /**
+         * Auto-sync on data changes
+         */
+        async function autoSync() {
+            if (autoSyncEnabled && oneDriveAccount && !syncInProgress) {
+                try {
+                    await syncToOneDrive();
+                    console.log('Auto-sync completed');
+                } catch (error) {
+                    console.error('Auto-sync failed:', error);
+                }
+            }
+        }
+
+        /**
+         * Update sync UI elements
+         */
+        function updateSyncUI() {
+            const syncBtn = document.getElementById('oneDriveSyncBtn');
+            const syncNowBtn = document.getElementById('syncNowBtn');
+            const statusDiv = document.getElementById('syncStatus');
+            const statusText = document.getElementById('syncStatusText');
+
+            if (!syncBtn || !statusDiv || !statusText) return;
+
+            if (oneDriveAccount) {
+                syncBtn.textContent = '☁️ Disconnect OneDrive';
+                syncBtn.className = 'btn btn-secondary';
+                syncNowBtn.style.display = 'inline-block';
+                statusDiv.style.display = 'block';
+
+                if (syncStatus === 'syncing') {
+                    statusDiv.style.background = '#e3f2fd';
+                    statusDiv.style.color = '#1976d2';
+                    statusText.textContent = '🔄 Syncing with OneDrive...';
+                } else if (syncStatus === 'synced') {
+                    statusDiv.style.background = '#e8f5e9';
+                    statusDiv.style.color = '#2e7d32';
+                    const timeStr = lastSyncTime ? lastSyncTime.toLocaleTimeString() : 'just now';
+                    statusText.textContent = `✅ Synced with OneDrive (${timeStr})`;
+                } else if (syncStatus === 'error') {
+                    statusDiv.style.background = '#ffebee';
+                    statusDiv.style.color = '#c62828';
+                    statusText.textContent = '❌ Sync error - click Sync Now to retry';
+                }
+            } else {
+                syncBtn.textContent = '☁️ Connect OneDrive';
+                syncBtn.className = 'btn btn-success';
+                syncNowBtn.style.display = 'none';
+                statusDiv.style.display = 'none';
+            }
+        }
+
+        /**
+         * Override saveData to include auto-sync
+         */
+        const originalSaveDataForSync = saveData;
+        saveData = async function() {
+            if (typeof originalSaveDataForSync === 'function') {
+                originalSaveDataForSync.call(this);
+            }
+            
+            // Auto-sync after save if enabled
+            if (autoSyncEnabled) {
+                setTimeout(autoSync, 1000); // Debounce auto-sync
+            }
+        };
+
+        /**
+         * Initialize OneDrive sync on page load
+         */
+        window.addEventListener('load', function() {
+            initializeMSAL();
+        });
+
+        // ==================== END ONEDRIVE CLOUD SYNC ====================
     </script>
 </body>
 </html>
