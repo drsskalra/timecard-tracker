@@ -6451,8 +6451,9 @@
                     { wch: 12 }   // Total
                 ];
 
-                // Create sheet name from week dates
-                const sheetName = `Week ${formatDate(monday)}`;
+                // Create sheet name from week dates - use weekKey to ensure uniqueness
+                // Excel sheet names must be unique and <= 31 chars
+                const sheetName = `Week ${weekKey}`;
                 XLSX.utils.book_append_sheet(wb, ws, sheetName);
                 });
 
