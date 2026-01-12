@@ -8507,6 +8507,13 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         // ==================== ONEDRIVE CLOUD SYNC ====================
 
         /**
+         * Check if user is on mobile device
+         */
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        /**
          * Initialize Microsoft Authentication Library for OneDrive
          */
         function initializeMSAL() {
@@ -8524,6 +8531,23 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
 
             try {
                 msalInstance = new msal.PublicClientApplication(msalConfig);
+                
+                // Handle redirect response (for mobile devices)
+                msalInstance.handleRedirectPromise().then(response => {
+                    if (response) {
+                        oneDriveAccount = response.account;
+                        syncStatus = 'synced';
+                        saveSyncSettings();
+                        updateSyncUI();
+                        showAlert('Successfully connected to OneDrive!', 'success');
+                        
+                        // Perform initial sync
+                        syncNow().catch(err => console.error('Initial sync failed:', err));
+                    }
+                }).catch(error => {
+                    console.error('Redirect handling error:', error);
+                });
+                
                 loadSyncSettings();
                 updateSyncUI();
             } catch (error) {
@@ -8597,20 +8621,27 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                     scopes: ['User.Read', 'Files.ReadWrite.AppFolder']
                 };
 
-                const response = await msalInstance.loginPopup(loginRequest);
-                oneDriveAccount = response.account;
-                
-                // Create app folder if it doesn't exist
-                await ensureOneDriveFolder();
-                
-                syncStatus = 'synced';
-                saveSyncSettings();
-                updateSyncUI();
-                
-                showAlert('Successfully connected to OneDrive!', 'success');
-                
-                // Perform initial sync
-                await syncNow();
+                // Use redirect for mobile devices, popup for desktop
+                if (isMobileDevice()) {
+                    await msalInstance.loginRedirect(loginRequest);
+                    // The response will be handled by handleRedirectPromise in initializeMSAL
+                    return;
+                } else {
+                    const response = await msalInstance.loginPopup(loginRequest);
+                    oneDriveAccount = response.account;
+                    
+                    // Create app folder if it doesn't exist
+                    await ensureOneDriveFolder();
+                    
+                    syncStatus = 'synced';
+                    saveSyncSettings();
+                    updateSyncUI();
+                    
+                    showAlert('Successfully connected to OneDrive!', 'success');
+                    
+                    // Perform initial sync
+                    await syncNow();
+                }
             } catch (error) {
                 console.error('OneDrive connection error:', error);
                 syncStatus = 'error';
@@ -8687,8 +8718,13 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 return response.accessToken;
             } catch (error) {
                 // Silent token acquisition failed, try interactive
-                const response = await msalInstance.acquireTokenPopup(silentRequest);
-                return response.accessToken;
+                if (isMobileDevice()) {
+                    await msalInstance.acquireTokenRedirect(silentRequest);
+                    throw new Error('Redirecting for authentication...');
+                } else {
+                    const response = await msalInstance.acquireTokenPopup(silentRequest);
+                    return response.accessToken;
+                }
             }
         }
 
