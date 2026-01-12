@@ -1388,6 +1388,9 @@
                 <button class="btn btn-primary" id="syncNowBtn" onclick="syncNow()" style="display: none;">
                     🔄 Sync Now
                 </button>
+                <button class="btn btn-info" id="detectMergeBtn" onclick="detectAndMergeHistoricalData()" style="display: none;">
+                    🔍 Detect & Merge Local Data
+                </button>
             </div>
             
             <!-- Sync Status Indicator -->
@@ -8820,33 +8823,190 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         }
 
         /**
-         * Merge cloud data with local data
+         * Intelligently merge local historical data with cloud data
+         */
+        function intelligentMergeHistoricalData(localData, cloudData) {
+            // Parse both datasets
+            const local = localData ? JSON.parse(localData) : {};
+            const cloud = cloudData ? JSON.parse(cloudData) : {};
+
+            // Create a merged object
+            const merged = {};
+
+            // Get all unique week keys from both sources
+            const allWeeks = new Set([...Object.keys(local), ...Object.keys(cloud)]);
+
+            for (const weekKey of allWeeks) {
+                const localWeek = local[weekKey];
+                const cloudWeek = cloud[weekKey];
+
+                if (!localWeek && cloudWeek) {
+                    // Only in cloud, use cloud data
+                    merged[weekKey] = cloudWeek;
+                } else if (localWeek && !cloudWeek) {
+                    // Only in local, use local data
+                    merged[weekKey] = localWeek;
+                } else if (localWeek && cloudWeek) {
+                    // In both, merge entries by day
+                    const localEntries = localWeek.entries || [];
+                    const cloudEntries = cloudWeek.entries || [];
+                    
+                    // Create a map to merge entries by unique key (day + project + task + time)
+                    const entryMap = new Map();
+                    
+                    // Add cloud entries first
+                    cloudEntries.forEach(entry => {
+                        const key = `${entry.day}_${entry.project}_${entry.task}_${entry.hours}_${entry.clockIn || ''}_${entry.clockOut || ''}`;
+                        entryMap.set(key, entry);
+                    });
+                    
+                    // Add or update with local entries (local takes precedence for duplicates)
+                    localEntries.forEach(entry => {
+                        const key = `${entry.day}_${entry.project}_${entry.task}_${entry.hours}_${entry.clockIn || ''}_${entry.clockOut || ''}`;
+                        entryMap.set(key, entry);
+                    });
+                    
+                    merged[weekKey] = {
+                        ...localWeek,
+                        entries: Array.from(entryMap.values())
+                    };
+                }
+            }
+
+            return JSON.stringify(merged);
+        }
+
+        /**
+         * Intelligently merge history data (projects, tasks, comments)
+         */
+        function intelligentMergeHistory(localHistory, cloudHistory) {
+            const local = localHistory ? JSON.parse(localHistory) : { projects: {}, tasks: [], comments: [] };
+            const cloud = cloudHistory ? JSON.parse(cloudHistory) : { projects: {}, tasks: [], comments: [] };
+
+            const merged = {
+                projects: {},
+                tasks: [],
+                comments: []
+            };
+
+            // Merge projects (combine all unique projects)
+            const allProjects = { ...cloud.projects, ...local.projects };
+            for (const [projectName, projectData] of Object.entries(allProjects)) {
+                const localProj = local.projects[projectName] || { numbers: new Set(), tasks: new Set(), comments: new Set() };
+                const cloudProj = cloud.projects[projectName] || { numbers: new Set(), tasks: new Set(), comments: new Set() };
+                
+                merged.projects[projectName] = {
+                    numbers: [...new Set([...Array.from(localProj.numbers || []), ...Array.from(cloudProj.numbers || [])])],
+                    tasks: [...new Set([...Array.from(localProj.tasks || []), ...Array.from(cloudProj.tasks || [])])],
+                    comments: [...new Set([...Array.from(localProj.comments || []), ...Array.from(cloudProj.comments || [])])]
+                };
+            }
+
+            // Merge tasks and comments (unique items only)
+            merged.tasks = [...new Set([...local.tasks, ...cloud.tasks])];
+            merged.comments = [...new Set([...local.comments, ...cloud.comments])];
+
+            return JSON.stringify(merged);
+        }
+
+        /**
+         * Merge cloud data with local data (improved version with intelligent merging)
          */
         async function mergeCloudData(cloudData) {
-            const localTimestamp = localStorage.getItem(STORAGE_KEY) ? 
-                JSON.parse(localStorage.getItem(STORAGE_KEY)).timestamp : null;
-            const cloudTimestamp = cloudData.timestamp;
+            console.log('Starting intelligent merge of local and cloud data...');
+            
+            // Get local data
+            const localCurrentWeek = localStorage.getItem(STORAGE_KEY);
+            const localAllWeeks = localStorage.getItem(ALL_WEEKS_KEY);
+            const localHistory = localStorage.getItem(HISTORY_KEY);
+            const localLastTask = localStorage.getItem(LAST_TASK_KEY);
 
-            if (!localTimestamp || !cloudTimestamp) {
-                // If no timestamps, use cloud data
+            // Detect what local data exists
+            const hasLocalData = !!(localCurrentWeek || localAllWeeks || localHistory);
+            const hasCloudData = !!(cloudData.currentWeek || cloudData.allWeeks || cloudData.history);
+
+            console.log('Local data detected:', {
+                currentWeek: !!localCurrentWeek,
+                allWeeks: !!localAllWeeks,
+                history: !!localHistory,
+                lastTask: !!localLastTask
+            });
+
+            console.log('Cloud data detected:', {
+                currentWeek: !!cloudData.currentWeek,
+                allWeeks: !!cloudData.allWeeks,
+                history: !!cloudData.history,
+                lastTask: !!cloudData.lastTask
+            });
+
+            if (!hasLocalData && hasCloudData) {
+                // No local data, just use cloud
+                console.log('No local data found, using cloud data');
                 applyCloudData(cloudData);
                 return;
             }
 
-            const localDate = new Date(localTimestamp);
-            const cloudDate = new Date(cloudTimestamp);
-
-            if (cloudDate > localDate) {
-                // Cloud data is newer
-                if (confirm('Cloud data is newer. Do you want to use it? (Cancel to keep local data)')) {
-                    applyCloudData(cloudData);
-                } else {
-                    // Keep local, upload to cloud
-                    await syncToOneDrive();
-                }
-            } else {
-                // Local data is newer or same, upload to cloud
+            if (hasLocalData && !hasCloudData) {
+                // No cloud data, upload local
+                console.log('No cloud data found, uploading local data');
                 await syncToOneDrive();
+                return;
+            }
+
+            // Both exist, perform intelligent merge
+            console.log('Both local and cloud data exist, performing intelligent merge...');
+            
+            const mergedData = {
+                currentWeek: localCurrentWeek || cloudData.currentWeek,
+                allWeeks: intelligentMergeHistoricalData(localAllWeeks, cloudData.allWeeks),
+                history: intelligentMergeHistory(localHistory, cloudData.history),
+                lastTask: localLastTask || cloudData.lastTask,
+                timestamp: new Date().toISOString()
+            };
+
+            // Compare timestamps for current week
+            let useLocalCurrentWeek = true;
+            if (localCurrentWeek && cloudData.currentWeek) {
+                try {
+                    const localData = JSON.parse(localCurrentWeek);
+                    const cloudDataParsed = JSON.parse(cloudData.currentWeek);
+                    const localTimestamp = localData.timestamp ? new Date(localData.timestamp) : new Date(0);
+                    const cloudTimestamp = cloudDataParsed.timestamp ? new Date(cloudDataParsed.timestamp) : new Date(0);
+                    
+                    if (cloudTimestamp > localTimestamp) {
+                        useLocalCurrentWeek = false;
+                        mergedData.currentWeek = cloudData.currentWeek;
+                    }
+                } catch (e) {
+                    console.error('Error comparing timestamps:', e);
+                }
+            }
+
+            // Ask user for confirmation
+            const message = `Found both local and cloud historical data!\n\n` +
+                           `Local data: ${localAllWeeks ? JSON.parse(localAllWeeks) ? Object.keys(JSON.parse(localAllWeeks)).length + ' weeks' : '0 weeks' : '0 weeks'}\n` +
+                           `Cloud data: ${cloudData.allWeeks ? JSON.parse(cloudData.allWeeks) ? Object.keys(JSON.parse(cloudData.allWeeks)).length + ' weeks' : '0 weeks' : '0 weeks'}\n\n` +
+                           `Merge all historical data? This will combine and preserve data from both sources.`;
+            
+            if (confirm(message)) {
+                console.log('User approved merge, applying merged data...');
+                applyCloudData(mergedData);
+                
+                // Upload merged data back to cloud
+                console.log('Uploading merged data to OneDrive...');
+                await syncToOneDrive();
+                
+                showAlert('Successfully merged local and cloud historical data!', 'success');
+            } else {
+                console.log('User cancelled merge');
+                // Ask which to keep
+                if (confirm('Keep local data? (Cancel to use cloud data)')) {
+                    await syncToOneDrive();
+                    showAlert('Uploaded local data to OneDrive', 'info');
+                } else {
+                    applyCloudData(cloudData);
+                    showAlert('Loaded cloud data', 'info');
+                }
             }
         }
 
@@ -8874,6 +9034,161 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             updateSummary();
             updateWeekView();
             loadLastTask();
+        }
+
+        /**
+         * Detect local historical data and merge with OneDrive
+         * This function specifically looks for local data and merges it intelligently
+         */
+        async function detectAndMergeHistoricalData() {
+            if (!oneDriveAccount) {
+                showAlert('Please connect to OneDrive first', 'warning');
+                return;
+            }
+
+            if (syncInProgress) {
+                showAlert('Sync already in progress', 'info');
+                return;
+            }
+
+            try {
+                syncInProgress = true;
+                syncStatus = 'syncing';
+                updateSyncUI();
+
+                // Step 1: Detect local historical data
+                const localCurrentWeek = localStorage.getItem(STORAGE_KEY);
+                const localAllWeeks = localStorage.getItem(ALL_WEEKS_KEY);
+                const localHistory = localStorage.getItem(HISTORY_KEY);
+                const localLastTask = localStorage.getItem(LAST_TASK_KEY);
+
+                const localWeekCount = localAllWeeks ? Object.keys(JSON.parse(localAllWeeks)).length : 0;
+                const localHistoryProjects = localHistory ? Object.keys(JSON.parse(localHistory).projects || {}).length : 0;
+
+                console.log('=== Local Historical Data Detection ===');
+                console.log('Current Week Data:', !!localCurrentWeek);
+                console.log('Historical Weeks:', localWeekCount);
+                console.log('History Projects:', localHistoryProjects);
+                console.log('Last Task:', !!localLastTask);
+
+                if (!localCurrentWeek && !localAllWeeks && !localHistory) {
+                    showAlert('No local historical data found to merge', 'info');
+                    syncInProgress = false;
+                    updateSyncUI();
+                    return;
+                }
+
+                // Step 2: Fetch cloud data
+                showAlert('Fetching cloud data...', 'info');
+                const token = await getAccessToken();
+                const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+                
+                let cloudData = null;
+                try {
+                    const response = await fetch(downloadUrl, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.status === 404) {
+                        console.log('No cloud data exists yet');
+                        cloudData = null;
+                    } else if (response.ok) {
+                        cloudData = await response.json();
+                    } else {
+                        throw new Error(`Download failed: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    console.error('Error fetching cloud data:', error);
+                }
+
+                const cloudWeekCount = cloudData && cloudData.allWeeks ? Object.keys(JSON.parse(cloudData.allWeeks)).length : 0;
+                const cloudHistoryProjects = cloudData && cloudData.history ? Object.keys(JSON.parse(cloudData.history).projects || {}).length : 0;
+
+                console.log('=== Cloud Historical Data Detection ===');
+                console.log('Current Week Data:', !!(cloudData && cloudData.currentWeek));
+                console.log('Historical Weeks:', cloudWeekCount);
+                console.log('History Projects:', cloudHistoryProjects);
+
+                // Step 3: Show merge summary
+                const summaryMessage = `📊 Historical Data Detection Summary\n\n` +
+                                      `LOCAL DATA:\n` +
+                                      `  • Current Week: ${localCurrentWeek ? '✓' : '✗'}\n` +
+                                      `  • Historical Weeks: ${localWeekCount}\n` +
+                                      `  • Projects in History: ${localHistoryProjects}\n\n` +
+                                      `CLOUD DATA:\n` +
+                                      `  • Current Week: ${cloudData && cloudData.currentWeek ? '✓' : '✗'}\n` +
+                                      `  • Historical Weeks: ${cloudWeekCount}\n` +
+                                      `  • Projects in History: ${cloudHistoryProjects}\n\n` +
+                                      `Proceed with intelligent merge?`;
+
+                if (!confirm(summaryMessage)) {
+                    showAlert('Merge cancelled by user', 'info');
+                    syncInProgress = false;
+                    updateSyncUI();
+                    return;
+                }
+
+                // Step 4: Perform intelligent merge
+                showAlert('Merging historical data...', 'info');
+                
+                if (!cloudData) {
+                    // No cloud data, just upload local
+                    console.log('No cloud data found, uploading all local data');
+                    await syncToOneDrive();
+                    showAlert(`Successfully uploaded ${localWeekCount} weeks to OneDrive!`, 'success');
+                } else {
+                    // Merge local and cloud data
+                    const mergedData = {
+                        currentWeek: localCurrentWeek || cloudData.currentWeek,
+                        allWeeks: intelligentMergeHistoricalData(localAllWeeks, cloudData.allWeeks),
+                        history: intelligentMergeHistory(localHistory, cloudData.history),
+                        lastTask: localLastTask || cloudData.lastTask,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    // Compare timestamps for current week
+                    if (localCurrentWeek && cloudData.currentWeek) {
+                        try {
+                            const localData = JSON.parse(localCurrentWeek);
+                            const cloudDataParsed = JSON.parse(cloudData.currentWeek);
+                            const localTimestamp = localData.timestamp ? new Date(localData.timestamp) : new Date(0);
+                            const cloudTimestamp = cloudDataParsed.timestamp ? new Date(cloudDataParsed.timestamp) : new Date(0);
+                            
+                            if (cloudTimestamp > localTimestamp) {
+                                mergedData.currentWeek = cloudData.currentWeek;
+                                console.log('Using cloud current week (newer)');
+                            } else {
+                                console.log('Using local current week (newer or same)');
+                            }
+                        } catch (e) {
+                            console.error('Error comparing timestamps:', e);
+                        }
+                    }
+
+                    // Apply merged data
+                    applyCloudData(mergedData);
+                    
+                    // Upload merged data back to cloud
+                    await syncToOneDrive();
+                    
+                    const finalWeekCount = mergedData.allWeeks ? Object.keys(JSON.parse(mergedData.allWeeks)).length : 0;
+                    showAlert(`✅ Successfully merged historical data!\n${finalWeekCount} total weeks now in sync.`, 'success');
+                }
+
+                syncStatus = 'synced';
+                lastSyncTime = new Date();
+                saveSyncSettings();
+                
+            } catch (error) {
+                console.error('Merge error:', error);
+                syncStatus = 'error';
+                showAlert('Merge failed: ' + error.message, 'danger');
+            } finally {
+                syncInProgress = false;
+                updateSyncUI();
+            }
         }
 
         /**
@@ -8930,6 +9245,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         function updateSyncUI() {
             const syncBtn = document.getElementById('oneDriveSyncBtn');
             const syncNowBtn = document.getElementById('syncNowBtn');
+            const detectMergeBtn = document.getElementById('detectMergeBtn');
             const statusDiv = document.getElementById('syncStatus');
             const statusText = document.getElementById('syncStatusText');
 
@@ -8939,6 +9255,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 syncBtn.textContent = '☁️ Disconnect OneDrive';
                 syncBtn.className = 'btn btn-secondary';
                 syncNowBtn.style.display = 'inline-block';
+                detectMergeBtn.style.display = 'inline-block';
                 statusDiv.style.display = 'block';
 
                 if (syncStatus === 'syncing') {
@@ -8959,6 +9276,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 syncBtn.textContent = '☁️ Connect OneDrive';
                 syncBtn.className = 'btn btn-success';
                 syncNowBtn.style.display = 'none';
+                detectMergeBtn.style.display = 'none';
                 statusDiv.style.display = 'none';
             }
         }
