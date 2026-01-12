@@ -101,6 +101,10 @@
             background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
             min-height: 100vh;
             color: var(--text-color);
+            /* Better touch scrolling on mobile */
+            -webkit-overflow-scrolling: touch;
+            /* Prevent pull-to-refresh on mobile */
+            overscroll-behavior-y: contain;
         }
 
         .container {
@@ -108,6 +112,8 @@
             min-height: 100vh;
             background: var(--container-bg);
             overflow: auto;
+            /* Smooth scrolling */
+            scroll-behavior: smooth;
         }
 
         .header {
@@ -1053,34 +1059,285 @@
         }
 
         @media (max-width: 768px) {
-            .btn-group {
-                flex-direction: column;
+            /* Main container adjustments */
+            .main-content {
+                padding: 15px;
             }
 
-            .timecard-table {
-                font-size: 0.85em;
+            /* Header responsive */
+            .header {
+                padding: 15px;
+            }
+
+            .logo-container {
+                flex-direction: column;
+                text-align: center;
+                gap: 8px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            /* Timer section mobile optimization */
+            .timer-section {
+                padding: 12px;
+                margin-bottom: 20px;
+            }
+
+            .timer-section h2 {
+                font-size: 1.1em;
+            }
+
+            /* Form layout - stack on mobile */
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            /* Make inputs larger for touch */
+            .form-group input,
+            .form-group textarea {
+                padding: 12px;
+                font-size: 16px; /* Prevents zoom on iOS */
+                min-height: 44px; /* Apple touch target size */
+            }
+
+            .form-group textarea {
+                min-height: 60px;
+            }
+
+            /* Timer display larger on mobile */
+            .timer-display {
+                padding: 20px;
             }
 
             .timer-display .time {
-                font-size: 2em;
+                font-size: 2.5em;
             }
 
-            .mini-window {
-                right: 10px;
-                top: 10px;
-                min-width: 240px;
+            .timer-display .label {
+                font-size: 1em;
             }
 
-            .mini-window-time {
-                font-size: 2em;
+            /* Button groups stack vertically */
+            .btn-group {
+                flex-direction: column;
+                gap: 10px;
             }
 
+            .btn-group .btn {
+                width: 100%;
+                padding: 14px;
+                font-size: 1em;
+            }
+
+            /* Action buttons responsive */
+            .action-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .action-buttons .btn {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+
+            /* Table responsive - horizontal scroll */
+            .timecard-table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 0 -15px;
+                padding: 0 15px;
+            }
+
+            .timecard-table {
+                font-size: 0.75em;
+                min-width: 800px; /* Ensures horizontal scroll */
+            }
+
+            .timecard-table th,
+            .timecard-table td {
+                padding: 6px 4px;
+            }
+
+            /* Time input cells smaller on mobile */
+            .time-input {
+                width: 55px;
+                font-size: 0.85em;
+                padding: 4px;
+            }
+
+            /* View toggle buttons */
+            .view-toggle {
+                flex-direction: column;
+            }
+
+            .view-toggle button {
+                width: 100%;
+            }
+
+            /* Week view calendar mobile optimization */
             .calendar-grid {
                 flex-direction: column;
             }
 
             .timeline {
                 height: 600px;
+                min-height: 400px;
+            }
+
+            .time-block {
+                min-height: 30px;
+                font-size: 0.75em;
+                padding: 4px;
+            }
+
+            /* Mini window (PiP timer) adjustments */
+            .mini-window {
+                right: 10px;
+                top: 10px;
+                min-width: 200px;
+                max-width: 90vw;
+            }
+
+            .mini-window-time {
+                font-size: 1.8em;
+            }
+
+            .mini-window-info {
+                font-size: 0.75em;
+            }
+
+            /* History editor modal */
+            .history-modal-content {
+                width: 95%;
+                max-width: 95%;
+                margin: 20px auto;
+                max-height: 90vh;
+            }
+
+            /* Summary section */
+            .summary-section {
+                padding: 12px;
+            }
+
+            .summary-section h2 {
+                font-size: 1.2em;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            /* Export buttons */
+            .export-actions {
+                flex-direction: column;
+            }
+
+            .export-actions .btn {
+                width: 100%;
+            }
+
+            /* Connection indicator smaller on mobile */
+            .connection-indicator {
+                top: 5px;
+                right: 5px;
+                padding: 6px 10px;
+                font-size: 0.75em;
+            }
+
+            .connection-dot {
+                width: 8px;
+                height: 8px;
+            }
+
+            /* Hide less important UI elements on very small screens */
+            .history-count {
+                display: none;
+            }
+
+            /* Dropdown options larger for touch */
+            .comment-option {
+                padding: 12px;
+                font-size: 1em;
+            }
+
+            /* Modal dialogs full width on mobile */
+            .modal-content {
+                width: 95%;
+                max-width: 95%;
+                margin: 20px auto;
+            }
+        }
+
+        /* Very small screens (< 480px) */
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.2em;
+            }
+
+            .timer-display .time {
+                font-size: 2em;
+            }
+
+            .btn {
+                font-size: 0.9em;
+                padding: 10px;
+            }
+
+            .timecard-table {
+                font-size: 0.7em;
+            }
+
+            .summary-stat {
+                padding: 10px;
+            }
+
+            .summary-stat .value {
+                font-size: 1.5em;
+            }
+        }
+
+        /* Landscape orientation adjustments */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .timer-display .time {
+                font-size: 2em;
+            }
+
+            .timeline {
+                height: 400px;
+            }
+
+            .form-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            /* Larger touch targets */
+            .btn {
+                min-height: 44px;
+            }
+
+            .time-input,
+            input[type="text"],
+            input[type="time"],
+            textarea {
+                min-height: 44px;
+            }
+
+            /* Larger clickable areas for icons */
+            .input-clear-btn {
+                min-width: 44px;
+                min-height: 44px;
+            }
+
+            /* Better spacing for touch */
+            .btn-group .btn {
+                margin-bottom: 10px;
             }
         }
 
