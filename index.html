@@ -1871,6 +1871,8 @@
         let autoSyncEnabled = true; // Enable auto-sync by default
         let lastSyncTime = null;
         let syncStatus = 'disconnected'; // disconnected, syncing, synced, error
+        let realtimeSyncInterval = null; // Interval for real-time timer sync
+        let lastRemoteTimerCheck = null; // Last time we checked for remote timer
         let projectNameHistory = new Set();
         let projectHistory = new Set();
         let taskHistory = new Set();
@@ -1921,6 +1923,30 @@
             // Process any queued offline changes
             await processOfflineQueue();
         };
+
+        // Check for remote timer when window gains focus
+        window.addEventListener('focus', async function() {
+            if (oneDriveAccount && autoSyncEnabled && isOnline) {
+                try {
+                    // Quick check for remote timer state when user returns to the app
+                    const token = await getAccessToken();
+                    const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+                    
+                    const response = await fetch(downloadUrl, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const cloudData = await response.json();
+                        await syncRemoteTimerState(cloudData);
+                    }
+                } catch (error) {
+                    console.error('Error checking remote timer on focus:', error);
+                }
+            }
+        });
 
         // Enforce single instance - prevent multiple tabs/windows
         function enforceSingleInstance() {
@@ -2795,6 +2821,9 @@
             if (miniWindowActive) {
                 updateMiniWindowInfo();
             }
+            
+            // Start real-time sync for timer state (every 5 seconds)
+            startRealtimeTimerSync();
         }
 
         // Auto-stop timer (called when page closes/refreshes)
@@ -3004,6 +3033,9 @@
                 clearInterval(weekViewRefreshInterval);
                 weekViewRefreshInterval = null;
             }
+            
+            // Stop real-time timer sync
+            stopRealtimeTimerSync();
         }
 
         // Update timer display
@@ -9511,12 +9543,28 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
 
             const token = await getAccessToken();
             
+            // Prepare timer state for sync
+            let timerState = null;
+            if (startTime !== null) {
+                timerState = {
+                    isRunning: true,
+                    startTime: startTime,
+                    projectNameFilter: document.getElementById('projectNameFilter').value,
+                    project: document.getElementById('projectName').value,
+                    task: document.getElementById('taskName').value,
+                    comment: document.getElementById('comment').value,
+                    deviceId: instanceId || 'unknown',
+                    lastUpdate: new Date().toISOString()
+                };
+            }
+            
             // Prepare data to sync
             const syncData = {
                 currentWeek: localStorage.getItem(STORAGE_KEY),
                 allWeeks: localStorage.getItem(ALL_WEEKS_KEY),
                 history: localStorage.getItem(HISTORY_KEY),
                 lastTask: localStorage.getItem(LAST_TASK_KEY),
+                timerState: timerState,
                 timestamp: new Date().toISOString()
             };
 
@@ -9569,6 +9617,9 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
 
                 const cloudData = await response.json();
                 
+                // Check for remote timer state
+                await syncRemoteTimerState(cloudData);
+                
                 // Check timestamps and merge if needed
                 await mergeCloudData(cloudData);
                 
@@ -9577,6 +9628,92 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             } catch (error) {
                 console.error('Error syncing from OneDrive:', error);
                 throw error;
+            }
+        }
+
+        /**
+         * Check and sync remote timer state from another device
+         */
+        async function syncRemoteTimerState(cloudData) {
+            if (!cloudData.timerState) {
+                return; // No remote timer state
+            }
+            
+            const remoteTimer = cloudData.timerState;
+            const remoteDeviceId = remoteTimer.deviceId || 'unknown';
+            
+            // Don't sync our own timer back to ourselves
+            if (remoteDeviceId === instanceId) {
+                return;
+            }
+            
+            // Check if remote timer is actually running
+            if (!remoteTimer.isRunning || !remoteTimer.startTime) {
+                return;
+            }
+            
+            // Check if remote timer is recent (within last 10 seconds)
+            const remoteUpdateTime = new Date(remoteTimer.lastUpdate);
+            const timeSinceUpdate = Date.now() - remoteUpdateTime.getTime();
+            if (timeSinceUpdate > 10000) {
+                // Remote timer data is stale, ignore it
+                return;
+            }
+            
+            // Remote timer is active on another device
+            if (startTime !== null) {
+                // We also have a local timer running
+                const localStartTime = new Date(startTime);
+                const remoteStartTime = new Date(remoteTimer.startTime);
+                
+                // If remote timer started more recently, sync it
+                if (remoteStartTime > localStartTime) {
+                    console.log('Syncing newer timer from remote device:', remoteDeviceId);
+                    
+                    // Stop local timer without saving
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                    
+                    // Adopt the remote timer
+                    startTime = remoteTimer.startTime;
+                    document.getElementById('projectNameFilter').value = remoteTimer.projectNameFilter || '';
+                    document.getElementById('projectName').value = remoteTimer.project || '';
+                    document.getElementById('taskName').value = remoteTimer.task || '';
+                    document.getElementById('comment').value = remoteTimer.comment || '';
+                    
+                    // Restart timer interval
+                    timerInterval = setInterval(updateTimerDisplay, 1000);
+                    updateTimerDisplay();
+                    
+                    // Update UI
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('pauseBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = false;
+                    
+                    showAlert(`⏱️ Synced running timer from another device: ${remoteTimer.projectNameFilter || 'Unknown'} - ${remoteTimer.task || 'Unknown'}`, 'info');
+                }
+            } else {
+                // No local timer, adopt the remote one
+                console.log('Adopting timer from remote device:', remoteDeviceId);
+                
+                startTime = remoteTimer.startTime;
+                document.getElementById('projectNameFilter').value = remoteTimer.projectNameFilter || '';
+                document.getElementById('projectName').value = remoteTimer.project || '';
+                document.getElementById('taskName').value = remoteTimer.task || '';
+                document.getElementById('comment').value = remoteTimer.comment || '';
+                
+                // Start timer interval
+                timerInterval = setInterval(updateTimerDisplay, 1000);
+                updateTimerDisplay();
+                
+                // Update UI
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = false;
+                
+                showAlert(`⏱️ Timer is running on another device: ${remoteTimer.projectNameFilter || 'Unknown'} - ${remoteTimer.task || 'Unknown'}`, 'info');
             }
         }
 
@@ -9849,6 +9986,86 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 } catch (error) {
                     console.error('Auto-sync failed:', error);
                 }
+            }
+        }
+
+        /**
+         * Start real-time timer synchronization (runs every 5 seconds while timer is active)
+         */
+        function startRealtimeTimerSync() {
+            if (!oneDriveAccount || !autoSyncEnabled) {
+                return; // Only sync if connected to OneDrive and auto-sync is enabled
+            }
+            
+            // Stop any existing interval
+            stopRealtimeTimerSync();
+            
+            console.log('Starting real-time timer sync...');
+            
+            // Sync immediately
+            realtimeTimerSync();
+            
+            // Then sync every 5 seconds
+            realtimeSyncInterval = setInterval(realtimeTimerSync, 5000);
+        }
+
+        /**
+         * Stop real-time timer synchronization
+         */
+        function stopRealtimeTimerSync() {
+            if (realtimeSyncInterval) {
+                clearInterval(realtimeSyncInterval);
+                realtimeSyncInterval = null;
+                console.log('Stopped real-time timer sync');
+            }
+        }
+
+        /**
+         * Perform real-time timer sync (called every 5 seconds when timer is running)
+         */
+        async function realtimeTimerSync() {
+            if (!oneDriveAccount || !startTime) {
+                return;
+            }
+            
+            try {
+                // Upload our current timer state
+                await syncToOneDrive();
+                
+                // Check for updates from other devices
+                const token = await getAccessToken();
+                const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+                
+                const response = await fetch(downloadUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const cloudData = await response.json();
+                    
+                    // Check if there's a different timer running on another device
+                    if (cloudData.timerState && cloudData.timerState.deviceId !== instanceId) {
+                        const remoteUpdateTime = new Date(cloudData.timerState.lastUpdate);
+                        const timeSinceUpdate = Date.now() - remoteUpdateTime.getTime();
+                        
+                        // If remote timer is recent and different from ours, it might have been started later
+                        if (timeSinceUpdate < 10000 && cloudData.timerState.isRunning) {
+                            const remoteStartTime = new Date(cloudData.timerState.startTime);
+                            const localStartTime = new Date(startTime);
+                            
+                            // If remote timer started after ours, show a warning
+                            if (remoteStartTime > localStartTime) {
+                                console.warn('Another device started a timer more recently');
+                                // You could optionally show an alert here or auto-sync
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Real-time sync error:', error);
+                // Don't show alert, just log the error to avoid spamming user
             }
         }
 
