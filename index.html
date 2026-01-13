@@ -2775,51 +2775,95 @@
         }
         
         /**
-         * Stop the timer running on another device
+         * Switch the running timer from another device to this device
+         * Continues tracking with the same start time
          */
-        async function stopRemoteTimer() {
+        async function switchTimerToThisDevice(remoteTimerInfo) {
             try {
+                // Adopt the remote timer state
+                startTime = remoteTimerInfo.startTime;
+                
+                // Update form fields with remote timer data
+                document.getElementById('projectNameFilter').value = remoteTimerInfo.projectNameFilter || '';
+                document.getElementById('projectName').value = remoteTimerInfo.project || '';
+                document.getElementById('taskName').value = remoteTimerInfo.task || '';
+                document.getElementById('comment').value = remoteTimerInfo.comment || '';
+                
+                // Update UI to show timer is running
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('projectNameFilter').disabled = true;
+                document.getElementById('projectName').disabled = true;
+                document.getElementById('taskName').disabled = true;
+                
+                const startClockTime = formatClockTime(new Date(startTime));
+                const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                const elapsedTime = formatSecondsToHHMMSS(elapsedSeconds);
+                
+                document.getElementById('timerDisplay').textContent = elapsedTime;
+                document.getElementById('timerStatus').textContent = 
+                    `Timer running for ${remoteTimerInfo.projectNameFilter} - ${remoteTimerInfo.project} - ${remoteTimerInfo.task} (Started: ${startClockTime})`;
+                
+                // Start the timer interval
+                timerInterval = setInterval(updateTimerDisplay, 1000);
+                
+                // Refresh week view periodically
+                if (!weekViewRefreshInterval) {
+                    weekViewRefreshInterval = setInterval(() => {
+                        try { updateWeekView(); } catch (e) { /* ignore */ }
+                    }, 1000);
+                }
+                
+                // Update mini window if active
+                if (miniWindowActive) {
+                    updateMiniWindowInfo();
+                }
+                
+                // Start real-time sync for timer state
+                startRealtimeTimerSync();
+                
+                // Save as last active task
+                lastActiveTask = {
+                    projectNameFilter: remoteTimerInfo.projectNameFilter,
+                    project: remoteTimerInfo.project,
+                    task: remoteTimerInfo.task
+                };
+                saveLastTask();
+                
+                // Send signal to cloud that timer switched devices
                 const token = await getAccessToken();
                 const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
                 
-                // Download current data
                 const response = await fetch(downloadUrl, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
                 });
                 
-                if (!response.ok) {
-                    throw new Error('Failed to download cloud data');
+                if (response.ok) {
+                    const cloudData = await response.json();
+                    
+                    // Mark that timer switched devices
+                    cloudData.timerState.deviceId = instanceId;
+                    cloudData.timerState.switchedFrom = remoteTimerInfo.deviceId;
+                    cloudData.timerState.switchedAt = new Date().toISOString();
+                    cloudData.timerState.lastUpdate = new Date().toISOString();
+                    
+                    const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+                    await fetch(uploadUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(cloudData)
+                    });
                 }
                 
-                const cloudData = await response.json();
-                
-                // Clear the timer state
-                cloudData.timerState = {
-                    isRunning: false,
-                    stoppedByDevice: instanceId,
-                    stoppedAt: new Date().toISOString()
-                };
-                
-                // Upload back to cloud
-                const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
-                const uploadResponse = await fetch(uploadUrl, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(cloudData)
-                });
-                
-                if (!uploadResponse.ok) {
-                    throw new Error('Failed to update cloud data');
-                }
-                
-                console.log('✅ Remote timer stopped successfully');
+                console.log('✅ Timer switched to this device successfully');
+                showAlert(`Timer switched to this device. Continuing to track time (${elapsedTime} elapsed)`, 'success');
             } catch (error) {
-                console.error('Error stopping remote timer:', error);
+                console.error('Error switching timer to this device:', error);
                 throw error;
             }
         }
@@ -2849,9 +2893,9 @@
                             return;
                         }
                         
-                        // User confirmed - stop the remote timer
-                        await stopRemoteTimer();
-                        showAlert('Switched timer to this device. Starting timer...', 'success');
+                        // User confirmed - switch the timer to this device
+                        await switchTimerToThisDevice(remoteTimerInfo);
+                        return; // Exit early, timer is now running on this device
                     }
                 } catch (error) {
                     console.error('Error checking remote timer:', error);
@@ -9808,13 +9852,13 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             console.log(`   Running: ${remoteTimer.isRunning}`);
             console.log(`   Start Time: ${remoteTimer.startTime}`);
             
-            // Check if timer was stopped by another device (device switch)
-            if (!remoteTimer.isRunning && remoteTimer.stoppedByDevice && remoteTimer.stoppedByDevice !== instanceId) {
-                console.log('⚠️ Timer was stopped by another device for switching');
+            // Check if timer was switched to another device
+            if (remoteTimer.switchedFrom && remoteTimer.switchedFrom === instanceId && remoteTimer.deviceId !== instanceId) {
+                console.log('⚠️ Timer was switched to another device');
                 
-                // If we have a local timer running, stop it
+                // If we have a local timer running, stop it without saving
                 if (startTime !== null) {
-                    console.log('🛑 Stopping local timer due to remote device switch');
+                    console.log('🛑 Stopping local timer due to device switch');
                     
                     // Stop local timer without saving
                     if (timerInterval) {
@@ -9824,14 +9868,23 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                     
                     stopRealtimeTimerSync();
                     
+                    // Clear week view refresh
+                    if (weekViewRefreshInterval) {
+                        clearInterval(weekViewRefreshInterval);
+                        weekViewRefreshInterval = null;
+                    }
+                    
                     // Reset UI
                     startTime = null;
                     document.getElementById('timerDisplay').textContent = '00:00:00';
-                    document.getElementById('timerStatus').textContent = 'Timer stopped by another device';
+                    document.getElementById('timerStatus').textContent = 'Timer switched to another device';
                     document.getElementById('startBtn').disabled = false;
                     document.getElementById('stopBtn').disabled = true;
+                    document.getElementById('projectNameFilter').disabled = false;
+                    document.getElementById('projectName').disabled = false;
+                    document.getElementById('taskName').disabled = false;
                     
-                    showAlert('⚠️ Timer was stopped because it was switched to another device', 'warning');
+                    showAlert('⚠️ Timer was switched to another device', 'warning');
                 }
                 return;
             }
