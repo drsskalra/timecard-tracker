@@ -1596,7 +1596,7 @@
                     <button class="btn btn-danger" id="stopBtn" onclick="stopTimer()" disabled>
                         ⏹️ Stop Timer
                     </button>
-                    <button class="btn btn-info" id="miniWindowBtn" onclick="toggleMiniWindow()">
+                    <button class="btn btn-info" id="miniWindowBtn" onclick="toggleMiniWindow()" title="Keep timer visible while using other apps (Desktop: PiP window, Mobile: Video PiP or mini overlay)">
                         📌 Picture-in-Picture
                     </button>
                 </div>
@@ -3051,7 +3051,7 @@
 
         // Toggle mini window with OS Picture-in-Picture support
         async function toggleMiniWindow() {
-            // Check if Document Picture-in-Picture API is available
+            // Check if Document Picture-in-Picture API is available (Desktop Chrome/Edge)
             if ('documentPictureInPicture' in window) {
                 // Use OS-level Picture-in-Picture
                 if (pipWindow && !pipWindow.closed) {
@@ -3061,8 +3061,17 @@
                     // Open new OS-level PiP window
                     await openPictureInPicture();
                 }
+            } else if (isMobileDevice()) {
+                // Mobile device - try video-based PiP or show instructions
+                try {
+                    await openMobilePictureInPicture();
+                } catch (error) {
+                    console.error('Mobile PiP error:', error);
+                    // Fallback to mini window
+                    openMobileMiniFallback();
+                }
             } else {
-                // Fallback to browser-based mini window
+                // Desktop fallback to browser-based mini window
                 const miniWindow = document.getElementById('miniWindow');
                 const mainContainer = document.querySelector('.container');
                 
@@ -3085,6 +3094,128 @@
                     document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
                 }
             }
+        }
+        
+        // Mobile Picture-in-Picture using video element trick
+        async function openMobilePictureInPicture() {
+            // Check if video PiP is supported
+            if (!document.pictureInPictureEnabled) {
+                throw new Error('Picture-in-Picture not supported on this device');
+            }
+            
+            // Create a canvas-based video stream for PiP
+            const canvas = document.createElement('canvas');
+            canvas.width = 400;
+            canvas.height = 120;
+            const ctx = canvas.getContext('2d');
+            
+            // Create video element
+            const video = document.createElement('video');
+            video.srcObject = canvas.captureStream(30); // 30 FPS
+            video.muted = true;
+            video.playsInline = true;
+            video.style.position = 'fixed';
+            video.style.bottom = '-1000px'; // Hide off-screen
+            document.body.appendChild(video);
+            
+            // Function to draw timer on canvas
+            function drawTimerOnCanvas() {
+                // Clear canvas with gradient background
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                gradient.addColorStop(0, '#667eea');
+                gradient.addColorStop(1, '#764ba2');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Get current info
+                const projectName = document.getElementById('projectNameFilter').value.trim() || 'No Project';
+                const task = document.getElementById('taskName').value.trim() || 'No Task';
+                
+                // Calculate project/task time for today
+                let projectTotalSeconds = 0;
+                const currentDay = getCurrentWeekday();
+                const matchingEntries = timeEntries.filter(e => 
+                    e.projectNameFilter === projectName && 
+                    e.task === task
+                );
+                matchingEntries.forEach(entry => {
+                    projectTotalSeconds += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
+                });
+                if (startTime !== null) {
+                    projectTotalSeconds += Math.floor((Date.now() - startTime) / 1000);
+                }
+                
+                // Draw project/task name
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px "Segoe UI"';
+                ctx.textAlign = 'left';
+                ctx.fillText(`${projectName.substring(0, 25)}: ${task.substring(0, 20)}`, 10, 25);
+                
+                // Draw timer
+                ctx.font = 'bold 32px "Courier New"';
+                ctx.textAlign = 'center';
+                ctx.fillText(formatSecondsToHHMMSS(projectTotalSeconds), canvas.width / 2, 70);
+                
+                // Draw status
+                ctx.font = '14px "Segoe UI"';
+                if (startTime !== null) {
+                    ctx.fillStyle = '#90EE90';
+                    const startClock = formatClockTime(new Date(startTime));
+                    const nowClock = formatClockTime(new Date());
+                    ctx.fillText(`${startClock} - ${nowClock} (Recording)`, canvas.width / 2, 95);
+                } else {
+                    ctx.fillStyle = '#FFB6C1';
+                    ctx.fillText('Timer stopped', canvas.width / 2, 95);
+                }
+                
+                // Draw today's total
+                let dayTotalSeconds = 0;
+                timeEntries.forEach(entry => {
+                    dayTotalSeconds += parseHHMMSSToSeconds(entry[`day${currentDay}_hr`] || '00:00:00');
+                });
+                if (startTime !== null) {
+                    dayTotalSeconds += Math.floor((Date.now() - startTime) / 1000);
+                }
+                ctx.font = '12px "Courier New"';
+                ctx.fillStyle = '#90EE90';
+                ctx.textAlign = 'right';
+                ctx.fillText(`Today: ${formatSecondsToHHMMSS(dayTotalSeconds)}`, canvas.width - 10, 110);
+            }
+            
+            // Start drawing loop
+            pipUpdateInterval = setInterval(drawTimerOnCanvas, 1000);
+            drawTimerOnCanvas(); // Initial draw
+            
+            // Play video and enter PiP
+            await video.play();
+            await video.requestPictureInPicture();
+            
+            // Handle PiP exit
+            video.addEventListener('leavepictureinpicture', () => {
+                clearInterval(pipUpdateInterval);
+                document.body.removeChild(video);
+                document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
+                showAlert('PiP closed', 'info');
+            });
+            
+            // Update button
+            document.getElementById('miniWindowBtn').innerHTML = '🔽 Close PiP';
+            showAlert('Mobile PiP active! You can now use other apps while timer is visible.', 'success');
+        }
+        
+        // Fallback for mobile devices without PiP support
+        function openMobileMiniFallback() {
+            showAlert(`📱 Picture-in-Picture Tips:\n\n• iOS: Use "Add to Home Screen" and keep the app open\n• Android: Some browsers support PiP - try Chrome or Edge\n• Alternative: Use split-screen multitasking on your device`, 'info');
+            
+            // Show the fallback mini window
+            const miniWindow = document.getElementById('miniWindow');
+            const mainContainer = document.querySelector('.container');
+            
+            miniWindowActive = true;
+            miniWindow.classList.add('show');
+            mainContainer.style.display = 'none';
+            updateMiniWindowInfo();
+            document.getElementById('miniWindowBtn').innerHTML = '🔽 Restore';
         }
 
         // Open OS-level Picture-in-Picture window
