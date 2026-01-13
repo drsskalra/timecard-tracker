@@ -1848,8 +1848,6 @@
         let manualTimeOffset = 0; // Offset in seconds for manually set time
         let isContinuingLastBlock = false; // Track if user chose to continue from last time block
         let timeEntries = [];
-        let wakeLock = null; // Wake Lock to keep device awake
-        let mediaSessionActive = false; // Track if media session is active
         const STORAGE_KEY = 'timecard_data';
         const ALL_WEEKS_KEY = 'timecard_all_weeks';
         const HISTORY_KEY = 'timecard_history';
@@ -2830,12 +2828,6 @@
                     try { updateWeekView(); } catch (e) { /* ignore */ }
                 }, 1000); // every 1 second for smooth live update
             }
-            
-            // Initialize media session for lock screen display
-            await initializeMediaSession();
-            
-            // Request wake lock to keep device awake
-            await requestWakeLock();
             showAlert(`Timer started for ${projectNameFilter} - ${project} - ${task} at ${startClockTime}`, 'success');
             
             // Clear any reminder notifications
@@ -2939,17 +2931,13 @@
         }
 
         // Stop timer
-        async function stopTimer() {
+        function stopTimer() {
             if (!startTime) {
                 showAlert('Timer was not started!', 'error');
                 return;
             }
 
             clearInterval(timerInterval);
-            
-            // Clear media session and release wake lock
-            clearMediaSession();
-            await releaseWakeLock();
             const endTime = Date.now();
             const elapsedSeconds = Math.floor((endTime - startTime) / 1000);
             const elapsedTime = formatSecondsToHHMMSS(elapsedSeconds);
@@ -3039,13 +3027,6 @@
             
             // Reset timer UI but keep the form values
             clearInterval(timerInterval);
-            
-            // Clear media session and release wake lock
-            clearMediaSession();
-            if (wakeLock) {
-                releaseWakeLock().catch(console.error);
-            }
-            
             startTime = null;
             manualTimeOffset = 0;
             document.getElementById('timerDisplay').textContent = '00:00:00';
@@ -3074,139 +3055,6 @@
             
             // Stop real-time timer sync
             stopRealtimeTimerSync();
-        }
-
-        // Initialize Media Session API for lock screen display
-        async function initializeMediaSession() {
-            if (!('mediaSession' in navigator)) {
-                console.log('⚠️ Media Session API not supported');
-                return;
-            }
-
-            const projectNameFilter = document.getElementById('projectNameFilter').value.trim();
-            const project = document.getElementById('projectName').value.trim();
-            const task = document.getElementById('taskName').value.trim();
-
-            try {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: `${projectNameFilter} - ${project}`,
-                    artist: task,
-                    album: 'Timecard Tracker',
-                    artwork: [
-                        { src: 'icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
-                        { src: 'icon-512.svg', sizes: '512x512', type: 'image/svg+xml' }
-                    ]
-                });
-
-                // Set action handlers
-                navigator.mediaSession.setActionHandler('play', () => {
-                    console.log('📱 Lock screen play action');
-                    if (!startTime) {
-                        startTimer();
-                    }
-                });
-
-                navigator.mediaSession.setActionHandler('pause', () => {
-                    console.log('📱 Lock screen pause action');
-                    if (startTime) {
-                        stopTimer();
-                    }
-                });
-
-                navigator.mediaSession.setActionHandler('stop', () => {
-                    console.log('📱 Lock screen stop action');
-                    if (startTime) {
-                        stopTimer();
-                    }
-                });
-
-                navigator.mediaSession.playbackState = 'playing';
-                mediaSessionActive = true;
-                console.log('✅ Media session initialized for lock screen');
-            } catch (error) {
-                console.error('❌ Error initializing media session:', error);
-            }
-        }
-
-        // Update Media Session with current timer info
-        function updateMediaSession(elapsedTime) {
-            if (!('mediaSession' in navigator) || !mediaSessionActive) return;
-
-            try {
-                const projectNameFilter = document.getElementById('projectNameFilter').value.trim();
-                const project = document.getElementById('projectName').value.trim();
-                const task = document.getElementById('taskName').value.trim();
-
-                // Update metadata with current elapsed time
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: `⏱️ ${elapsedTime}`,
-                    artist: `${projectNameFilter} - ${project}`,
-                    album: task,
-                    artwork: [
-                        { src: 'icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
-                        { src: 'icon-512.svg', sizes: '512x512', type: 'image/svg+xml' }
-                    ]
-                });
-
-                // Update position state
-                const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                navigator.mediaSession.setPositionState({
-                    duration: 86400, // 24 hours max
-                    playbackRate: 1.0,
-                    position: Math.min(elapsed, 86400)
-                });
-            } catch (error) {
-                // Silently ignore errors to avoid spam
-            }
-        }
-
-        // Clear Media Session
-        function clearMediaSession() {
-            if (!('mediaSession' in navigator)) return;
-
-            try {
-                navigator.mediaSession.playbackState = 'none';
-                navigator.mediaSession.metadata = null;
-                mediaSessionActive = false;
-                console.log('✅ Media session cleared');
-            } catch (error) {
-                console.error('❌ Error clearing media session:', error);
-            }
-        }
-
-        // Request Wake Lock to keep device awake
-        async function requestWakeLock() {
-            if (!('wakeLock' in navigator)) {
-                console.log('⚠️ Wake Lock API not supported');
-                return;
-            }
-
-            try {
-                wakeLock = await navigator.wakeLock.request('screen');
-                console.log('✅ Wake lock acquired - screen will stay awake');
-
-                // Re-request wake lock if it's released (e.g., when tab becomes inactive)
-                wakeLock.addEventListener('release', () => {
-                    console.log('⚠️ Wake lock released');
-                    // Note: Wake lock is automatically released when device is locked
-                    // Media Session will keep timer running in background
-                });
-            } catch (error) {
-                console.error('❌ Error requesting wake lock:', error);
-            }
-        }
-
-        // Release Wake Lock
-        async function releaseWakeLock() {
-            if (wakeLock) {
-                try {
-                    await wakeLock.release();
-                    wakeLock = null;
-                    console.log('✅ Wake lock released');
-                } catch (error) {
-                    console.error('❌ Error releasing wake lock:', error);
-                }
-            }
         }
 
         // Update timer display
@@ -3241,9 +3089,6 @@
 
             const display = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
             document.getElementById('timerDisplay').textContent = display;
-            
-            // Update media session for lock screen
-            updateMediaSession(display);
             
             // Update mini window if active
             if (miniWindowActive) {
@@ -3881,13 +3726,6 @@
         // Reset timer (clear form and timer)
         function resetTimer() {
             clearInterval(timerInterval);
-            
-            // Clear media session and release wake lock
-            clearMediaSession();
-            if (wakeLock) {
-                releaseWakeLock().catch(console.error);
-            }
-            
             startTime = null;
             manualTimeOffset = 0;
             document.getElementById('timerDisplay').textContent = '00:00:00';
@@ -10356,26 +10194,6 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 setTimeout(autoSync, 1000); // Debounce auto-sync
             }
         };
-
-        /**
-         * Handle page visibility changes to keep timer running in background
-         */
-        document.addEventListener('visibilitychange', async () => {
-            if (document.hidden) {
-                console.log('📱 Page hidden - timer will continue in background via Media Session');
-                // Timer continues running via JavaScript and Media Session API
-            } else {
-                console.log('📱 Page visible - updating display');
-                // Update display when page becomes visible
-                if (startTime) {
-                    updateTimerDisplay();
-                    // Try to re-acquire wake lock if needed
-                    if (!wakeLock) {
-                        await requestWakeLock();
-                    }
-                }
-            }
-        });
 
         /**
          * Initialize OneDrive sync on page load
