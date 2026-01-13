@@ -3933,11 +3933,16 @@
                 Object.keys(groupedEntries).sort().forEach(projName => {
                     const entries = groupedEntries[projName];
                     entries.forEach(entry => {
-                        const entryIndex = timeEntries.indexOf(entry);
+                        // Find the correct entry index by matching all key fields
+                        const entryIndex = timeEntries.findIndex(e => 
+                            e.projectNameFilter === entry.projectNameFilter &&
+                            e.project === entry.project &&
+                            e.task === entry.task
+                        );
                         const timeStr = entry[`day${dayNum}_hr`] || '00:00:00';
                         const seconds = parseHHMMSSToSeconds(timeStr);
                         
-                        if (seconds > 0) {
+                        if (seconds > 0 && entryIndex !== -1) {
                             dayEntries.push({
                                 entry: entry,
                                 entryIndex: entryIndex,
