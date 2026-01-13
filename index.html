@@ -1926,25 +1926,44 @@
 
         // Check for remote timer when window gains focus
         window.addEventListener('focus', async function() {
-            if (oneDriveAccount && autoSyncEnabled && isOnline) {
-                try {
-                    // Quick check for remote timer state when user returns to the app
-                    const token = await getAccessToken();
-                    const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
-                    
-                    const response = await fetch(downloadUrl, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        const cloudData = await response.json();
-                        await syncRemoteTimerState(cloudData);
+            console.log('🔍 Window focused - checking for remote timer...');
+            
+            if (!oneDriveAccount) {
+                console.log('⚠️ Not connected to OneDrive, skipping remote timer check');
+                return;
+            }
+            
+            if (!autoSyncEnabled) {
+                console.log('⚠️ Auto-sync disabled, skipping remote timer check');
+                return;
+            }
+            
+            if (!isOnline) {
+                console.log('⚠️ Offline, skipping remote timer check');
+                return;
+            }
+            
+            try {
+                // Quick check for remote timer state when user returns to the app
+                console.log('📥 Fetching timer state from OneDrive...');
+                const token = await getAccessToken();
+                const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+                
+                const response = await fetch(downloadUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
                     }
-                } catch (error) {
-                    console.error('Error checking remote timer on focus:', error);
+                });
+                
+                if (response.ok) {
+                    const cloudData = await response.json();
+                    console.log('✅ Cloud data retrieved, checking for remote timer...');
+                    await syncRemoteTimerState(cloudData);
+                } else {
+                    console.warn(`⚠️ Failed to fetch cloud data: ${response.status} ${response.statusText}`);
                 }
+            } catch (error) {
+                console.error('❌ Error checking remote timer on focus:', error);
             }
         });
 
@@ -9635,28 +9654,41 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
          * Check and sync remote timer state from another device
          */
         async function syncRemoteTimerState(cloudData) {
+            console.log('🔍 Checking for remote timer state...');
+            
             if (!cloudData.timerState) {
+                console.log('ℹ️ No remote timer state found');
                 return; // No remote timer state
             }
             
             const remoteTimer = cloudData.timerState;
             const remoteDeviceId = remoteTimer.deviceId || 'unknown';
             
+            console.log(`📱 Remote timer found from device: ${remoteDeviceId.substring(0, 20)}...`);
+            console.log(`   Project: ${remoteTimer.projectNameFilter || 'N/A'}`);
+            console.log(`   Task: ${remoteTimer.task || 'N/A'}`);
+            console.log(`   Running: ${remoteTimer.isRunning}`);
+            console.log(`   Start Time: ${remoteTimer.startTime}`);
+            
             // Don't sync our own timer back to ourselves
             if (remoteDeviceId === instanceId) {
+                console.log('ℹ️ Remote timer is from this device, ignoring');
                 return;
             }
             
             // Check if remote timer is actually running
             if (!remoteTimer.isRunning || !remoteTimer.startTime) {
+                console.log('ℹ️ Remote timer is not running or has no start time');
                 return;
             }
             
-            // Check if remote timer is recent (within last 10 seconds)
+            // Check if remote timer is recent (within last 15 seconds)
             const remoteUpdateTime = new Date(remoteTimer.lastUpdate);
             const timeSinceUpdate = Date.now() - remoteUpdateTime.getTime();
-            if (timeSinceUpdate > 10000) {
-                // Remote timer data is stale, ignore it
+            console.log(`⏱️ Remote timer last updated: ${Math.floor(timeSinceUpdate/1000)} seconds ago`);
+            
+            if (timeSinceUpdate > 15000) {
+                console.log('⚠️ Remote timer data is stale (>15s), ignoring');
                 return;
             }
             
@@ -9666,15 +9698,22 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 const localStartTime = new Date(startTime);
                 const remoteStartTime = new Date(remoteTimer.startTime);
                 
+                console.log(`⏱️ Both local and remote timers running:`);
+                console.log(`   Local started: ${localStartTime.toISOString()}`);
+                console.log(`   Remote started: ${remoteStartTime.toISOString()}`);
+                
                 // If remote timer started more recently, sync it
                 if (remoteStartTime > localStartTime) {
-                    console.log('Syncing newer timer from remote device:', remoteDeviceId);
+                    console.log('✅ Syncing newer timer from remote device:', remoteDeviceId);
                     
                     // Stop local timer without saving
                     if (timerInterval) {
                         clearInterval(timerInterval);
                         timerInterval = null;
                     }
+                    
+                    // Stop the realtime sync for the old timer
+                    stopRealtimeTimerSync();
                     
                     // Adopt the remote timer
                     startTime = remoteTimer.startTime;
@@ -9692,11 +9731,16 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                     document.getElementById('pauseBtn').disabled = false;
                     document.getElementById('stopBtn').disabled = false;
                     
+                    // Restart realtime sync for the new timer
+                    startRealtimeTimerSync();
+                    
                     showAlert(`⏱️ Synced running timer from another device: ${remoteTimer.projectNameFilter || 'Unknown'} - ${remoteTimer.task || 'Unknown'}`, 'info');
+                } else {
+                    console.log('ℹ️ Local timer is newer, keeping local timer');
                 }
             } else {
                 // No local timer, adopt the remote one
-                console.log('Adopting timer from remote device:', remoteDeviceId);
+                console.log('✅ No local timer running, adopting remote timer from device:', remoteDeviceId);
                 
                 startTime = remoteTimer.startTime;
                 document.getElementById('projectNameFilter').value = remoteTimer.projectNameFilter || '';
@@ -9712,6 +9756,9 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 document.getElementById('startBtn').disabled = true;
                 document.getElementById('pauseBtn').disabled = false;
                 document.getElementById('stopBtn').disabled = false;
+                
+                // Start realtime sync
+                startRealtimeTimerSync();
                 
                 showAlert(`⏱️ Timer is running on another device: ${remoteTimer.projectNameFilter || 'Unknown'} - ${remoteTimer.task || 'Unknown'}`, 'info');
             }
@@ -9993,14 +10040,20 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
          * Start real-time timer synchronization (runs every 5 seconds while timer is active)
          */
         function startRealtimeTimerSync() {
-            if (!oneDriveAccount || !autoSyncEnabled) {
-                return; // Only sync if connected to OneDrive and auto-sync is enabled
-            }
-            
             // Stop any existing interval
             stopRealtimeTimerSync();
             
-            console.log('Starting real-time timer sync...');
+            if (!oneDriveAccount) {
+                console.log('Real-time sync: Not connected to OneDrive, skipping sync');
+                return;
+            }
+            
+            if (!autoSyncEnabled) {
+                console.log('Real-time sync: Auto-sync disabled, skipping sync');
+                return;
+            }
+            
+            console.log('✅ Starting real-time timer sync (every 5 seconds)...');
             
             // Sync immediately
             realtimeTimerSync();
@@ -10024,13 +10077,23 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
          * Perform real-time timer sync (called every 5 seconds when timer is running)
          */
         async function realtimeTimerSync() {
-            if (!oneDriveAccount || !startTime) {
+            if (!oneDriveAccount) {
+                console.log('⚠️ Real-time sync skipped: Not connected to OneDrive');
+                stopRealtimeTimerSync();
+                return;
+            }
+            
+            if (!startTime) {
+                console.log('⚠️ Real-time sync skipped: Timer not running');
                 return;
             }
             
             try {
+                console.log('🔄 Syncing timer state to cloud...');
+                
                 // Upload our current timer state
                 await syncToOneDrive();
+                console.log('✅ Timer state uploaded successfully');
                 
                 // Check for updates from other devices
                 const token = await getAccessToken();
@@ -10050,22 +10113,31 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                         const remoteUpdateTime = new Date(cloudData.timerState.lastUpdate);
                         const timeSinceUpdate = Date.now() - remoteUpdateTime.getTime();
                         
+                        console.log(`📱 Remote device timer detected (${cloudData.timerState.deviceId.substring(0,15)}...), updated ${Math.floor(timeSinceUpdate/1000)}s ago`);
+                        
                         // If remote timer is recent and different from ours, it might have been started later
-                        if (timeSinceUpdate < 10000 && cloudData.timerState.isRunning) {
+                        if (timeSinceUpdate < 15000 && cloudData.timerState.isRunning) {
                             const remoteStartTime = new Date(cloudData.timerState.startTime);
                             const localStartTime = new Date(startTime);
                             
+                            console.log(`Remote timer: ${remoteStartTime.toISOString()}, Local timer: ${localStartTime.toISOString()}`);
+                            
                             // If remote timer started after ours, show a warning
                             if (remoteStartTime > localStartTime) {
-                                console.warn('Another device started a timer more recently');
-                                // You could optionally show an alert here or auto-sync
+                                console.warn('⚠️ Another device started a timer more recently');
+                                showAlert(`⚠️ Timer conflict: Another device started a newer timer for ${cloudData.timerState.projectNameFilter || 'Unknown Project'}`, 'warning');
                             }
                         }
                     }
+                } else {
+                    console.warn(`⚠️ Failed to check remote timer: ${response.status} ${response.statusText}`);
                 }
             } catch (error) {
-                console.error('Real-time sync error:', error);
-                // Don't show alert, just log the error to avoid spamming user
+                console.error('❌ Real-time sync error:', error.message || error);
+                // Show alert on errors to help debug
+                if (error.message && error.message.includes('Not connected')) {
+                    stopRealtimeTimerSync();
+                }
             }
         }
 
