@@ -2720,7 +2720,145 @@
             });
         }
 
+        /**
+         * Check if there's an active timer on another device
+         * Returns timer info if found, null otherwise
+         */
+        async function checkForRemoteActiveTimer() {
+            if (!oneDriveAccount) {
+                return null;
+            }
+            
+            try {
+                const token = await getAccessToken();
+                const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+                
+                const response = await fetch(downloadUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    return null;
+                }
+                
+                const cloudData = await response.json();
+                
+                if (!cloudData.timerState || !cloudData.timerState.isRunning) {
+                    return null;
+                }
+                
+                const remoteTimer = cloudData.timerState;
+                const remoteDeviceId = remoteTimer.deviceId || 'unknown';
+                
+                // Don't consider our own timer as remote
+                if (remoteDeviceId === instanceId) {
+                    return null;
+                }
+                
+                // Check if remote timer is recent (within last 15 seconds)
+                const remoteUpdateTime = new Date(remoteTimer.lastUpdate);
+                const timeSinceUpdate = Date.now() - remoteUpdateTime.getTime();
+                
+                if (timeSinceUpdate > 15000) {
+                    // Remote timer data is stale
+                    return null;
+                }
+                
+                // Valid remote timer found
+                return remoteTimer;
+            } catch (error) {
+                console.error('Error checking for remote timer:', error);
+                return null;
+            }
+        }
+        
+        /**
+         * Stop the timer running on another device
+         */
+        async function stopRemoteTimer() {
+            try {
+                const token = await getAccessToken();
+                const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+                
+                // Download current data
+                const response = await fetch(downloadUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to download cloud data');
+                }
+                
+                const cloudData = await response.json();
+                
+                // Clear the timer state
+                cloudData.timerState = {
+                    isRunning: false,
+                    stoppedByDevice: instanceId,
+                    stoppedAt: new Date().toISOString()
+                };
+                
+                // Upload back to cloud
+                const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+                const uploadResponse = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(cloudData)
+                });
+                
+                if (!uploadResponse.ok) {
+                    throw new Error('Failed to update cloud data');
+                }
+                
+                console.log('✅ Remote timer stopped successfully');
+            } catch (error) {
+                console.error('Error stopping remote timer:', error);
+                throw error;
+            }
+        }
+
         async function startTimer() {
+            // Check if there's an active timer on another device
+            if (oneDriveAccount && autoSyncEnabled && isOnline) {
+                try {
+                    const remoteTimerInfo = await checkForRemoteActiveTimer();
+                    if (remoteTimerInfo) {
+                        // Ask user if they want to switch devices
+                        const deviceName = remoteTimerInfo.deviceId.substring(0, 20);
+                        const project = remoteTimerInfo.projectNameFilter || 'Unknown';
+                        const task = remoteTimerInfo.task || 'Unknown';
+                        
+                        const confirmed = confirm(
+                            `⚠️ Timer is already running on another device!\n\n` +
+                            `Device: ${deviceName}...\n` +
+                            `Project: ${project}\n` +
+                            `Task: ${task}\n\n` +
+                            `Do you want to switch the timer to this device?\n` +
+                            `(This will stop the timer on the other device and continue tracking on this device)`
+                        );
+                        
+                        if (!confirmed) {
+                            showAlert('Timer start cancelled. The timer remains active on the other device.', 'info');
+                            return;
+                        }
+                        
+                        // User confirmed - stop the remote timer
+                        await stopRemoteTimer();
+                        showAlert('Switched timer to this device. Starting timer...', 'success');
+                    }
+                } catch (error) {
+                    console.error('Error checking remote timer:', error);
+                    // Continue with starting timer even if check fails
+                }
+            }
+            
             // Ensure we're on the current week before starting timer
             if (weekOffset !== 0) {
                 const weekMessage = weekOffset < 0 ? 'a past week' : 'a future week';
@@ -9669,6 +9807,34 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             console.log(`   Task: ${remoteTimer.task || 'N/A'}`);
             console.log(`   Running: ${remoteTimer.isRunning}`);
             console.log(`   Start Time: ${remoteTimer.startTime}`);
+            
+            // Check if timer was stopped by another device (device switch)
+            if (!remoteTimer.isRunning && remoteTimer.stoppedByDevice && remoteTimer.stoppedByDevice !== instanceId) {
+                console.log('⚠️ Timer was stopped by another device for switching');
+                
+                // If we have a local timer running, stop it
+                if (startTime !== null) {
+                    console.log('🛑 Stopping local timer due to remote device switch');
+                    
+                    // Stop local timer without saving
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                    
+                    stopRealtimeTimerSync();
+                    
+                    // Reset UI
+                    startTime = null;
+                    document.getElementById('timerDisplay').textContent = '00:00:00';
+                    document.getElementById('timerStatus').textContent = 'Timer stopped by another device';
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    
+                    showAlert('⚠️ Timer was stopped because it was switched to another device', 'warning');
+                }
+                return;
+            }
             
             // Don't sync our own timer back to ourselves
             if (remoteDeviceId === instanceId) {
