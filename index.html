@@ -1529,6 +1529,71 @@
             margin-top: 2px;
             opacity: 0.8;
         }
+
+        /* Floating PiP Button */
+        .floating-pip-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+            z-index: 9999;
+            transition: all 0.3s;
+        }
+
+        .floating-pip-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+        }
+
+        .floating-pip-btn:active {
+            transform: scale(0.95);
+        }
+
+        .floating-pip-btn.active {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            animation: pulse-pip 2s infinite;
+        }
+
+        @keyframes pulse-pip {
+            0%, 100% {
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            }
+            50% {
+                box-shadow: 0 4px 20px rgba(40, 167, 69, 0.6);
+            }
+        }
+
+        /* Mobile adjustments for floating button */
+        @media (max-width: 768px) {
+            .floating-pip-btn {
+                bottom: 15px;
+                right: 15px;
+                width: 56px;
+                height: 56px;
+                font-size: 1.6em;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .floating-pip-btn {
+                bottom: 12px;
+                right: 12px;
+                width: 52px;
+                height: 52px;
+                font-size: 1.4em;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1829,6 +1894,11 @@
             <button class="mini-stop-btn" onclick="stopTimer()" id="miniStopBtn" disabled>Stop</button>
         </div>
     </div>
+
+    <!-- Floating PiP Button (Always Visible) -->
+    <button id="floatingPipBtn" class="floating-pip-btn" onclick="toggleMiniWindow()" title="Picture-in-Picture Mode">
+        📌
+    </button>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Microsoft Authentication Library for OneDrive sync -->
@@ -3051,15 +3121,19 @@
 
         // Toggle mini window with OS Picture-in-Picture support
         async function toggleMiniWindow() {
+            const floatingBtn = document.getElementById('floatingPipBtn');
+            
             // Check if Document Picture-in-Picture API is available
             if ('documentPictureInPicture' in window) {
                 // Use OS-level Picture-in-Picture
                 if (pipWindow && !pipWindow.closed) {
                     // Close existing PiP window
                     pipWindow.close();
+                    floatingBtn.classList.remove('active');
                 } else {
                     // Open new OS-level PiP window
                     await openPictureInPicture();
+                    floatingBtn.classList.add('active');
                 }
             } else {
                 // Fallback to browser-based mini window
@@ -3073,16 +3147,20 @@
                     miniWindow.classList.add('show');
                     mainContainer.style.display = 'none';
                     updateMiniWindowInfo();
+                    floatingBtn.classList.add('active');
                     
-                    // Update button text
-                    document.getElementById('miniWindowBtn').innerHTML = '🔽 Restore';
+                    // Update button text if it exists
+                    const miniWindowBtn = document.getElementById('miniWindowBtn');
+                    if (miniWindowBtn) miniWindowBtn.innerHTML = '🔽 Restore';
                 } else {
                     // Hide mini window, show main
                     miniWindow.classList.remove('show');
                     mainContainer.style.display = 'block';
+                    floatingBtn.classList.remove('active');
                     
-                    // Update button text
-                    document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
+                    // Update button text if it exists
+                    const miniWindowBtn = document.getElementById('miniWindowBtn');
+                    if (miniWindowBtn) miniWindowBtn.innerHTML = '📌 Picture-in-Picture';
                 }
             }
         }
@@ -3336,7 +3414,8 @@
                 // Do not enforce minimum PiP size; let CSS and the host decide resize behavior.
 
                 // Update button text
-                document.getElementById('miniWindowBtn').innerHTML = '🔽 Close PiP';
+                const miniWindowBtn = document.getElementById('miniWindowBtn');
+                if (miniWindowBtn) miniWindowBtn.innerHTML = '🔽 Close PiP';
 
                 // Update PiP window
                 pipUpdateInterval = setInterval(() => {
@@ -3403,7 +3482,10 @@
                         if (pipDayTotalTimer) pipDayTotalTimer.innerHTML = `<span class="pip-today-timer-value">${dayTotalTime}</span><span class="pip-today-label">(Today)</span>`;
                     } else {
                         clearInterval(pipUpdateInterval);
-                        document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
+                        const miniWindowBtn = document.getElementById('miniWindowBtn');
+                        if (miniWindowBtn) miniWindowBtn.innerHTML = '📌 Picture-in-Picture';
+                        const floatingBtn = document.getElementById('floatingPipBtn');
+                        if (floatingBtn) floatingBtn.classList.remove('active');
                     }
                 }, 1000);
 
@@ -3411,7 +3493,10 @@
                 pipWindow.addEventListener('pagehide', () => {
                     clearInterval(pipUpdateInterval);
                     pipWindow = null;
-                    document.getElementById('miniWindowBtn').innerHTML = '📌 Picture-in-Picture';
+                    const miniWindowBtn = document.getElementById('miniWindowBtn');
+                    if (miniWindowBtn) miniWindowBtn.innerHTML = '📌 Picture-in-Picture';
+                    const floatingBtn = document.getElementById('floatingPipBtn');
+                    if (floatingBtn) floatingBtn.classList.remove('active');
                 });
 
                 showAlert('Picture-in-Picture window opened! It will stay on top of other windows.', 'success');
@@ -3423,12 +3508,15 @@
                 // Fallback to browser-based mini window
                 const miniWindow = document.getElementById('miniWindow');
                 const mainContainer = document.querySelector('.container');
+                const floatingBtn = document.getElementById('floatingPipBtn');
                 
                 miniWindowActive = true;
                 miniWindow.classList.add('show');
                 mainContainer.style.display = 'none';
                 updateMiniWindowInfo();
-                document.getElementById('miniWindowBtn').innerHTML = '🔽 Restore';
+                if (floatingBtn) floatingBtn.classList.add('active');
+                const miniWindowBtn = document.getElementById('miniWindowBtn');
+                if (miniWindowBtn) miniWindowBtn.innerHTML = '🔽 Restore';
             }
         }
 
