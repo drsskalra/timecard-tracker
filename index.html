@@ -2757,11 +2757,11 @@
                     return null;
                 }
                 
-                // Check if remote timer is recent (within last 15 seconds)
+                // Check if remote timer is recent (within last 5 minutes)
                 const remoteUpdateTime = new Date(remoteTimer.lastUpdate);
                 const timeSinceUpdate = Date.now() - remoteUpdateTime.getTime();
                 
-                if (timeSinceUpdate > 15000) {
+                if (timeSinceUpdate > 300000) {
                     // Remote timer data is stale
                     return null;
                 }
@@ -9901,13 +9901,13 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 return;
             }
             
-            // Check if remote timer is recent (within last 15 seconds)
+            // Check if remote timer is recent (within last 5 minutes)
             const remoteUpdateTime = new Date(remoteTimer.lastUpdate);
             const timeSinceUpdate = Date.now() - remoteUpdateTime.getTime();
             console.log(`⏱️ Remote timer last updated: ${Math.floor(timeSinceUpdate/1000)} seconds ago`);
             
-            if (timeSinceUpdate > 15000) {
-                console.log('⚠️ Remote timer data is stale (>15s), ignoring');
+            if (timeSinceUpdate > 300000) {
+                console.log('⚠️ Remote timer data is stale (>5min), ignoring');
                 return;
             }
             
@@ -10335,7 +10335,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                         console.log(`📱 Remote device timer detected (${cloudData.timerState.deviceId.substring(0,15)}...), updated ${Math.floor(timeSinceUpdate/1000)}s ago`);
                         
                         // If remote timer is recent and different from ours, it might have been started later
-                        if (timeSinceUpdate < 15000 && cloudData.timerState.isRunning) {
+                        if (timeSinceUpdate < 300000 && cloudData.timerState.isRunning) {
                             const remoteStartTime = new Date(cloudData.timerState.startTime);
                             const localStartTime = new Date(startTime);
                             
