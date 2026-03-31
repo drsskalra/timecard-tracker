@@ -1924,46 +1924,28 @@
             await processOfflineQueue();
         };
 
-        // Check for remote timer when window gains focus
-        window.addEventListener('focus', async function() {
-            console.log('🔍 Window focused - checking for remote timer...');
-            
-            if (!oneDriveAccount) {
-                console.log('⚠️ Not connected to OneDrive, skipping remote timer check');
+        async function refreshFromCloudOnReturn(reason) {
+            if (!oneDriveAccount || !autoSyncEnabled || !isOnline) {
                 return;
             }
-            
-            if (!autoSyncEnabled) {
-                console.log('⚠️ Auto-sync disabled, skipping remote timer check');
-                return;
-            }
-            
-            if (!isOnline) {
-                console.log('⚠️ Offline, skipping remote timer check');
-                return;
-            }
-            
+
             try {
-                // Quick check for remote timer state when user returns to the app
-                console.log('📥 Fetching timer state from OneDrive...');
-                const token = await getAccessToken();
-                const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
-                
-                const response = await fetch(downloadUrl, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                
-                if (response.ok) {
-                    const cloudData = await response.json();
-                    console.log('✅ Cloud data retrieved, checking for remote timer...');
-                    await syncRemoteTimerState(cloudData);
-                } else {
-                    console.warn(`⚠️ Failed to fetch cloud data: ${response.status} ${response.statusText}`);
-                }
+                console.log(`🔍 App ${reason} - refreshing from OneDrive...`);
+                await syncFromOneDriveEnhanced();
             } catch (error) {
-                console.error('❌ Error checking remote timer on focus:', error);
+                console.error(`❌ Error refreshing from cloud on ${reason}:`, error);
+            }
+        }
+
+        // Check cloud changes when window gains focus.
+        window.addEventListener('focus', async function() {
+            await refreshFromCloudOnReturn('focus');
+        });
+
+        // Mobile browsers often resume from background without a focus event.
+        document.addEventListener('visibilitychange', async function() {
+            if (document.visibilityState === 'visible') {
+                await refreshFromCloudOnReturn('visibilitychange');
             }
         });
 
@@ -9442,6 +9424,15 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             
             // Process offline queue
             await processOfflineQueue();
+
+            // Pull/push latest cloud changes when connectivity returns.
+            if (oneDriveAccount && autoSyncEnabled) {
+                try {
+                    await syncNow();
+                } catch (error) {
+                    console.error('Error syncing OneDrive after reconnect:', error);
+                }
+            }
         }
 
         /**
@@ -9516,7 +9507,16 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
          * Check if user is on mobile device
          */
         function isMobileDevice() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const ua = navigator.userAgent || '';
+            const touchMac = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || touchMac;
+        }
+
+        /**
+         * Build redirect URI dynamically so login works for mobile/PWA/local hosting.
+         */
+        function getMsalRedirectUri() {
+            return window.location.origin + window.location.pathname;
         }
 
         /**
@@ -9527,7 +9527,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 auth: {
                     clientId: 'daa9245c-cf13-41bc-ad1f-ece114571e14', // Replace with your Azure AD app client ID
                     authority: 'https://login.microsoftonline.com/common', // Use /common for both personal and work accounts
-                    redirectUri: 'https://drsskalra.github.io/timecard-tracker/'
+                    redirectUri: getMsalRedirectUri()
                 },
                 cache: {
                     cacheLocation: 'localStorage',
@@ -10233,6 +10233,46 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             }
 
             return merged;
+        }
+
+        /**
+         * Apply merged/cloud data to local storage and refresh UI state.
+         */
+        function applyCloudData(cloudData) {
+            if (!cloudData) {
+                return;
+            }
+
+            if (cloudData.currentWeek) {
+                localStorage.setItem(STORAGE_KEY, cloudData.currentWeek);
+            }
+
+            if (cloudData.allWeeks) {
+                const serializedAllWeeks = typeof cloudData.allWeeks === 'string'
+                    ? cloudData.allWeeks
+                    : JSON.stringify(cloudData.allWeeks);
+                localStorage.setItem(ALL_WEEKS_KEY, serializedAllWeeks);
+            }
+
+            if (cloudData.history) {
+                const serializedHistory = typeof cloudData.history === 'string'
+                    ? cloudData.history
+                    : JSON.stringify(cloudData.history);
+                localStorage.setItem(HISTORY_KEY, serializedHistory);
+            }
+
+            if (cloudData.lastTask) {
+                localStorage.setItem(LAST_TASK_KEY, cloudData.lastTask);
+            }
+
+            // Refresh in-memory/UI state after applying synchronized data.
+            loadData();
+            loadHistory();
+            loadWeekDates();
+            updateSummary();
+            updateWeekView();
+            loadLastTask();
+            updateDropdowns();
         }
 
         /**
