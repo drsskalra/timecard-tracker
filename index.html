@@ -9549,6 +9549,12 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                         
                         // Perform initial sync
                         syncNow().catch(err => console.error('Initial sync failed:', err));
+                    } else {
+                        // On normal page load, restore from active MSAL session (if present)
+                        oneDriveAccount = resolveOneDriveAccountFromSession();
+                        syncStatus = oneDriveAccount ? 'synced' : 'disconnected';
+                        saveSyncSettings();
+                        updateSyncUI();
                     }
                 }).catch(error => {
                     console.error('Redirect handling error:', error);
@@ -9563,6 +9569,38 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         }
 
         /**
+         * Resolve active OneDrive account from MSAL cache/session
+         */
+        function resolveOneDriveAccountFromSession() {
+            if (!msalInstance || typeof msalInstance.getAllAccounts !== 'function') {
+                return null;
+            }
+
+            const accounts = msalInstance.getAllAccounts() || [];
+            if (accounts.length === 0) {
+                return null;
+            }
+
+            // If we stored a preferred account, restore that one when available.
+            const savedSettings = localStorage.getItem(SYNC_SETTINGS_KEY);
+            if (savedSettings) {
+                try {
+                    const parsed = JSON.parse(savedSettings);
+                    if (parsed.accountHomeId) {
+                        const matched = accounts.find(acc => acc.homeAccountId === parsed.accountHomeId);
+                        if (matched) {
+                            return matched;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error restoring saved account:', e);
+                }
+            }
+
+            return accounts[0];
+        }
+
+        /**
          * Load sync settings from localStorage
          */
         function loadSyncSettings() {
@@ -9572,14 +9610,14 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                     const parsed = JSON.parse(settings);
                     autoSyncEnabled = parsed.autoSync !== undefined ? parsed.autoSync : true; // Default to true if not set
                     lastSyncTime = parsed.lastSync ? new Date(parsed.lastSync) : null;
-                    if (parsed.account) {
-                        oneDriveAccount = parsed.account;
-                        syncStatus = 'synced';
-                    }
                 } catch (e) {
                     console.error('Error loading sync settings:', e);
                 }
             }
+
+            // Always trust current MSAL session over stale local settings.
+            oneDriveAccount = resolveOneDriveAccountFromSession();
+            syncStatus = oneDriveAccount ? 'synced' : 'disconnected';
         }
 
         /**
@@ -9589,7 +9627,8 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             const settings = {
                 autoSync: autoSyncEnabled,
                 lastSync: lastSyncTime ? lastSyncTime.toISOString() : null,
-                account: oneDriveAccount
+                accountHomeId: oneDriveAccount ? oneDriveAccount.homeAccountId : null,
+                accountUsername: oneDriveAccount ? oneDriveAccount.username : null
             };
             localStorage.setItem(SYNC_SETTINGS_KEY, JSON.stringify(settings));
         }
@@ -9603,6 +9642,9 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 window.open('https://aka.ms/msal-js-config', '_blank');
                 return;
             }
+
+            // Re-evaluate connection state from actual MSAL session before toggling.
+            oneDriveAccount = resolveOneDriveAccountFromSession();
 
             if (oneDriveAccount) {
                 // Disconnect
@@ -9679,6 +9721,61 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             } catch (error) {
                 console.error('Error disconnecting:', error);
                 showAlert('Error disconnecting: ' + error.message, 'danger');
+            }
+        }
+
+        /**
+         * Update sync button and status indicator
+         */
+        function updateSyncUI(newStatus) {
+            if (newStatus) {
+                syncStatus = newStatus;
+            }
+
+            const syncBtn = document.getElementById('oneDriveSyncBtn');
+            const syncNowBtn = document.getElementById('syncNowBtn');
+            const statusDiv = document.getElementById('syncStatus');
+            const statusText = document.getElementById('syncStatusText');
+
+            if (!syncBtn || !syncNowBtn || !statusDiv || !statusText) {
+                return;
+            }
+
+            const isConnected = !!oneDriveAccount;
+            const accountLabel = isConnected && oneDriveAccount.username ? ` (${oneDriveAccount.username})` : '';
+
+            if (isConnected) {
+                syncBtn.textContent = '☁️ Disconnect OneDrive';
+                syncBtn.className = 'btn btn-secondary';
+                syncNowBtn.style.display = 'inline-block';
+
+                if (syncStatus === 'syncing') {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.background = '#e3f2fd';
+                    statusDiv.style.color = '#1976d2';
+                    statusText.textContent = `🔄 Connecting/Syncing with OneDrive${accountLabel}...`;
+                } else if (syncStatus === 'error') {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.background = '#ffebee';
+                    statusDiv.style.color = '#c62828';
+                    statusText.textContent = `❌ Connected but sync error${accountLabel}. Click Sync Now to retry.`;
+                } else {
+                    statusDiv.style.display = 'block';
+                    statusDiv.style.background = '#e8f5e9';
+                    statusDiv.style.color = '#2e7d32';
+                    const timeStr = lastSyncTime ? ` | Last sync: ${lastSyncTime.toLocaleTimeString()}` : '';
+                    statusText.textContent = `✅ Connected to OneDrive${accountLabel}${timeStr}`;
+                }
+            } else {
+                syncBtn.textContent = '☁️ Connect OneDrive';
+                syncBtn.className = 'btn btn-success';
+                syncNowBtn.style.display = 'none';
+
+                // Keep status visible so connection state is always clear.
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = '#f1f3f5';
+                statusDiv.style.color = '#495057';
+                statusText.textContent = '☁️ Not connected to OneDrive';
             }
         }
 
