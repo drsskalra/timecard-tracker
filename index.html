@@ -1860,6 +1860,7 @@
         const ONEDRIVE_FOLDER_NAME = 'TimecardTracker';
         const ONEDRIVE_DATA_FILE = 'timecard_data.json';
         const SYNC_SETTINGS_KEY = 'timecard_sync_settings';
+        const TIMER_SESSION_KEY = 'timecard_running_timer_session';
         
         // Connection and sync state
         let isOnline = navigator.onLine;
@@ -1897,6 +1898,92 @@
         // Last active task (for quick restart)
         let lastActiveTask = null;
 
+        function persistRunningTimerState() {
+            if (startTime === null) {
+                return;
+            }
+
+            const timerSession = {
+                startTime: startTime,
+                projectNameFilter: document.getElementById('projectNameFilter').value,
+                project: document.getElementById('projectName').value,
+                task: document.getElementById('taskName').value,
+                comment: document.getElementById('comment').value,
+                ownerDeviceId: timerOwnerDeviceId || instanceId,
+                lastUpdate: new Date().toISOString()
+            };
+
+            localStorage.setItem(TIMER_SESSION_KEY, JSON.stringify(timerSession));
+        }
+
+        function clearRunningTimerState() {
+            localStorage.removeItem(TIMER_SESSION_KEY);
+        }
+
+        function restoreRunningTimerState() {
+            if (startTime !== null) {
+                return;
+            }
+
+            const raw = localStorage.getItem(TIMER_SESSION_KEY);
+            if (!raw) {
+                return;
+            }
+
+            try {
+                const session = JSON.parse(raw);
+                if (!session || !session.startTime) {
+                    clearRunningTimerState();
+                    return;
+                }
+
+                const lastUpdateMs = new Date(session.lastUpdate || session.startTime).getTime();
+                if (Number.isFinite(lastUpdateMs)) {
+                    const ageMs = Date.now() - lastUpdateMs;
+                    if (ageMs > 12 * 60 * 60 * 1000) {
+                        clearRunningTimerState();
+                        return;
+                    }
+                }
+
+                startTime = session.startTime;
+                timerOwnerDeviceId = session.ownerDeviceId || instanceId;
+
+                document.getElementById('projectNameFilter').value = session.projectNameFilter || '';
+                document.getElementById('projectName').value = session.project || '';
+                document.getElementById('taskName').value = session.task || '';
+                document.getElementById('comment').value = session.comment || '';
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('projectNameFilter').disabled = true;
+                document.getElementById('projectName').disabled = true;
+                document.getElementById('taskName').disabled = true;
+
+                const startClockTime = formatClockTime(new Date(startTime));
+                document.getElementById('timerStatus').textContent = `Timer restored after device sleep (Started: ${startClockTime})`;
+
+                timerInterval = setInterval(updateTimerDisplay, 1000);
+                if (!weekViewRefreshInterval) {
+                    weekViewRefreshInterval = setInterval(() => {
+                        try { updateWeekView(); } catch (e) { /* ignore */ }
+                    }, 1000);
+                }
+
+                if (timerOwnerDeviceId === instanceId) {
+                    startRealtimeTimerSync();
+                }
+
+                if (miniWindowActive) {
+                    updateMiniWindowInfo();
+                }
+
+                showAlert('Restored running timer after app resume/sleep.', 'info');
+            } catch (e) {
+                console.error('Error restoring running timer state:', e);
+                clearRunningTimerState();
+            }
+        }
+
         // Initialize on page load
         window.onload = async function() {
             // Check for existing instance
@@ -1911,6 +1998,7 @@
             loadHistory();
             await loadDataSecurely(); // Load encrypted data if available
             loadLastTask(); // Load last active task from previous session
+            restoreRunningTimerState(); // Restore running timer if app was suspended
             populateHistoryFromEntries(); // Add history from current entries
             updateSummary();
             updateDropdowns();
@@ -1957,6 +2045,7 @@
             startTime = null;
             manualTimeOffset = 0;
             timerOwnerDeviceId = null;
+            clearRunningTimerState();
             document.getElementById('timerDisplay').textContent = '00:00:00';
             document.getElementById('timerStatus').textContent = 'Ready to start (Click time to edit)';
             document.getElementById('startBtn').disabled = false;
@@ -2935,6 +3024,7 @@
                 // Start real-time sync for timer state
                 timerOwnerDeviceId = instanceId;
                 startRealtimeTimerSync();
+                persistRunningTimerState();
                 
                 // Save as last active task
                 lastActiveTask = {
@@ -3140,6 +3230,7 @@
             // Start real-time sync for timer state (every 5 seconds)
             timerOwnerDeviceId = instanceId;
             startRealtimeTimerSync();
+            persistRunningTimerState();
         }
 
         // Auto-stop timer (called when page closes/refreshes)
@@ -3366,6 +3457,7 @@
             // Stop real-time timer sync
             stopRealtimeTimerSync();
             timerOwnerDeviceId = null;
+            clearRunningTimerState();
         }
 
         // Update timer display
@@ -3392,6 +3484,9 @@
             // Add current session elapsed time
             const elapsed = Math.floor((Date.now() - startTime) / 1000);
             projectTotalSeconds += elapsed;
+
+            // Keep persisted running timer state fresh in case OS suspends the tab.
+            persistRunningTimerState();
             
             // Format the total time
             const hours = Math.floor(projectTotalSeconds / 3600);
@@ -9235,10 +9330,9 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                     saveLastTask();
                 }
                 
-                // If timer is running, stop it and save
+                // If timer is running, persist state for restore instead of stopping.
                 if (startTime !== null) {
-                    // Stop timer and save data
-                    autoStopTimer();
+                    persistRunningTimerState();
                 }
                 // Don't show warning - just save and close
             });
