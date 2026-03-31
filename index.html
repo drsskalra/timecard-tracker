@@ -1871,7 +1871,9 @@
         let autoSyncEnabled = true; // Enable auto-sync by default
         let lastSyncTime = null;
         let syncStatus = 'disconnected'; // disconnected, syncing, synced, error
+        let timerOwnerDeviceId = null; // device currently owning the active timer state
         let realtimeSyncInterval = null; // Interval for real-time timer sync
+        let remoteTimerMirrorInterval = null; // Interval for polling remote timer state
         let lastRemoteTimerCheck = null; // Last time we checked for remote timer
         let projectNameHistory = new Set();
         let projectHistory = new Set();
@@ -1937,15 +1939,144 @@
             }
         }
 
+        function clearMirroredRemoteTimerUI() {
+            if (startTime === null || timerOwnerDeviceId === instanceId) {
+                return;
+            }
+
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+
+            if (weekViewRefreshInterval) {
+                clearInterval(weekViewRefreshInterval);
+                weekViewRefreshInterval = null;
+            }
+
+            startTime = null;
+            manualTimeOffset = 0;
+            timerOwnerDeviceId = null;
+            document.getElementById('timerDisplay').textContent = '00:00:00';
+            document.getElementById('timerStatus').textContent = 'Ready to start (Click time to edit)';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('projectNameFilter').disabled = false;
+            document.getElementById('projectName').disabled = false;
+            document.getElementById('taskName').disabled = false;
+            document.getElementById('comment').disabled = false;
+
+            if (miniWindowActive) {
+                updateMiniWindowInfo();
+            }
+        }
+
+        async function mirrorRemoteTimerState() {
+            if (!oneDriveAccount || !autoSyncEnabled || !isOnline || syncInProgress) {
+                return;
+            }
+
+            // If this device owns the timer, no need to mirror another device.
+            if (startTime && timerOwnerDeviceId === instanceId) {
+                return;
+            }
+
+            try {
+                const token = await getAccessToken();
+                const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+                const response = await fetch(downloadUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    return;
+                }
+
+                const cloudData = await response.json();
+                const remoteTimer = cloudData.timerState;
+
+                if (!remoteTimer || !remoteTimer.isRunning || !remoteTimer.startTime) {
+                    clearMirroredRemoteTimerUI();
+                    return;
+                }
+
+                const remoteDeviceId = remoteTimer.deviceId || 'unknown';
+                if (remoteDeviceId === instanceId) {
+                    return;
+                }
+
+                const remoteUpdateTime = new Date(remoteTimer.lastUpdate || remoteTimer.startTime);
+                const timeSinceUpdate = Date.now() - remoteUpdateTime.getTime();
+                if (timeSinceUpdate > 300000) {
+                    clearMirroredRemoteTimerUI();
+                    return;
+                }
+
+                // Adopt remote timer view without taking ownership.
+                startTime = remoteTimer.startTime;
+                timerOwnerDeviceId = remoteDeviceId;
+                document.getElementById('projectNameFilter').value = remoteTimer.projectNameFilter || '';
+                document.getElementById('projectName').value = remoteTimer.project || '';
+                document.getElementById('taskName').value = remoteTimer.task || '';
+                document.getElementById('comment').value = remoteTimer.comment || '';
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('projectNameFilter').disabled = true;
+                document.getElementById('projectName').disabled = true;
+                document.getElementById('taskName').disabled = true;
+
+                const startClockTime = formatClockTime(new Date(startTime));
+                document.getElementById('timerStatus').textContent = `Live timer from another device: ${remoteTimer.projectNameFilter || ''} - ${remoteTimer.project || ''} - ${remoteTimer.task || ''} (Started: ${startClockTime})`;
+
+                if (!timerInterval) {
+                    timerInterval = setInterval(updateTimerDisplay, 1000);
+                }
+
+                if (!weekViewRefreshInterval) {
+                    weekViewRefreshInterval = setInterval(() => {
+                        try { updateWeekView(); } catch (e) { /* ignore */ }
+                    }, 1000);
+                }
+
+                if (miniWindowActive) {
+                    updateMiniWindowInfo();
+                }
+            } catch (error) {
+                console.error('Error mirroring remote timer state:', error);
+            }
+        }
+
+        function startRemoteTimerMirror() {
+            if (remoteTimerMirrorInterval || !oneDriveAccount || !autoSyncEnabled) {
+                return;
+            }
+
+            mirrorRemoteTimerState().catch(() => {});
+            remoteTimerMirrorInterval = setInterval(() => {
+                mirrorRemoteTimerState().catch(() => {});
+            }, 5000);
+        }
+
+        function stopRemoteTimerMirror() {
+            if (remoteTimerMirrorInterval) {
+                clearInterval(remoteTimerMirrorInterval);
+                remoteTimerMirrorInterval = null;
+            }
+        }
+
         // Check cloud changes when window gains focus.
         window.addEventListener('focus', async function() {
             await refreshFromCloudOnReturn('focus');
+            await mirrorRemoteTimerState();
         });
 
         // Mobile browsers often resume from background without a focus event.
         document.addEventListener('visibilitychange', async function() {
             if (document.visibilityState === 'visible') {
                 await refreshFromCloudOnReturn('visibilitychange');
+                await mirrorRemoteTimerState();
             }
         });
 
@@ -2802,6 +2933,7 @@
                 }
                 
                 // Start real-time sync for timer state
+                timerOwnerDeviceId = instanceId;
                 startRealtimeTimerSync();
                 
                 // Save as last active task
@@ -3006,6 +3138,7 @@
             }
             
             // Start real-time sync for timer state (every 5 seconds)
+            timerOwnerDeviceId = instanceId;
             startRealtimeTimerSync();
         }
 
@@ -3095,10 +3228,23 @@
         }
 
         // Stop timer
-        function stopTimer() {
+        async function stopTimer() {
             if (!startTime) {
                 showAlert('Timer was not started!', 'error');
                 return;
+            }
+
+            // If timer is mirrored from another device, claim ownership first.
+            if (timerOwnerDeviceId && timerOwnerDeviceId !== instanceId) {
+                await switchTimerToThisDevice({
+                    startTime: startTime,
+                    projectNameFilter: document.getElementById('projectNameFilter').value,
+                    project: document.getElementById('projectName').value,
+                    task: document.getElementById('taskName').value,
+                    comment: document.getElementById('comment').value,
+                    deviceId: timerOwnerDeviceId,
+                    lastUpdate: new Date().toISOString()
+                });
             }
 
             clearInterval(timerInterval);
@@ -3219,6 +3365,7 @@
             
             // Stop real-time timer sync
             stopRealtimeTimerSync();
+            timerOwnerDeviceId = null;
         }
 
         // Update timer display
@@ -9684,6 +9831,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                     syncStatus = 'synced';
                     saveSyncSettings();
                     updateSyncUI();
+                    startRemoteTimerMirror();
                     
                     showAlert('Successfully connected to OneDrive!', 'success');
                     
@@ -9713,6 +9861,9 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 autoSyncEnabled = false;
                 lastSyncTime = null;
                 syncStatus = 'disconnected';
+                timerOwnerDeviceId = null;
+                stopRemoteTimerMirror();
+                clearMirroredRemoteTimerUI();
                 
                 saveSyncSettings();
                 updateSyncUI();
@@ -9745,6 +9896,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             const accountLabel = isConnected && oneDriveAccount.username ? ` (${oneDriveAccount.username})` : '';
 
             if (isConnected) {
+                startRemoteTimerMirror();
                 syncBtn.textContent = '☁️ Disconnect OneDrive';
                 syncBtn.className = 'btn btn-secondary';
                 syncNowBtn.style.display = 'inline-block';
@@ -9767,6 +9919,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                     statusText.textContent = `✅ Connected to OneDrive${accountLabel}${timeStr}`;
                 }
             } else {
+                stopRemoteTimerMirror();
                 syncBtn.textContent = '☁️ Connect OneDrive';
                 syncBtn.className = 'btn btn-success';
                 syncNowBtn.style.display = 'none';
@@ -9914,6 +10067,11 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 console.log('Real-time sync: Auto-sync disabled, skipping sync');
                 return;
             }
+
+            if (timerOwnerDeviceId && timerOwnerDeviceId !== instanceId) {
+                console.log('Real-time sync: This device is mirroring remote timer, not owner');
+                return;
+            }
             
             console.log('✅ Starting real-time timer sync (every 5 seconds)...');
             
@@ -9947,6 +10105,12 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
             
             if (!startTime) {
                 console.log('⚠️ Real-time sync skipped: Timer not running');
+                return;
+            }
+
+            if (timerOwnerDeviceId && timerOwnerDeviceId !== instanceId) {
+                console.log('⚠️ Real-time sync skipped: Timer is owned by another device');
+                stopRealtimeTimerSync();
                 return;
             }
             
@@ -10378,7 +10542,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
 
                 // Prepare timer state for sync
                 let timerState = null;
-                if (startTime !== null) {
+                if (startTime !== null && (!timerOwnerDeviceId || timerOwnerDeviceId === instanceId)) {
                     timerState = {
                         isRunning: true,
                         startTime: startTime,
