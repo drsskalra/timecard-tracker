@@ -1875,6 +1875,8 @@
         let timerOwnerDeviceId = null; // device currently owning the active timer state
         let realtimeSyncInterval = null; // Interval for real-time timer sync
         let remoteTimerMirrorInterval = null; // Interval for polling remote timer state
+        let activeTimerNotificationInterval = null; // Interval for lock-screen active timer notifications
+        let lastActiveTimerNotificationMinute = -1;
         let lastRemoteTimerCheck = null; // Last time we checked for remote timer
         let projectNameHistory = new Set();
         let projectHistory = new Set();
@@ -2046,6 +2048,7 @@
             manualTimeOffset = 0;
             timerOwnerDeviceId = null;
             clearRunningTimerState();
+            stopActiveTimerNotifications();
             document.getElementById('timerDisplay').textContent = '00:00:00';
             document.getElementById('timerStatus').textContent = 'Ready to start (Click time to edit)';
             document.getElementById('startBtn').disabled = false;
@@ -2123,6 +2126,8 @@
                     timerInterval = setInterval(updateTimerDisplay, 1000);
                 }
 
+                startActiveTimerNotifications();
+
                 if (!weekViewRefreshInterval) {
                     weekViewRefreshInterval = setInterval(() => {
                         try { updateWeekView(); } catch (e) { /* ignore */ }
@@ -2166,6 +2171,9 @@
             if (document.visibilityState === 'visible') {
                 await refreshFromCloudOnReturn('visibilitychange');
                 await mirrorRemoteTimerState();
+            } else {
+                // Attempt lock-screen notification update when app goes hidden.
+                showActiveTimerNotification(true).catch(() => {});
             }
         });
 
@@ -2314,6 +2322,103 @@
                             reminderDiv.remove();
                         }
                     }, 30000);
+                }
+            }
+        }
+
+        function getActiveTimerNotificationPayload() {
+            if (startTime === null) {
+                return null;
+            }
+
+            const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+            const elapsed = formatSecondsToHHMMSS(elapsedSeconds);
+            const projectNameFilter = document.getElementById('projectNameFilter').value.trim() || 'Unknown Project';
+            const task = document.getElementById('taskName').value.trim() || 'Unknown Task';
+            const ownerLabel = (timerOwnerDeviceId && timerOwnerDeviceId !== instanceId)
+                ? ' (mirrored from another device)'
+                : '';
+
+            return {
+                title: 'Time Card Tracker - Timer Active',
+                body: `${projectNameFilter} - ${task}\nElapsed: ${elapsed}${ownerLabel}`,
+                elapsedMinutes: Math.floor(elapsedSeconds / 60)
+            };
+        }
+
+        async function showActiveTimerNotification(force) {
+            if (startTime === null || document.visibilityState !== 'hidden') {
+                return;
+            }
+
+            if (!('Notification' in window) || Notification.permission !== 'granted') {
+                return;
+            }
+
+            const payload = getActiveTimerNotificationPayload();
+            if (!payload) {
+                return;
+            }
+
+            // Avoid excessive notification churn; refresh once per minute unless forced.
+            if (!force && payload.elapsedMinutes === lastActiveTimerNotificationMinute) {
+                return;
+            }
+            lastActiveTimerNotificationMinute = payload.elapsedMinutes;
+
+            const options = {
+                body: payload.body,
+                tag: 'active-timer-status',
+                renotify: false,
+                requireInteraction: true,
+                silent: true,
+                data: {
+                    url: window.location.href
+                }
+            };
+
+            try {
+                if ('serviceWorker' in navigator) {
+                    const registration = await navigator.serviceWorker.ready;
+                    await registration.showNotification(payload.title, options);
+                } else {
+                    const notification = new Notification(payload.title, options);
+                    notification.onclick = function() {
+                        window.focus();
+                        notification.close();
+                    };
+                }
+            } catch (error) {
+                console.error('Error showing active timer notification:', error);
+            }
+        }
+
+        function startActiveTimerNotifications() {
+            if (activeTimerNotificationInterval || startTime === null) {
+                return;
+            }
+
+            showActiveTimerNotification(true).catch(() => {});
+            activeTimerNotificationInterval = setInterval(() => {
+                showActiveTimerNotification(false).catch(() => {});
+            }, 60000);
+        }
+
+        async function stopActiveTimerNotifications() {
+            if (activeTimerNotificationInterval) {
+                clearInterval(activeTimerNotificationInterval);
+                activeTimerNotificationInterval = null;
+            }
+
+            lastActiveTimerNotificationMinute = -1;
+
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const notifications = await registration.getNotifications({ tag: 'active-timer-status' });
+                    notifications.forEach(n => n.close());
+                } catch (error) {
+                    console.error('Error clearing active timer notifications:', error);
                 }
             }
         }
@@ -3024,6 +3129,7 @@
                 // Start real-time sync for timer state
                 timerOwnerDeviceId = instanceId;
                 startRealtimeTimerSync();
+                startActiveTimerNotifications();
                 persistRunningTimerState();
                 
                 // Save as last active task
@@ -3230,6 +3336,7 @@
             // Start real-time sync for timer state (every 5 seconds)
             timerOwnerDeviceId = instanceId;
             startRealtimeTimerSync();
+            startActiveTimerNotifications();
             persistRunningTimerState();
         }
 
@@ -3457,6 +3564,7 @@
             // Stop real-time timer sync
             stopRealtimeTimerSync();
             timerOwnerDeviceId = null;
+            stopActiveTimerNotifications();
             clearRunningTimerState();
         }
 
@@ -9957,6 +10065,7 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 syncStatus = 'disconnected';
                 timerOwnerDeviceId = null;
                 stopRemoteTimerMirror();
+                stopActiveTimerNotifications();
                 clearMirroredRemoteTimerUI();
                 
                 saveSyncSettings();
