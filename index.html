@@ -9737,109 +9737,25 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         /**
          * Sync data to OneDrive
          */
+        /**
+         * Legacy sync function - delegates to enhanced version
+         * Kept for backward compatibility with existing code
+         */
         async function syncToOneDrive() {
-            if (!oneDriveAccount) {
-                throw new Error('Not connected to OneDrive');
-            }
-
-            const token = await getAccessToken();
-            
-            // Prepare timer state for sync
-            let timerState = null;
-            if (startTime !== null) {
-                timerState = {
-                    isRunning: true,
-                    startTime: startTime,
-                    projectNameFilter: document.getElementById('projectNameFilter').value,
-                    project: document.getElementById('projectName').value,
-                    task: document.getElementById('taskName').value,
-                    comment: document.getElementById('comment').value,
-                    deviceId: instanceId || 'unknown',
-                    lastUpdate: new Date().toISOString()
-                };
-            }
-            
-            // Prepare data to sync
-            const syncData = {
-                currentWeek: localStorage.getItem(STORAGE_KEY),
-                allWeeks: localStorage.getItem(ALL_WEEKS_KEY),
-                history: localStorage.getItem(HISTORY_KEY),
-                lastTask: localStorage.getItem(LAST_TASK_KEY),
-                timerState: timerState,
-                timestamp: new Date().toISOString()
-            };
-
-            const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
-            
-            const response = await fetch(uploadUrl, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(syncData)
-            });
-
-            if (!response.ok) {
-                throw new Error(`Upload failed: ${response.statusText}`);
-            }
-
-            lastSyncTime = new Date();
-            saveSyncSettings();
+            return syncToOneDriveEnhanced();
         }
 
         /**
-         * Sync data from OneDrive
+         * Legacy sync function - delegates to enhanced version
+         * Kept for backward compatibility with existing code
          */
         async function syncFromOneDrive() {
-            if (!oneDriveAccount) {
-                throw new Error('Not connected to OneDrive');
-            }
-
-            const token = await getAccessToken();
-            const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
-            
-            try {
-                const response = await fetch(downloadUrl, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (response.status === 404) {
-                    // No cloud data exists yet, upload current data
-                    await syncToOneDrive();
-                    return;
-                }
-
-                if (!response.ok) {
-                    throw new Error(`Download failed: ${response.statusText}`);
-                }
-
-                const cloudData = await response.json();
-                
-                // Check for remote timer state
-                await syncRemoteTimerState(cloudData);
-                
-                // Check timestamps and merge if needed
-                await mergeCloudData(cloudData);
-                
-                lastSyncTime = new Date();
-                saveSyncSettings();
-            } catch (error) {
-                console.error('Error syncing from OneDrive:', error);
-                throw error;
-            }
+            return syncFromOneDriveEnhanced();
         }
 
         /**
-         * Check and sync remote timer state from another device
+         * Sync now - bidirectional sync using enhanced functions
          */
-        async function syncRemoteTimerState(cloudData) {
-            console.log('🔍 Checking for remote timer state...');
-            
-            if (!cloudData.timerState) {
-                console.log('ℹ️ No remote timer state found');
                 return; // No remote timer state
             }
             
@@ -10363,7 +10279,12 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
         /**
          * Update sync UI elements
          */
-        function updateSyncUI() {
+        function updateSyncUI(newStatus) {
+            // Update sync status if provided
+            if (newStatus) {
+                syncStatus = newStatus;
+            }
+            
             const syncBtn = document.getElementById('oneDriveSyncBtn');
             const syncNowBtn = document.getElementById('syncNowBtn');
             const statusDiv = document.getElementById('syncStatus');
@@ -10377,19 +10298,33 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 syncNowBtn.style.display = 'inline-block';
                 statusDiv.style.display = 'block';
 
-                if (syncStatus === 'syncing') {
+                // Use enhanced sync metadata if available
+                const metadata = getSyncMetadata ? getSyncMetadata() : null;
+                let displayStatus = syncStatus;
+                
+                // Determine status based on metadata and connection state
+                if (!isOnline) {
+                    displayStatus = 'offline';
+                }
+
+                if (displayStatus === 'syncing' || displayStatus === 'syncing') {
                     statusDiv.style.background = '#e3f2fd';
                     statusDiv.style.color = '#1976d2';
                     statusText.textContent = '🔄 Syncing with OneDrive...';
-                } else if (syncStatus === 'synced') {
+                } else if (displayStatus === 'synced') {
                     statusDiv.style.background = '#e8f5e9';
                     statusDiv.style.color = '#2e7d32';
                     const timeStr = lastSyncTime ? lastSyncTime.toLocaleTimeString() : 'just now';
                     statusText.textContent = `✅ Synced with OneDrive (${timeStr})`;
-                } else if (syncStatus === 'error') {
+                } else if (displayStatus === 'offline') {
+                    statusDiv.style.background = '#fff3e0';
+                    statusDiv.style.color = '#e65100';
+                    statusText.textContent = '☁️ Offline - Changes saved locally, will sync when online';
+                } else if (displayStatus === 'error') {
                     statusDiv.style.background = '#ffebee';
                     statusDiv.style.color = '#c62828';
-                    statusText.textContent = '❌ Sync error - click Sync Now to retry';
+                    const errorMsg = metadata && metadata.lastError ? metadata.lastError : 'Unknown error';
+                    statusText.textContent = `❌ Sync error: ${errorMsg} - click Sync Now to retry`;
                 }
             } else {
                 syncBtn.textContent = '☁️ Connect OneDrive';
@@ -10398,6 +10333,456 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 statusDiv.style.display = 'none';
             }
         }
+
+        // ==================== ENHANCED LOCAL-FIRST SYNC SYSTEM ====================
+        
+        const SYNC_METADATA_KEY = 'timecard_sync_metadata';
+        
+        /**
+         * Initialize sync metadata for local-first strategy
+         */
+        function initializeSyncMetadata() {
+            let metadata = getSyncMetadata();
+            if (!metadata) {
+                metadata = {
+                    lastSyncTime: null,
+                    localVersion: null,
+                    cloudVersion: null,
+                    dataHash: null,
+                    allWeeksHash: null,
+                    historyHash: null,
+                    syncStatus: 'offline',
+                    lastError: null,
+                    pendingSyncCount: 0,
+                    deviceId: instanceId || 'unknown'
+                };
+                saveSyncMetadata(metadata);
+            }
+            return metadata;
+        }
+
+        /**
+         * Get current sync metadata
+         */
+        function getSyncMetadata() {
+            try {
+                const meta = localStorage.getItem(SYNC_METADATA_KEY);
+                return meta ? JSON.parse(meta) : null;
+            } catch (e) {
+                console.error('Error reading sync metadata:', e);
+                return null;
+            }
+        }
+
+        /**
+         * Save sync metadata
+         */
+        function saveSyncMetadata(metadata) {
+            try {
+                localStorage.setItem(SYNC_METADATA_KEY, JSON.stringify(metadata));
+            } catch (e) {
+                console.error('Error saving sync metadata:', e);
+            }
+        }
+
+        /**
+         * Calculate SHA-256 hash of data
+         */
+        async function calculateHash(data) {
+            if (!data) return null;
+            const encoder = new TextEncoder();
+            const dataBuffer = encoder.encode(typeof data === 'string' ? data : JSON.stringify(data));
+            const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        /**
+         * Generate version string with timestamp
+         */
+        function generateVersion() {
+            const now = new Date();
+            const date = now.toISOString().replace(/[:-]/g, '').substring(0, 15);
+            return `v1.${date}`;
+        }
+
+        /**
+         * Compare versions to determine which is newer
+         */
+        function compareVersions(v1, v2) {
+            if (!v1 && !v2) return 0; // Equal
+            if (!v1) return -1;       // v2 is newer
+            if (!v2) return 1;        // v1 is newer
+            
+            const time1 = parseInt(v1.replace(/[^0-9]/g, '') || '0');
+            const time2 = parseInt(v2.replace(/[^0-9]/g, '') || '0');
+            
+            if (time1 > time2) return 1;
+            if (time1 < time2) return -1;
+            return 0;
+        }
+
+        /**
+         * Update sync metadata after local change
+         */
+        async function updateSyncMetadataOnChange() {
+            const metadata = getSyncMetadata() || initializeSyncMetadata();
+            const currentWeekData = localStorage.getItem(STORAGE_KEY);
+            const allWeeksData = localStorage.getItem(ALL_WEEKS_KEY);
+            const historyData = localStorage.getItem(HISTORY_KEY);
+
+            metadata.localVersion = generateVersion();
+            metadata.dataHash = await calculateHash(currentWeekData);
+            metadata.allWeeksHash = await calculateHash(allWeeksData);
+            metadata.historyHash = await calculateHash(historyData);
+            metadata.syncStatus = isOnline ? 'syncing' : 'offline';
+
+            saveSyncMetadata(metadata);
+            updateSyncUI();
+        }
+
+        /**
+         * Get pending changes for sync
+         */
+        async function getPendingChanges() {
+            const currentMetadata = getSyncMetadata() || initializeSyncMetadata();
+            const cloudDataStr = localStorage.getItem('timecard_cloud_data'); // Store cloud copy
+            let cloudMetadata = {};
+            
+            if (cloudDataStr) {
+                try {
+                    const cloudData = JSON.parse(cloudDataStr);
+                    cloudMetadata = cloudData.metadata || {};
+                } catch (e) {
+                    console.log('No previous cloud data found');
+                }
+            }
+
+            return {
+                hasLocalChanges: currentMetadata.localVersion !== cloudMetadata.cloudVersion,
+                localNewer: compareVersions(currentMetadata.localVersion, cloudMetadata.cloudVersion) > 0,
+                localVersion: currentMetadata.localVersion,
+                cloudVersion: cloudMetadata.cloudVersion
+            };
+        }
+
+        /**
+         * Intelligent merge with conflict detection
+         */
+        async function intelligentMergeV2(localData, cloudData) {
+            console.log('🔄 Performing intelligent merge with conflict detection...');
+
+            const merged = {
+                currentWeek: localData.currentWeek,
+                allWeeks: {},
+                history: {},
+                lastTask: localData.lastTask,
+                timerState: localData.timerState,
+                timestamp: new Date().toISOString()
+            };
+
+            // Merge current week - keep the one with newer timestamp
+            if (localData.currentWeek && cloudData.currentWeek) {
+                try {
+                    const localWeek = JSON.parse(localData.currentWeek);
+                    const cloudWeek = JSON.parse(cloudData.currentWeek);
+                    const localTime = localWeek.timestamp ? new Date(localWeek.timestamp) : new Date(0);
+                    const cloudTime = cloudWeek.timestamp ? new Date(cloudWeek.timestamp) : new Date(0);
+
+                    if (cloudTime > localTime) {
+                        console.log('📥 Cloud has newer current week, using cloud version');
+                        merged.currentWeek = cloudData.currentWeek;
+                    } else {
+                        console.log('📤 Local has newer current week, keeping local version');
+                    }
+                } catch (e) {
+                    console.error('Error comparing current week:', e);
+                }
+            }
+
+            // Merge all weeks - union of both (combine all weeks)
+            try {
+                const localAllWeeks = localData.allWeeks ? JSON.parse(localData.allWeeks) : {};
+                const cloudAllWeeks = cloudData.allWeeks ? JSON.parse(cloudData.allWeeks) : {};
+
+                // Merge all weeks, keeping entries from both
+                for (const week in localAllWeeks) {
+                    merged.allWeeks[week] = localAllWeeks[week];
+                }
+                for (const week in cloudAllWeeks) {
+                    if (!merged.allWeeks[week]) {
+                        merged.allWeeks[week] = cloudAllWeeks[week];
+                    } else {
+                        // If week exists in both, try to intelligently merge entries
+                        try {
+                            const localEntries = JSON.parse(localAllWeeks[week] || '{}').entries || [];
+                            const cloudEntries = JSON.parse(cloudAllWeeks[week] || '{}').entries || [];
+                            
+                            // Create a map of entries by timestamp to avoid duplicates
+                            const entryMap = new Map();
+                            localEntries.forEach(e => {
+                                const key = `${e.date}-${e.project}-${e.task}`;
+                                entryMap.set(key, e);
+                            });
+                            cloudEntries.forEach(e => {
+                                const key = `${e.date}-${e.project}-${e.task}`;
+                                if (!entryMap.has(key)) {
+                                    entryMap.set(key, e);
+                                }
+                            });
+
+                            const mergedEntries = Array.from(entryMap.values());
+                            const weekData = JSON.parse(localAllWeeks[week] || '{}');
+                            weekData.entries = mergedEntries;
+                            merged.allWeeks[week] = JSON.stringify(weekData);
+                        } catch (e) {
+                            console.log('Using local week version due to merge error:', e);
+                        }
+                    }
+                }
+
+                const localWeekCount = Object.keys(localAllWeeks).length;
+                const cloudWeekCount = Object.keys(cloudAllWeeks).length;
+                const finalWeekCount = Object.keys(merged.allWeeks).length;
+                console.log(`📊 Merged weeks: Local(${localWeekCount}) + Cloud(${cloudWeekCount}) = Total(${finalWeekCount})`);
+            } catch (e) {
+                console.error('Error merging all weeks:', e);
+                merged.allWeeks = localData.allWeeks;
+            }
+
+            // Merge history - union of both
+            try {
+                const localHistory = localData.history ? JSON.parse(localData.history) : {};
+                const cloudHistory = cloudData.history ? JSON.parse(cloudData.history) : {};
+
+                // Combine histories
+                merged.history = { ...cloudHistory, ...localHistory };
+                console.log(`📚 Merged history items: ${Object.keys(merged.history).length} total`);
+            } catch (e) {
+                console.error('Error merging history:', e);
+                merged.history = localData.history;
+            }
+
+            return merged;
+        }
+
+        /**
+         * Enhanced sync from OneDrive with local-first approach
+         */
+        async function syncFromOneDriveEnhanced() {
+            if (!oneDriveAccount) {
+                showAlert('Not connected to OneDrive', 'warning');
+                return;
+            }
+
+            try {
+                updateSyncUI('syncing');
+                
+                const token = await getAccessToken();
+                const downloadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+                
+                const response = await fetch(downloadUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.status === 404) {
+                    console.log('No cloud data exists, uploading current local data...');
+                    await syncToOneDriveEnhanced();
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`Download failed: ${response.statusText}`);
+                }
+
+                const cloudData = await response.json();
+                const pending = await getPendingChanges();
+
+                console.log(`📊 Checking versions: Local=${pending.localVersion}, Cloud=${cloudData.timestamp}`);
+
+                // Get local data
+                const localData = {
+                    currentWeek: localStorage.getItem(STORAGE_KEY),
+                    allWeeks: localStorage.getItem(ALL_WEEKS_KEY),
+                    history: localStorage.getItem(HISTORY_KEY),
+                    lastTask: localStorage.getItem(LAST_TASK_KEY),
+                    timerState: null
+                };
+
+                // Perform intelligent merge
+                const merged = await intelligentMergeV2(localData, cloudData);
+
+                // Apply merged data to local storage
+                applyCloudData(merged);
+
+                // Store cloud copy for next comparison
+                localStorage.setItem('timecard_cloud_data', JSON.stringify(cloudData));
+
+                // Update metadata
+                const metadata = getSyncMetadata() || initializeSyncMetadata();
+                metadata.lastSyncTime = new Date().toISOString();
+                metadata.cloudVersion = generateVersion();
+                metadata.syncStatus = 'synced';
+                metadata.lastError = null;
+                saveSyncMetadata(metadata);
+
+                updateSyncUI('synced');
+                showAlert('Sync completed successfully! All data merged and synchronized.', 'success');
+                lastSyncTime = new Date();
+                saveSyncSettings();
+
+            } catch (error) {
+                console.error('Error syncing from OneDrive:', error);
+                const metadata = getSyncMetadata() || initializeSyncMetadata();
+                metadata.syncStatus = 'error';
+                metadata.lastError = error.message;
+                saveSyncMetadata(metadata);
+                updateSyncUI('error');
+                showAlert('Sync error: ' + error.message, 'danger');
+                throw error;
+            }
+        }
+
+        /**
+         * Enhanced sync to OneDrive with local-first approach
+         */
+        async function syncToOneDriveEnhanced() {
+            if (!oneDriveAccount) {
+                throw new Error('Not connected to OneDrive');
+            }
+
+            try {
+                updateSyncUI('syncing');
+                await updateSyncMetadataOnChange();
+                
+                const token = await getAccessToken();
+                const pending = await getPendingChanges();
+
+                // Only upload if we have local changes
+                if (!pending.hasLocalChanges && localStorage.getItem('timecard_cloud_data')) {
+                    console.log('✅ Data already in sync with cloud, skipping upload');
+                    updateSyncUI('synced');
+                    return;
+                }
+
+                // Prepare timer state for sync
+                let timerState = null;
+                if (startTime !== null) {
+                    timerState = {
+                        isRunning: true,
+                        startTime: startTime,
+                        projectNameFilter: document.getElementById('projectNameFilter').value,
+                        project: document.getElementById('projectName').value,
+                        task: document.getElementById('taskName').value,
+                        comment: document.getElementById('comment').value,
+                        deviceId: instanceId || 'unknown',
+                        lastUpdate: new Date().toISOString()
+                    };
+                }
+
+                // Prepare data to sync
+                const syncData = {
+                    currentWeek: localStorage.getItem(STORAGE_KEY),
+                    allWeeks: localStorage.getItem(ALL_WEEKS_KEY),
+                    history: localStorage.getItem(HISTORY_KEY),
+                    lastTask: localStorage.getItem(LAST_TASK_KEY),
+                    timerState: timerState,
+                    timestamp: new Date().toISOString(),
+                    metadata: {
+                        fileVersion: '1.0',
+                        appVersion: '1.2.3',
+                        cloudVersion: generateVersion(),
+                        syncedDevices: [
+                            {
+                                deviceId: instanceId || 'unknown',
+                                lastSync: new Date().toISOString()
+                            }
+                        ]
+                    }
+                };
+
+                const uploadUrl = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${ONEDRIVE_DATA_FILE}:/content`;
+                
+                const response = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(syncData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.statusText}`);
+                }
+
+                // Store copy of cloud data locally for comparison
+                localStorage.setItem('timecard_cloud_data', JSON.stringify(syncData));
+
+                // Update metadata
+                const metadata = getSyncMetadata() || initializeSyncMetadata();
+                metadata.lastSyncTime = new Date().toISOString();
+                metadata.cloudVersion = syncData.metadata.cloudVersion;
+                metadata.syncStatus = 'synced';
+                metadata.lastError = null;
+                saveSyncMetadata(metadata);
+
+                lastSyncTime = new Date();
+                saveSyncSettings();
+                updateSyncUI('synced');
+                
+                console.log('✅ Data successfully uploaded to OneDrive');
+                showAlert('Data synced to OneDrive successfully!', 'success');
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                const metadata = getSyncMetadata() || initializeSyncMetadata();
+                metadata.syncStatus = 'error';
+                metadata.lastError = error.message;
+                saveSyncMetadata(metadata);
+                updateSyncUI('error');
+                showAlert('Failed to sync to OneDrive: ' + error.message, 'danger');
+                throw error;
+            }
+        }
+
+        /**
+         * Get sync status for display
+         */
+        function getSyncStatus() {
+            const metadata = getSyncMetadata() || initializeSyncMetadata();
+            return {
+                status: metadata.syncStatus,
+                lastSync: metadata.lastSyncTime,
+                lastError: metadata.lastError,
+                isConnected: !!oneDriveAccount,
+                isOnline: isOnline,
+                version: metadata.localVersion
+            };
+        }
+
+        /**
+         * Export sync diagnostics for debugging
+         */
+        function getSyncDiagnostics() {
+            const metadata = getSyncMetadata();
+            const status = getSyncStatus();
+            return {
+                timestamp: new Date().toISOString(),
+                ...status,
+                localDataSize: {
+                    currentWeek: (localStorage.getItem(STORAGE_KEY) || '').length,
+                    allWeeks: (localStorage.getItem(ALL_WEEKS_KEY) || '').length,
+                    history: (localStorage.getItem(HISTORY_KEY) || '').length
+                },
+                metadata: metadata,
+                hasCloudCopy: !!localStorage.getItem('timecard_cloud_data')
+            };
+        }
+
+        // ==================== END ENHANCED LOCAL-FIRST SYNC ====================
 
         /**
          * Override saveData to include auto-sync
@@ -10408,9 +10793,18 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
                 originalSaveDataForSync.call(this);
             }
             
+            // Update sync metadata on every save (local-first approach)
+            await updateSyncMetadataOnChange();
+            
             // Auto-sync after save if enabled
-            if (autoSyncEnabled) {
-                setTimeout(autoSync, 1000); // Debounce auto-sync
+            if (autoSyncEnabled && isOnline) {
+                setTimeout(async () => {
+                    try {
+                        await syncToOneDriveEnhanced();
+                    } catch (e) {
+                        console.log('Auto-sync skipped:', e.message);
+                    }
+                }, 1000); // Debounce auto-sync
             }
         };
 
@@ -10419,12 +10813,13 @@ Type "DELETE ALL" (in capital letters) to confirm:`;
          */
         window.addEventListener('load', function() {
             initializeMSAL();
+            initializeSyncMetadata(); // Initialize sync tracking
             
             // Auto-sync from OneDrive on page load if connected
             setTimeout(async () => {
-                if (oneDriveAccount && autoSyncEnabled) {
+                if (oneDriveAccount && autoSyncEnabled && isOnline) {
                     try {
-                        await syncFromOneDrive();
+                        await syncFromOneDriveEnhanced();
                         console.log('Auto-synced from OneDrive on page load');
                     } catch (error) {
                         console.log('Auto-sync on load skipped:', error.message);
