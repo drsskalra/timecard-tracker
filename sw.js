@@ -1,5 +1,5 @@
 /* sw.js - offline support for Time Card Tracker. Place in the repo root next to index.html. */
-const CACHE = 'timecard-v3';
+const CACHE = 'timecard-v5';
 const SHELL = [
   './', './index.html', './manifest.json',
   './icon-192.svg', './icon-256.svg', './icon-512.svg',
@@ -8,7 +8,6 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (e) => {
-  // allSettled: a missing icon must not break installation
   e.waitUntil(caches.open(CACHE).then((c) => Promise.allSettled(SHELL.map((u) => c.add(u)))));
   self.skipWaiting();
 });
@@ -23,7 +22,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  // Never cache Microsoft sign-in or Graph (OneDrive sync) traffic
+  // Never touch Microsoft sign-in or Graph (OneDrive) traffic
   if (/login\.microsoftonline\.com|login\.live\.com|graph\.microsoft\.com/.test(url.host)) return;
 
   // Page: network first (so updates appear), cached copy when offline
@@ -45,13 +44,10 @@ self.addEventListener('fetch', (e) => {
   })));
 });
 
-// Tapping the "timer running" notification brings the app back
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
     for (const c of list) { if ('focus' in c) return c.focus(); }
-    return self.clients.openWindow((e.notification.data && e.notification.data.url) || './');
+    return self.clients.openWindow('./');
   }));
 });
-
-self.addEventListener('message', (e) => { if (e.data === 'skipWaiting') self.skipWaiting(); });
